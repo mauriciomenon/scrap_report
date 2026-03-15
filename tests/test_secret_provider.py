@@ -66,3 +66,31 @@ def test_windows_provider_presence_only(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert provider.get_secret("svc", "user1") == "secret123"
+
+
+def test_windows_provider_fallback_to_pwsh(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    called: dict[str, str] = {}
+
+    def fake_which(name: str) -> str | None:
+        if name == "powershell":
+            return None
+        if name == "pwsh":
+            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+        return None
+
+    def fake_run(args, **_kwargs):
+        called["exe"] = args[0]
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert provider.test_backend() is True
+    assert called["exe"] == "pwsh"
+
+
+def test_windows_provider_without_shell(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    monkeypatch.setattr("shutil.which", lambda _name: None)
+    with pytest.raises(SecretBackendUnavailableError):
+        provider.test_backend()

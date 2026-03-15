@@ -952,3 +952,38 @@
     - execucao Debian13 real dedicada
   - risco residual:
     - medio (gate cross-platform real ainda nao fechado)
+
+## Slice 34 - fix de smoke W11 + shell Windows com fallback correto
+- alvo: eliminar falso positivo no smoke W11 e tornar backend de segredo robusto em hosts com `pwsh`/`powershell`
+- arquivos alterados:
+  - scripts/smoke_windows11.ps1
+  - src/scrap_report/secret_provider.py
+  - tests/test_secret_provider.py
+  - PRE_RELEASE_STATUS.md
+  - ROUND_STATUS.md
+  - HANDOFF.md
+  - CONVERSA_MIGRACAO_STATUS.md
+- implementacao:
+  - `smoke_windows11.ps1` atualizado para fail-fast por etapa (checa exit code)
+  - `smoke_windows11.ps1` atualizado para `py_compile` com lista explicita de arquivos em PowerShell
+  - pre-check explicito do modulo `CredentialManager` antes do fluxo
+  - `WindowsCredentialManagerSecretProvider` atualizado para resolver shell com fallback
+  - ajuste de prioridade confirmado: `pwsh` primeiro, `powershell` como fallback
+  - testes adicionados para fallback `pwsh` e erro quando nenhum shell existe
+- validacao:
+  - `uv run --project . python -m py_compile <lista explicita>`: ok
+  - `uv run --project . ruff check .`: ok
+  - `uv run --project . ty check`: ok
+  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 41 passed
+  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py`: 9 passed
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1`: ok
+  - evidencia gerada: `staging/smoke_evidence_windows11.json`
+- feito x pendente x risco residual:
+  - feito:
+    - rodada W11 local executada com evidencia consolidada
+    - falso `ok` em caso de erro de etapa removido do smoke W11
+    - backend Windows compatibilizado para ambientes com `pwsh` como shell principal
+  - pendente:
+    - execucao dedicada em host Debian13 real
+  - risco residual:
+    - medio (gate cross-platform final ainda depende da rodada Debian13 real)

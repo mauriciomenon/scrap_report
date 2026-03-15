@@ -272,3 +272,20 @@
   - kluster MCP: retorno parcial (um lote clean, outro com timeout 120s)
 - risco residual:
   - medio (falta evidencia real W11/Debian13 para fechar gate cross-platform)
+
+## Slice 34 - fix do smoke W11 e ajuste de prioridade de shell
+- executado:
+  - `scripts/smoke_windows11.ps1` corrigido para fail-fast por etapa e `py_compile` sem wildcard literal
+  - check explicito de `CredentialManager` adicionado no inicio do script
+  - provider Windows atualizado para usar `pwsh` primeiro e `powershell` como fallback
+  - testes de regressao do provider adicionados para fallback e ausencia de shell
+- validacao:
+  - py_compile: ok
+  - ruff: ok
+  - ty: ok
+  - pytest focado do slice: 41 passed
+  - pytest provider: 9 passed
+  - smoke W11: ok
+  - evidencia gerada: `staging/smoke_evidence_windows11.json`
+- risco residual:
+  - medio (pendente somente rodada dedicada em Debian13 real para fechar gate cross-platform)

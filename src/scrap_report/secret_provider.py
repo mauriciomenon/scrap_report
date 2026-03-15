@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 
@@ -103,11 +104,18 @@ class MacOSKeychainSecretProvider(SecretProvider):
 class WindowsCredentialManagerSecretProvider(SecretProvider):
     """Windows credential backend using PowerShell CredentialManager module."""
 
+    def _resolve_powershell_executable(self) -> str:
+        for executable in ("pwsh", "powershell"):
+            if shutil.which(executable):
+                return executable
+        raise SecretBackendUnavailableError("backend windows credential indisponivel")
+
     def _run_ps(self, script: str) -> subprocess.CompletedProcess[str]:
+        executable = self._resolve_powershell_executable()
         try:
             return subprocess.run(  # noqa: S603
                 [
-                    "powershell",
+                    executable,
                     "-NoProfile",
                     "-NonInteractive",
                     "-ExecutionPolicy",

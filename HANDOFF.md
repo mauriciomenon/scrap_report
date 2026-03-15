@@ -331,3 +331,21 @@
     - timeout 120s no lote de pre-release/docs gerais
 - estado:
   - distribuicao via GitHub pronta; falta apenas evidencia real de W11/Debian13
+
+## Slice 34 - fix de smoke W11 e prioridade de shell no Windows
+- implementado:
+  - `scripts/smoke_windows11.ps1` com fail-fast por etapa e check explicito de `CredentialManager`
+  - `scripts/smoke_windows11.ps1` com `py_compile` robusto via lista de arquivos (sem wildcard literal)
+  - `secret_provider.py` com resolucao de shell Windows em ordem `pwsh` -> `powershell`
+  - testes de regressao adicionados em `tests/test_secret_provider.py`
+- validacao:
+  - py_compile: ok
+  - ruff: ok
+  - ty: ok
+  - pytest focado (slice): 41 passed
+  - pytest provider: 9 passed
+  - smoke W11: `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1` -> ok
+  - evidencia: `staging/smoke_evidence_windows11.json` gerado
+- estado:
+  - rodada W11 local concluida com sucesso
+  - pendencia cross-platform remanescente: execucao dedicada em Debian13 real

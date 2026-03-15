@@ -36,21 +36,20 @@
   - `ingest-latest`: ok
 6. scripts de smoke
   - `scripts/smoke_debian13.sh`: executado com sucesso no host local
-  - `scripts/smoke_windows11.ps1`: sintaxe validada via `pwsh` (`powershell_syntax_ok`)
+  - `scripts/smoke_windows11.ps1`: executado com sucesso via `pwsh` no host Windows local
 7. evidencia consolidada por plataforma
   - `staging/smoke_evidence_debian13.json`: gerado
-  - `staging/smoke_evidence_windows11.json`: pendente (host W11 real)
+  - `staging/smoke_evidence_windows11.json`: gerado (host Windows local)
 
 ## Pendencias para fechamento total
-1. Rodar o mesmo roteiro em Windows 11 real e gerar `staging/smoke_evidence_windows11.json`
-2. Rodar o mesmo roteiro em Debian 13 real e gerar `staging/smoke_evidence_debian13.json` no host alvo
-3. Validar E2E real com acesso SAM quando liberado
-4. Repetir kluster quando endpoint estabilizar (timeout recorrente atual)
+1. Rodar o mesmo roteiro em Debian 13 real e gerar `staging/smoke_evidence_debian13.json` no host alvo
+2. Validar E2E real com acesso SAM quando liberado
+3. Repetir kluster quando endpoint estabilizar (timeout recorrente atual)
 
 ## Resultado de prontidao
 - Pronto para:
   - virar subdir de repo pai
   - uso do repo publico para distribuicao/clone
-  - seguir para validacao em W11/Debian13
+  - seguir para validacao final em Debian13 real
 - Ainda NAO pronto para:
   - declaracao final de release sem rodada real cross-platform
