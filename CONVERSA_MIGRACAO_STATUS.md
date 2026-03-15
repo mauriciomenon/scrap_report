@@ -260,3 +260,15 @@
   - kluster CLI: `log` ok, `show latest` erro 500
 - risco residual:
   - medio (coleta real pendente em Debian13 e W11)
+
+## Slice 33 - repo publico + instrucoes do agente Windows
+- executado:
+  - repositorio publico criado com sucesso: `https://github.com/mauriciomenon/scrap_report`
+  - branch principal em uso: `master`
+  - handoff operacional do Windows criado em `WINDOWS_AGENT_INSTRUCTIONS.md`
+- validacao:
+  - `gh auth status`: ok
+  - `gh repo create ... --public --push`: ok
+  - kluster MCP: retorno parcial (um lote clean, outro com timeout 120s)
+- risco residual:
+  - medio (falta evidencia real W11/Debian13 para fechar gate cross-platform)

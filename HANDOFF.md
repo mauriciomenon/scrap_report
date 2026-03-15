@@ -316,3 +316,18 @@
   - fallback CLI: `kluster log` ok, `kluster show latest` erro 500
 - estado:
   - protocolo de coleta remota pronto para uso operacional
+
+## Slice 33 - repo publico criado e handoff para agente Windows
+- implementado:
+  - repo publico criado: `https://github.com/mauriciomenon/scrap_report`
+  - branch operacional: `master`
+  - instrucoes operacionais adicionadas em `WINDOWS_AGENT_INSTRUCTIONS.md`
+- validacao:
+  - `gh auth status`: ok
+  - `gh repo create ... --push`: ok
+  - remoto `origin` ativo e branch `master` rastreando remoto
+  - kluster MCP: retorno parcial
+    - clean (0 issues) no lote de docs operacionais
+    - timeout 120s no lote de pre-release/docs gerais
+- estado:
+  - distribuicao via GitHub pronta; falta apenas evidencia real de W11/Debian13

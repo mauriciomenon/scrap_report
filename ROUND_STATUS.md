@@ -910,7 +910,9 @@
   - `uv run --project . ty check`: ok
   - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 51 passed
   - evidencia local gerada: `staging/smoke_evidence_debian13.json`
-  - `kluster_code_review_auto`: pendente (rodando no fechamento do slice)
+  - `kluster_code_review_auto` (lote completo): timeout da ferramenta (120s)
+  - `kluster_code_review_auto` (fallback por lotes): timeout da ferramenta (120s)
+  - fallback CLI: `kluster log` ok; `kluster show latest` erro 500
 - feito x pendente x risco residual:
   - feito:
     - padrao de evidencia unica por plataforma implementado
@@ -920,3 +922,33 @@
     - cobertura kluster sem timeout para este slice
   - risco residual:
     - medio (gate final ainda depende das duas rodadas reais)
+
+## Slice 33 - criacao de repo publico + instrucao operacional W11
+- alvo: criar repositorio oficial em `master` e registrar instrucoes de execucao para agente Windows
+- arquivos alterados:
+  - PRE_RELEASE_STATUS.md
+  - ROUND_STATUS.md
+  - HANDOFF.md
+  - CONVERSA_MIGRACAO_STATUS.md
+  - WINDOWS_AGENT_INSTRUCTIONS.md
+  - .gitignore
+- implementacao:
+  - repo local inicializado: `git init -b master`
+  - commit inicial realizado
+  - repo publico criado e push concluido: `https://github.com/mauriciomenon/scrap_report`
+  - arquivo de instrucao W11 criado para agente operacional
+- validacao:
+  - `gh auth status`: ok
+  - `gh repo create scrap_report --public --source=. --remote=origin --push`: ok
+  - branch remota: `master` rastreando `origin/master`
+  - `kluster_code_review_auto` (docs operacionais): clean (0 issues), chat_id `rreu0jm276r`
+  - `kluster_code_review_auto` (pre-release/docs gerais): timeout da ferramenta (120s)
+- feito x pendente x risco residual:
+  - feito:
+    - repositorio publico criado em `master`
+    - instrucoes de execucao para agente Windows prontas
+  - pendente:
+    - execucao W11 real com `smoke_evidence_windows11.json`
+    - execucao Debian13 real dedicada
+  - risco residual:
+    - medio (gate cross-platform real ainda nao fechado)
