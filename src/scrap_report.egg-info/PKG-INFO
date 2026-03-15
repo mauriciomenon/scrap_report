@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: scrap-report
+Version: 0.1.0
+Summary: Pipeline modular para scraping SAM e entrega de xlsx
+Requires-Python: >=3.11
+Requires-Dist: playwright>=1.45.0
+Requires-Dist: pandas>=2.2.0
+Requires-Dist: openpyxl>=3.1.0

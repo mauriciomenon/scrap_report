@@ -1,0 +1,17 @@
+# Python cache/venv
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Local OS files
+.DS_Store
+
+# Runtime artifacts
+staging/reports/
+downloads/*.xlsx
+staging/*.xlsx
+staging/*.json
+
+# Keep docs and source tracked
+!staging/.gitkeep
