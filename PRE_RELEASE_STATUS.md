@@ -45,6 +45,7 @@
 1. Rodar o mesmo roteiro em Debian 13 real e gerar `staging/smoke_evidence_debian13.json` no host alvo
 2. Validar E2E real com acesso SAM quando liberado
 3. Repetir kluster quando endpoint estabilizar (timeout recorrente atual)
+4. Desbloquear conectividade PyPI no WSL Debian13 atual (timeouts recorrentes em `uv sync`)
 
 ## Resultado de prontidao
 - Pronto para:

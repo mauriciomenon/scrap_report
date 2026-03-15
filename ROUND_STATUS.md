@@ -987,3 +987,32 @@
     - execucao dedicada em host Debian13 real
   - risco residual:
     - medio (gate cross-platform final ainda depende da rodada Debian13 real)
+
+## Slice 35 - tentativa de rodada Debian13 real via WSL
+- alvo: executar `scripts/smoke_debian13.sh` em Debian 13 real e gerar evidencia consolidada
+- arquivos alterados:
+  - scripts/smoke_debian13.sh
+  - PRE_RELEASE_STATUS.md
+  - ROUND_STATUS.md
+  - HANDOFF.md
+  - CONVERSA_MIGRACAO_STATUS.md
+- implementacao:
+  - distro validada: Debian GNU/Linux 13 (trixie) no WSL
+  - `scripts/smoke_debian13.sh` normalizado para LF (remove `CRLF` que quebrava `set -euo pipefail`)
+  - tentativa de execucao do smoke em Debian13 iniciada
+- validacao:
+  - `wsl -d Debian -- bash -lc \"cat /etc/os-release\"`: ok (`VERSION_ID=13`)
+  - `wsl -d Debian -- bash -lc \"cd /mnt/c/Users/mauri/git/scrap_report && bash scripts/smoke_debian13.sh\"`: falha
+  - erro objetivo observado: timeout de rede no WSL ao acessar PyPI durante `uv sync`/build
+    - `Failed to fetch: https://pypi.org/simple/wheel/`
+    - `Request failed after 3 retries`
+    - `operation timed out`
+- feito x pendente x risco residual:
+  - feito:
+    - bloqueio de shell por `CRLF` removido
+    - host Debian13 real identificado e tentativa executada com evidencia de erro
+  - pendente:
+    - executar smoke Debian13 em host com conectividade estavel ao PyPI
+    - gerar `staging/smoke_evidence_debian13.json` no host alvo
+  - risco residual:
+    - medio (fechamento cross-platform bloqueado por conectividade externa no WSL Debian13)

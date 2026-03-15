@@ -289,3 +289,18 @@
   - evidencia gerada: `staging/smoke_evidence_windows11.json`
 - risco residual:
   - medio (pendente somente rodada dedicada em Debian13 real para fechar gate cross-platform)
+
+## Slice 35 - tentativa da rodada Debian13 real (WSL)
+- executado:
+  - Debian confirmado como `Debian GNU/Linux 13 (trixie)` em WSL
+  - `scripts/smoke_debian13.sh` convertido para LF para remover quebra de `pipefail`
+  - rodada Debian13 iniciada com o script oficial
+- validacao:
+  - comando: `bash scripts/smoke_debian13.sh`
+  - resultado: falha externa em rede durante `uv sync`/build
+  - erro objetivo:
+    - `Failed to fetch: https://pypi.org/simple/wheel/`
+    - `Request failed after 3 retries`
+    - `operation timed out`
+- risco residual:
+  - medio (fechamento cross-platform depende de executar o smoke Debian13 em host com conectividade estavel ao PyPI)

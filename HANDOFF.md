@@ -349,3 +349,18 @@
 - estado:
   - rodada W11 local concluida com sucesso
   - pendencia cross-platform remanescente: execucao dedicada em Debian13 real
+
+## Slice 35 - tentativa de Debian13 real via WSL
+- implementado:
+  - validacao de host Debian13 real (WSL trixie, `VERSION_ID=13`)
+  - normalizacao de `scripts/smoke_debian13.sh` para LF (compatibilidade shell Linux)
+  - tentativa de execucao do smoke em Debian13 realizada
+- validacao:
+  - comando de smoke Debian13 iniciou e parou em `uv sync` por timeout externo de rede
+  - erro observado:
+    - `Failed to fetch: https://pypi.org/simple/wheel/`
+    - `Request failed after 3 retries`
+    - `operation timed out`
+- estado:
+  - bloqueio atual e externo (conectividade PyPI no WSL Debian13)
+  - pendencia segue: gerar `staging/smoke_evidence_debian13.json` em host Debian13 com rede estavel
