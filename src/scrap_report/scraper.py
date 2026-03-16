@@ -66,7 +66,10 @@ class SAMScraper:
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=self.config.headless)
-            context = browser.new_context(accept_downloads=True)
+            context = browser.new_context(
+                accept_downloads=True,
+                ignore_https_errors=self.config.ignore_https_errors,
+            )
             page = context.new_page()
             page.set_viewport_size({"width": 1920, "height": 1080})
             page.set_default_timeout(self.config.loading_timeout_ms)

@@ -5,23 +5,31 @@
 ```powershell
 .\EXECUTAR_SCRAP_WINDOWS.cmd
 ```
-2. Alternativa direta do script (sem argumentos):
+2. Entrada PowerShell equivalente (sem argumentos):
 ```powershell
-.\scripts\scrape_sam_windows.ps1
+.\EXECUTAR_SCRAP_WINDOWS.ps1
 ```
 3. O fluxo pede `username` se necessario e pede senha com mascara `*****` quando secret nao existir.
 4. Em `both` (padrao), gera duas rodadas no mesmo comando:
    - `staging/pipeline_online_windows_pendentes.json`
    - `staging/pipeline_online_windows_executadas.json`
-5. Fluxo CLI equivalente (mantido):
+5. Se quiser passar parametros na entrada principal:
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind both
+```
+6. Opcao tecnica para cert estrito (desliga ignore de cert):
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -StrictCert
+```
+7. Fluxo CLI equivalente (mantido):
 ```powershell
 uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
 ```
-6. Alias legado (mantido para compatibilidade):
+8. Alias legado (mantido para compatibilidade):
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind pendentes
 ```
-7. Comandos anteriores (mantidos):
+9. Comandos anteriores (mantidos):
 ```powershell
 uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
 uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam

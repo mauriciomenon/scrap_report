@@ -63,3 +63,24 @@ def test_cli_config_invalid_selector_mode():
             secret_provider=provider,
             selector_mode="invalid",
         ).to_scrape_config()
+
+
+def test_cli_config_ignore_https_errors_flag():
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "user1", "p1")
+    cfg = CliConfigInput(
+        username="user1",
+        password=None,
+        setor_executor="IEE3",
+        report_kind="pendentes",
+        base_url="https://osprd.itaipu/SAM_SMA/",
+        headless=True,
+        download_dir="downloads",
+        staging_dir="staging",
+        secure_required=True,
+        allow_transitional_plaintext=False,
+        secret_service="svc",
+        secret_provider=provider,
+        ignore_https_errors=True,
+    ).to_scrape_config()
+    assert cfg.ignore_https_errors is True

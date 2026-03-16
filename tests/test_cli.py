@@ -379,3 +379,45 @@ def test_windows_flow_provisions_missing_secret_interactive(
     )
     assert code == 0
     assert seen["password"] == "typed-secret"
+
+
+def test_windows_flow_passes_ignore_https_errors_to_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "ok"
+        report_kind = "pendentes"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
+        telemetry = {"pipeline_ms": 10}
+
+    seen = {}
+
+    def _run_pipeline(cfg, generate_reports):
+        seen["ignore_https_errors"] = cfg.ignore_https_errors
+        return _PipelineResult()
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", _run_pipeline)
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--ignore-https-errors",
+            "--output-json",
+            str(tmp_path / "wf.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["ignore_https_errors"] is True

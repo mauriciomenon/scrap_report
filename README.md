@@ -31,14 +31,19 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 ./EXECUTAR_SCRAP_WINDOWS.cmd
 ```
 
-0.1 Alternativa direta do script (sem argumentos):
+0.1 Entrada PowerShell equivalente (sem argumentos):
 ```bash
-./scripts/scrape_sam_windows.ps1
+./EXECUTAR_SCRAP_WINDOWS.ps1
 ```
 Esse wrapper executa `windows-flow` internamente.
 Em `both`, ele gera:
 - `staging/pipeline_online_windows_pendentes.json`
 - `staging/pipeline_online_windows_executadas.json`
+
+0.2 Entrada principal com parametros opcionais:
+```bash
+./EXECUTAR_SCRAP_WINDOWS.ps1 --Username "<usuario>" --Setor IEE3 --ReportKind both
+```
 
 Alias legado ainda disponivel:
 ```bash

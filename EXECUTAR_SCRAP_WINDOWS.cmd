@@ -9,7 +9,7 @@ if not exist "%PS_EXE%" (
   exit /b 1
 )
 
-"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%scripts\scrape_sam_windows.ps1"
+"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%EXECUTAR_SCRAP_WINDOWS.ps1" %*
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (

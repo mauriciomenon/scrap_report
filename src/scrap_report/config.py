@@ -42,6 +42,7 @@ class ScrapeConfig:
     network_idle_timeout_ms: int = 5000
     retry_attempts: int = 3
     selector_mode: str = "adaptive"
+    ignore_https_errors: bool = False
 
     def __post_init__(self) -> None:
         self.report_kind = self.report_kind.strip().lower()
@@ -81,6 +82,7 @@ class CliConfigInput:
     secret_service: str = "scrap_report.sam"
     secret_provider: SecretProvider | None = None
     selector_mode: str = "adaptive"
+    ignore_https_errors: bool = False
 
     def to_scrape_config(self) -> ScrapeConfig:
         username = (self.username or os.getenv("SAM_USERNAME", "")).strip()
@@ -96,6 +98,7 @@ class CliConfigInput:
             download_dir=Path(self.download_dir),
             staging_dir=Path(self.staging_dir),
             selector_mode=self.selector_mode,
+            ignore_https_errors=self.ignore_https_errors,
         )
 
     def _resolve_password(self, username: str) -> str:

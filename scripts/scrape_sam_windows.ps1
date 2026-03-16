@@ -6,7 +6,8 @@ param(
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
     [string]$OutputJson = "staging/pipeline_online_windows.json",
     [string]$SecretService = "scrap_report.sam",
-    [switch]$Headed
+    [switch]$Headed,
+    [switch]$StrictCert
 )
 
 Set-StrictMode -Version Latest
@@ -55,6 +56,9 @@ function Invoke-WindowsFlow {
 
     if ($Headed) {
         $args += "--headed"
+    }
+    if (-not $StrictCert) {
+        $args += "--ignore-https-errors"
     }
 
     Write-Host "[scrape_sam_windows] iniciando report_kind=$Kind"

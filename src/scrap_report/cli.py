@@ -110,6 +110,11 @@ def _build_parser() -> argparse.ArgumentParser:
     common.add_argument("--download-dir", default="downloads")
     common.add_argument("--staging-dir", default="staging")
     common.add_argument("--headed", action="store_true", help="abre browser visivel")
+    common.add_argument(
+        "--ignore-https-errors",
+        action="store_true",
+        help="ignora erros de certificado TLS no navegador",
+    )
     common.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
     common.add_argument(
         "--secure-required",
@@ -165,6 +170,11 @@ def _build_parser() -> argparse.ArgumentParser:
     windows_flow.add_argument("--download-dir", default="downloads")
     windows_flow.add_argument("--staging-dir", default="staging")
     windows_flow.add_argument("--headed", action="store_true", help="abre browser visivel")
+    windows_flow.add_argument(
+        "--ignore-https-errors",
+        action="store_true",
+        help="ignora erros de certificado TLS no navegador",
+    )
     windows_flow.add_argument(
         "--secret-service",
         default="scrap_report.sam",
@@ -441,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
                 secret_service=args.secret_service,
                 secret_provider=provider,
                 selector_mode=args.selector_mode,
+                ignore_https_errors=args.ignore_https_errors,
             ).to_scrape_config()
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)
@@ -505,6 +516,7 @@ def main(argv: list[str] | None = None) -> int:
                 secret_service=args.secret_service,
                 secret_provider=build_secret_provider(),
                 selector_mode=args.selector_mode,
+                ignore_https_errors=args.ignore_https_errors,
             ).to_scrape_config()
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)

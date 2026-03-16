@@ -13,7 +13,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$entrypoint = Join-Path $PSScriptRoot "scrape_sam_windows.ps1"
+$entrypoint = Join-Path $PSScriptRoot "scripts\scrape_sam_windows.ps1"
 if (-not (Test-Path $entrypoint)) {
     throw "entrypoint nao encontrado: $entrypoint"
 }
@@ -33,6 +33,5 @@ if ($StrictCert) {
     $forward.StrictCert = $true
 }
 
-Write-Host "[main_windows] alias legado. use scripts/scrape_sam_windows.ps1"
 & $entrypoint @forward
 exit $LASTEXITCODE
