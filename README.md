@@ -26,7 +26,16 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 ## Uso rapido
 
 ## Fluxo de segredo (quando pede credencial)
-0. Ponto de partida recomendado no Windows (sequencial):
+0. Ponto de partida recomendado no Windows (um comando):
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
+  -Username "<usuario>" \
+  -Setor IEE3 \
+  -ReportKind pendentes
+```
+Esse wrapper executa `windows-flow` internamente e grava JSON em `staging/pipeline_online_windows.json`.
+
+0.1 Fluxo CLI equivalente (sequencial):
 ```bash
 uv run python -m scrap_report.cli windows-flow \
   --username "<usuario>" \

@@ -1,12 +1,17 @@
 # WINDOWS_AGENT_INSTRUCTIONS
 
 ## TLDR
-1. Fluxo novo (sequencial unico recomendado):
+1. Fluxo unico recomendado (um comando):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind pendentes
+```
+2. O comando executa fluxo sequencial completo e salva resultado em `staging/pipeline_online_windows.json`.
+3. Se o secret ainda nao existir, o comando vai pedir senha com mascara `*****` e gravar no backend seguro.
+4. Fluxo CLI equivalente (mantido):
 ```powershell
 uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
 ```
-2. Se o secret ainda nao existir, o comando vai pedir senha com mascara `*****` e gravar no backend seguro.
-3. Comandos anteriores (mantidos):
+5. Comandos anteriores (mantidos):
 ```powershell
 uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
 uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam
