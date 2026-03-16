@@ -28,12 +28,23 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 ## Fluxo de segredo (quando pede credencial)
 0. Ponto de partida recomendado no Windows (um comando):
 ```bash
-powershell -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/scrape_sam_windows.ps1 \
+  -Username "<usuario>" \
+  -Setor IEE3 \
+  -ReportKind both
+```
+Esse wrapper executa `windows-flow` internamente.
+Em `both`, ele gera:
+- `staging/pipeline_online_windows_pendentes.json`
+- `staging/pipeline_online_windows_executadas.json`
+
+Alias legado ainda disponivel:
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
   -Username "<usuario>" \
   -Setor IEE3 \
   -ReportKind pendentes
 ```
-Esse wrapper executa `windows-flow` internamente e grava JSON em `staging/pipeline_online_windows.json`.
 
 0.1 Fluxo CLI equivalente (sequencial):
 ```bash
