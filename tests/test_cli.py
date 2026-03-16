@@ -139,7 +139,7 @@ def test_secret_set_interactive_no_plaintext_leak(
 ):
     provider = MemorySecretProvider()
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
-    monkeypatch.setattr("scrap_report.cli.getpass.getpass", lambda _prompt: "s3cr3t")
+    monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "s3cr3t")
 
     code = main(
         [
@@ -241,7 +241,7 @@ def test_auth_flow_prompt_password_uses_terminal_input(
 ):
     provider = MemorySecretProvider()
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
-    monkeypatch.setattr("scrap_report.cli.getpass.getpass", lambda _prompt: "typed-secret")
+    monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "typed-secret")
 
     seen = {}
 

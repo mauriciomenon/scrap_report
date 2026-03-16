@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,68 @@ from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
 
 AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest"}
+
+
+def _read_password_masked(prompt: str = "password: ") -> str:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return getpass.getpass(prompt)
+
+    if os.name == "nt":
+        import msvcrt
+
+        sys.stdout.write(prompt)
+        sys.stdout.flush()
+        chars: list[str] = []
+        while True:
+            ch = msvcrt.getwch()
+            if ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(chars)
+            if ch == "\003":
+                raise KeyboardInterrupt
+            if ch == "\b":
+                if chars:
+                    chars.pop()
+                    sys.stdout.write("\b \b")
+                    sys.stdout.flush()
+                continue
+            if ch in ("\x00", "\xe0"):
+                _ = msvcrt.getwch()
+                continue
+            chars.append(ch)
+            sys.stdout.write("*")
+            sys.stdout.flush()
+
+    import termios
+    import tty
+
+    fd = sys.stdin.fileno()
+    original = termios.tcgetattr(fd)
+    chars: list[str] = []
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    try:
+        tty.setraw(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch in ("\r", "\n"):
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                return "".join(chars)
+            if ch == "\x03":
+                raise KeyboardInterrupt
+            if ch in ("\x7f", "\b"):
+                if chars:
+                    chars.pop()
+                    sys.stdout.write("\b \b")
+                    sys.stdout.flush()
+                continue
+            chars.append(ch)
+            sys.stdout.write("*")
+            sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, original)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -232,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
         if args.secret_command == "set-interactive":
-            password = getpass.getpass("password: ")
+            password = _read_password_masked("password: ")
             try:
                 provider.set_secret(args.secret_service, args.username, password)
             except SecretProviderError as exc:
@@ -312,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         _print_secret_policy_notice(args.command, args.output_json)
         input_password = args.password
         if args.prompt_password and not input_password:
-            input_password = getpass.getpass("password: ")
+            input_password = _read_password_masked("password: ")
         try:
             cfg = CliConfigInput(
                 username=args.username,
