@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -42,15 +43,14 @@ class SAMLocators:
     }
 
     NAVIGATION = {
-        "manutencao": "text=Manutencao Aperiodica",
-        "relatorios": "text=Relatorios",
-        "pendentes": "xpath=//a[text()='Pendentes']",
-        "executadas": "xpath=//a[text()='Executadas']",
+        "pendentes": "/SAM_SMA_Reports/PendingGeneralSSAs.aspx",
+        "executadas": "/SAM_SMA_Reports/SSAsExecuted.aspx",
     }
 
     FILTER = {
         "setor_executor": "[id*='SectorExecutor']",
-        "search_button": "a[id*='SearchButton']",
+        "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
+        "export_excel": "a[id*='ExportToExcel']",
     }
 
 
@@ -139,20 +139,8 @@ class SAMScraper:
         report_target = self._resolve_report_navigation(self.config.report_kind)
 
         def action() -> None:
-            manutencao = self._resolve_selector(
-                page,
-                stable_id=self.locators.NAVIGATION["manutencao"],
-                text="text=Manutencao",
-            )
-            relatorios = self._resolve_selector(
-                page,
-                stable_id=self.locators.NAVIGATION["relatorios"],
-                text="text=Relatorios",
-            )
-            report = self._resolve_selector(page, stable_id=report_target, xpath=report_target)
-            page.click(manutencao)
-            page.click(relatorios)
-            page.click(report)
+            page.goto(self._build_report_url(report_target))
+            self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
         self._safe_action(action, "erro na navegacao")
 
@@ -163,6 +151,12 @@ class SAMScraper:
         if report_kind == "executadas":
             return SAMLocators.NAVIGATION["executadas"]
         raise ValueError("report_kind invalido")
+
+    def _build_report_url(self, report_path: str) -> str:
+        if report_path.startswith("http://") or report_path.startswith("https://"):
+            return report_path
+        parts = urlsplit(self.config.base_url)
+        return f"{parts.scheme}://{parts.netloc}{report_path}"
 
     def _wait_for_filter_field(self, page: Page) -> None:
         selector = self._resolve_selector(
@@ -188,75 +182,45 @@ class SAMScraper:
         selector = self._resolve_selector(
             page,
             stable_id=self.locators.FILTER["search_button"],
-            text="text=Pesquisar",
         )
-        page.click(selector)
+        success = page.evaluate(
+            """(cssSelector) => {
+                const element = document.querySelector(cssSelector);
+                if (!element) {
+                    return false;
+                }
+                element.click();
+                return true;
+            }""",
+            selector,
+        )
+        if not success:
+            raise RuntimeError("falha ao acionar busca principal")
         self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
     def _select_report_options(self, page: Page) -> None:
-        page.click("text=Relatorio com Detalhes")
-        page.wait_for_timeout(2000)
-        page.wait_for_selector(
-            "input[id*='ctl00'][id*='wtContent']",
-            state="visible",
-            timeout=self.config.selector_timeout_ms,
-        )
-
-        if not self._wait_for_loading_complete(page, self.config.download_timeout_ms):
-            raise RuntimeError("timeout aguardando carregamento de opcoes")
-
-        success = page.evaluate(
-            """() => {
-                const checkboxesToCheck = ['ctl00', 'ctl04', 'ctl08', 'ctl02', 'ctl06', 'ctl10'];
-                const checkboxesToUncheck = ['ctl12'];
-
-                const triggerEvents = (element) => {
-                    ['change', 'click', 'input'].forEach((eventType) => {
-                        const event = new Event(eventType, { bubbles: true, cancelable: true });
-                        element.dispatchEvent(event);
-                    });
-                };
-
-                const handleCheckboxes = (idList, checked) => {
-                    idList.forEach((id) => {
-                        const checkbox = document.querySelector(`input[id*='${id}'][id*='wtContent']`);
-                        if (checkbox) {
-                            checkbox.checked = false;
-                            triggerEvents(checkbox);
-                            if (checked) {
-                                setTimeout(() => {
-                                    checkbox.checked = true;
-                                    triggerEvents(checkbox);
-                                }, 100);
-                            }
-                        }
-                    });
-                };
-
-                handleCheckboxes([...checkboxesToCheck, ...checkboxesToUncheck], false);
-                setTimeout(() => {
-                    handleCheckboxes(checkboxesToCheck, true);
-                }, 200);
-                return true;
-            }"""
-        )
-        if not success:
-            raise RuntimeError("falha ao selecionar opcoes do relatorio")
+        details_locator = page.locator("text=Relatorio com Detalhes")
+        if details_locator.count() == 0:
+            return
+        details_locator.first.click()
+        self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
     def _export_to_excel(self, page: Page) -> Path:
+        selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["export_excel"],
+        )
         with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
             success = page.evaluate(
-                """() => {
-                    const menu = document.querySelector('[id*="wtMenuDropdown"] i');
-                    if (!menu) return false;
-                    menu.click();
-
-                    const links = Array.from(document.querySelectorAll('a'));
-                    const exportButton = links.find((a) => a.textContent.includes('Exportar para Excel'));
-                    if (!exportButton) return false;
+                """(cssSelector) => {
+                    const exportButton = document.querySelector(cssSelector);
+                    if (!exportButton) {
+                        return false;
+                    }
                     exportButton.click();
                     return true;
-                }"""
+                }""",
+                selector,
             )
             if not success:
                 raise RuntimeError("nao foi possivel acionar exportacao para excel")
