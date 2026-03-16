@@ -1,23 +1,27 @@
 # WINDOWS_AGENT_INSTRUCTIONS
 
 ## TLDR
-1. Fluxo unico recomendado (um comando):
+1. Fluxo recomendado para usuario final (sem argumentos):
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/scrape_sam_windows.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind both
+.\EXECUTAR_SCRAP_WINDOWS.cmd
 ```
-2. Em `both`, gera duas rodadas no mesmo comando:
+2. Alternativa direta do script (sem argumentos):
+```powershell
+.\scripts\scrape_sam_windows.ps1
+```
+3. O fluxo pede `username` se necessario e pede senha com mascara `*****` quando secret nao existir.
+4. Em `both` (padrao), gera duas rodadas no mesmo comando:
    - `staging/pipeline_online_windows_pendentes.json`
    - `staging/pipeline_online_windows_executadas.json`
-3. Se o secret ainda nao existir, o comando vai pedir senha com mascara `*****` e gravar no backend seguro.
-4. Fluxo CLI equivalente (mantido):
+5. Fluxo CLI equivalente (mantido):
 ```powershell
 uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
 ```
-5. Alias legado (mantido para compatibilidade):
+6. Alias legado (mantido para compatibilidade):
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind pendentes
 ```
-6. Comandos anteriores (mantidos):
+7. Comandos anteriores (mantidos):
 ```powershell
 uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
 uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam

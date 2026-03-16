@@ -26,12 +26,14 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 ## Uso rapido
 
 ## Fluxo de segredo (quando pede credencial)
-0. Ponto de partida recomendado no Windows (um comando):
+0. Ponto de partida recomendado no Windows (sem argumentos):
 ```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/scrape_sam_windows.ps1 \
-  -Username "<usuario>" \
-  -Setor IEE3 \
-  -ReportKind both
+./EXECUTAR_SCRAP_WINDOWS.cmd
+```
+
+0.1 Alternativa direta do script (sem argumentos):
+```bash
+./scripts/scrape_sam_windows.ps1
 ```
 Esse wrapper executa `windows-flow` internamente.
 Em `both`, ele gera:
@@ -41,12 +43,10 @@ Em `both`, ele gera:
 Alias legado ainda disponivel:
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
-  -Username "<usuario>" \
-  -Setor IEE3 \
-  -ReportKind pendentes
+  -ReportKind both
 ```
 
-0.1 Fluxo CLI equivalente (sequencial):
+0.2 Fluxo CLI equivalente (sequencial):
 ```bash
 uv run python -m scrap_report.cli windows-flow \
   --username "<usuario>" \

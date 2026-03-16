@@ -2,7 +2,7 @@ param(
     [string]$Username = "",
     [string]$Setor = "IEE3",
     [ValidateSet("pendentes", "executadas", "both")]
-    [string]$ReportKind = "pendentes",
+    [string]$ReportKind = "both",
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
     [string]$OutputJson = "staging/pipeline_online_windows.json",
     [string]$SecretService = "scrap_report.sam",
