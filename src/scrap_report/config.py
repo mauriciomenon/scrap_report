@@ -31,7 +31,7 @@ class ScrapeConfig:
     password: str
     setor_executor: str
     report_kind: str = "pendentes"
-    base_url: str = "https://apps.itaipu.gov.br/SAM/"
+    base_url: str = "https://osprd.itaipu/SAM_SMA/"
     headless: bool = True
     download_dir: Path = PROJECT_ROOT / "downloads"
     staging_dir: Path = PROJECT_ROOT / "staging"

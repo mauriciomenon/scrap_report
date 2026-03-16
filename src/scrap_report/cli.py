@@ -37,7 +37,7 @@ def _build_parser() -> argparse.ArgumentParser:
     common.add_argument("--password", default=None)
     common.add_argument("--setor", required=True)
     common.add_argument("--report-kind", default="pendentes", choices=["pendentes", "executadas"])
-    common.add_argument("--base-url", default="https://apps.itaipu.gov.br/SAM/")
+    common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     common.add_argument("--download-dir", default="downloads")
     common.add_argument("--staging-dir", default="staging")
     common.add_argument("--headed", action="store_true", help="abre browser visivel")
