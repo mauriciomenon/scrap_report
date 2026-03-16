@@ -11,7 +11,7 @@ from .secret_provider import SecretBackendUnavailableError, SecretNotFoundError,
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
-    "uv run python -m scrap_report.cli secret set-interactive "
+    "uv run python -m scrap_report.cli secret setup "
     "--username <usuario> --secret-service scrap_report.sam"
 )
 

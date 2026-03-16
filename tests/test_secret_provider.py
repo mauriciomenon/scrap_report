@@ -123,26 +123,33 @@ def test_windows_provider_fallback_pwsh_fail_then_powershell_ok(monkeypatch: pyt
 def test_windows_provider_set_secret_module_missing(monkeypatch: pytest.MonkeyPatch):
     provider = WindowsCredentialManagerSecretProvider()
 
-    def fake_which(name: str) -> str | None:
-        if name == "pwsh":
-            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
-        if name == "powershell":
-            return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-        return None
+    called = {"dpapi": False}
 
-    def fake_run(args, **_kwargs):
-        return subprocess.CompletedProcess(args=args, returncode=11, stdout="", stderr="module missing")
+    def fake_set_cm(*_args, **_kwargs):
+        raise SecretBackendUnavailableError("modulo CredentialManager ausente")
 
-    monkeypatch.setattr("shutil.which", fake_which)
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    def fake_set_dpapi(*_args, **_kwargs):
+        called["dpapi"] = True
 
-    with pytest.raises(SecretBackendUnavailableError):
-        provider.set_secret("svc", "user1", "secret123")
+    monkeypatch.setattr(provider, "_set_secret_via_credential_manager", fake_set_cm)
+    monkeypatch.setattr(provider, "_set_secret_via_dpapi_store", fake_set_dpapi)
+    provider.set_secret("svc", "user1", "secret123")
+    assert called["dpapi"] is True
+
+
+def test_windows_provider_get_secret_fallback_to_dpapi(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+
+    def fake_get_cm(*_args, **_kwargs):
+        raise SecretBackendUnavailableError("modulo CredentialManager ausente")
+
+    monkeypatch.setattr(provider, "_get_secret_via_credential_manager", fake_get_cm)
+    monkeypatch.setattr(provider, "_get_secret_via_dpapi_store", lambda *_args, **_kwargs: "secret123")
+    assert provider.get_secret("svc", "user1") == "secret123"
 
 
 def test_windows_provider_without_shell(monkeypatch: pytest.MonkeyPatch):
     provider = WindowsCredentialManagerSecretProvider()
-    monkeypatch.setattr("shutil.which", lambda _name: None)
-    monkeypatch.setattr("os.path.exists", lambda _path: False)
-    with pytest.raises(SecretBackendUnavailableError):
-        provider.test_backend()
+    monkeypatch.setattr(provider, "_test_credential_manager_backend", lambda: False)
+    monkeypatch.setattr(provider, "_test_dpapi_backend", lambda: True)
+    assert provider.test_backend() is True

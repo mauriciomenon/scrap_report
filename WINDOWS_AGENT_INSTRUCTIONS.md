@@ -1,11 +1,17 @@
 # WINDOWS_AGENT_INSTRUCTIONS
 
 ## TLDR
-1. Rodar fluxo sequencial unico:
+1. Fluxo novo (sequencial unico recomendado):
 ```powershell
-uv run --project . python -m scrap_report.cli windows-flow --username "menon@itaipu.gov.br" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
+uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
 ```
 2. Se o secret ainda nao existir, o comando vai pedir senha com mascara `*****` e gravar no backend seguro.
+3. Comandos anteriores (mantidos):
+```powershell
+uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
+uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam
+uv run --project . python -m scrap_report.cli pipeline --username "<usuario>" --setor IEE3 --secure-required --report-kind pendentes --download-dir downloads --staging-dir staging --base-url "https://osprd.itaipu/SAM_SMA/" --output-json staging/pipeline_online_windows.json
+```
 
 ## Objetivo
 - Executar validacao real em host Windows 11 e entregar evidencia consolidada para fechamento do pre-release.
@@ -15,17 +21,17 @@ uv run --project . python -m scrap_report.cli windows-flow --username "menon@ita
 2. PowerShell 5.1+ ou PowerShell 7+
 3. Python 3.11+
 4. uv instalado
-5. Modulo CredentialManager instalado
+5. Sem instalacao manual extra de modulo de segredo
 
 ## Passos obrigatorios
 1. Abrir PowerShell na raiz do projeto.
-2. Validar modulo de segredo:
+2. (Opcional) validar modulo de segredo:
 ```powershell
 Get-Module -ListAvailable -Name CredentialManager
 ```
-3. Se ausente, instalar:
+3. Se ausente, NAO precisa instalar. O app usa fallback DPAPI por usuario automaticamente.
 ```powershell
-Install-Module CredentialManager -Scope CurrentUser -Force
+# nenhum comando adicional necessario
 ```
 4. Rodar smoke completo:
 ```powershell

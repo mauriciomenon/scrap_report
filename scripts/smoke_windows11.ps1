@@ -18,10 +18,6 @@ function Invoke-CheckedCommand {
 New-Item -ItemType Directory -Path staging -Force | Out-Null
 New-Item -ItemType Directory -Path downloads -Force | Out-Null
 
-if (-not (Get-Module -ListAvailable -Name CredentialManager)) {
-    throw "CredentialManager module ausente. Instale antes de rodar o smoke."
-}
-
 Invoke-CheckedCommand -Name "uv sync" -Command { uv sync }
 
 $pyFiles = @(

@@ -42,13 +42,14 @@ Se o secret nao existir, o comando pede senha com mascara e grava no backend seg
   - `--prompt-password` (entrada interativa sem eco)
   - `--password` (entrada explicita da execucao atual)
   - secret store do OS (`Keychain`, `Credential Manager`, `Secret Service`)
+  - no Windows, se `CredentialManager` nao estiver funcional, fallback automatico para cofre local DPAPI por usuario
   - `SAM_PASSWORD` somente em modo transicional permitido
 4. Politica fail-closed:
   - se `--secure-required` estiver ativo, sem secret seguro a execucao para com erro limpo
   - se `--allow-transitional-plaintext` estiver desabilitado, sem secret seguro a execucao para
 5. Comando recomendado para provisionar secret sem exibir valor:
 ```bash
-uv run python -m scrap_report.cli secret set-interactive \
+uv run python -m scrap_report.cli secret setup \
   --username "<usuario>" \
   --secret-service scrap_report.sam
 ```
