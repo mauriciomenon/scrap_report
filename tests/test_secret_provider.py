@@ -84,13 +84,65 @@ def test_windows_provider_fallback_to_pwsh(monkeypatch: pytest.MonkeyPatch):
         return subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr("os.path.exists", lambda _path: False)
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert provider.test_backend() is True
-    assert called["exe"] == "pwsh"
+    assert called["exe"].lower().endswith("pwsh.exe")
+
+
+def test_windows_provider_fallback_pwsh_fail_then_powershell_ok(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    call_order: list[str] = []
+
+    def fake_which(name: str) -> str | None:
+        if name == "pwsh":
+            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+        if name == "powershell":
+            return None
+        return None
+
+    def fake_run(args, **_kwargs):
+        exe = args[0]
+        call_order.append(exe)
+        if exe.lower().endswith("pwsh.exe"):
+            return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="bad pwsh")
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="secret123\n", stderr="")
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr(
+        "os.path.exists",
+        lambda path: path.lower().endswith("\\windowspowershell\\v1.0\\powershell.exe"),
+    )
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert provider.get_secret("svc", "user1") == "secret123"
+    assert call_order[0].lower().endswith("pwsh.exe")
+    assert call_order[1].lower().endswith("powershell.exe")
+
+
+def test_windows_provider_set_secret_module_missing(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+
+    def fake_which(name: str) -> str | None:
+        if name == "pwsh":
+            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+        if name == "powershell":
+            return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        return None
+
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(args=args, returncode=11, stdout="", stderr="module missing")
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(SecretBackendUnavailableError):
+        provider.set_secret("svc", "user1", "secret123")
 
 
 def test_windows_provider_without_shell(monkeypatch: pytest.MonkeyPatch):
     provider = WindowsCredentialManagerSecretProvider()
     monkeypatch.setattr("shutil.which", lambda _name: None)
+    monkeypatch.setattr("os.path.exists", lambda _path: False)
     with pytest.raises(SecretBackendUnavailableError):
         provider.test_backend()

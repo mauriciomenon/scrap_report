@@ -204,6 +204,12 @@ def _build_parser() -> argparse.ArgumentParser:
     secret_set.add_argument("--username", required=True)
     secret_set.add_argument("--password", required=True)
     secret_set.add_argument("--secret-service", default="scrap_report.sam")
+    secret_setup = secret_sub.add_parser(
+        "setup",
+        help="fluxo simples: pede senha mascarada, grava e valida leitura",
+    )
+    secret_setup.add_argument("--username", required=True)
+    secret_setup.add_argument("--secret-service", default="scrap_report.sam")
     secret_set_interactive = secret_sub.add_parser(
         "set-interactive",
         help="grava secret no backend seguro lendo senha sem eco",
@@ -333,6 +339,29 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             _emit_json(
                 {"status": "ok", "secret_set": True, "username": args.username},
+                None,
+                "secret_result",
+            )
+            return 0
+        if args.secret_command == "setup":
+            password = _read_password_masked("password: ")
+            try:
+                provider.set_secret(args.secret_service, args.username, password)
+                provider.get_secret(args.secret_service, args.username)
+            except SecretProviderError as exc:
+                _emit_json(
+                    {"status": "error", "message": str(exc)},
+                    None,
+                    "secret_result",
+                )
+                return 1
+            _emit_json(
+                {
+                    "status": "ok",
+                    "secret_set": True,
+                    "secret_found": True,
+                    "username": args.username,
+                },
                 None,
                 "secret_result",
             )

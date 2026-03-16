@@ -157,6 +157,30 @@ def test_secret_set_interactive_no_plaintext_leak(
     assert '"secret_set": true' in captured
 
 
+def test_secret_setup_interactive_no_plaintext_leak(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "s3cr3t")
+
+    code = main(
+        [
+            "secret",
+            "setup",
+            "--username",
+            "u1",
+            "--secret-service",
+            "svc",
+        ]
+    )
+    captured = capsys.readouterr().out
+    assert code == 0
+    assert "s3cr3t" not in captured
+    assert '"secret_set": true' in captured
+    assert '"secret_found": true' in captured
+
+
 def test_scan_secrets_command_finds_issue(tmp_path: Path):
     bad = tmp_path / "bad.py"
     bad.write_text("api_key='123'\n", encoding="utf-8")

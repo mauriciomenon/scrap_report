@@ -5,6 +5,7 @@ from __future__ import annotations
 import platform
 import shutil
 import subprocess
+import os
 from dataclasses import dataclass, field
 
 
@@ -104,14 +105,43 @@ class MacOSKeychainSecretProvider(SecretProvider):
 class WindowsCredentialManagerSecretProvider(SecretProvider):
     """Windows credential backend using PowerShell CredentialManager module."""
 
-    def _resolve_powershell_executable(self) -> str:
-        for executable in ("pwsh", "powershell"):
-            if shutil.which(executable):
-                return executable
-        raise SecretBackendUnavailableError("backend windows credential indisponivel")
+    _SHELL_ORDER = ("pwsh", "powershell")
 
-    def _run_ps(self, script: str) -> subprocess.CompletedProcess[str]:
-        executable = self._resolve_powershell_executable()
+    def _resolve_powershell_executables(self) -> list[str]:
+        executables: list[str] = []
+        pwsh = shutil.which("pwsh")
+        if pwsh:
+            executables.append(pwsh)
+
+        powershell = shutil.which("powershell")
+        if powershell:
+            executables.append(powershell)
+        else:
+            system_root = os.environ.get("SystemRoot", r"C:\Windows")
+            fallback = os.path.join(
+                system_root,
+                "System32",
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe",
+            )
+            if os.path.exists(fallback):
+                executables.append(fallback)
+
+        # remove duplicates preserving order
+        seen: set[str] = set()
+        unique_executables: list[str] = []
+        for executable in executables:
+            key = executable.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_executables.append(executable)
+        if not unique_executables:
+            raise SecretBackendUnavailableError("backend windows credential indisponivel")
+        return unique_executables
+
+    def _run_ps_in_shell(self, executable: str, script: str) -> subprocess.CompletedProcess[str]:
         try:
             return subprocess.run(  # noqa: S603
                 [
@@ -130,48 +160,86 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         except FileNotFoundError as exc:
             raise SecretBackendUnavailableError("backend windows credential indisponivel") from exc
 
+    def _run_ps_with_fallback(self, script: str) -> list[tuple[str, subprocess.CompletedProcess[str]]]:
+        results: list[tuple[str, subprocess.CompletedProcess[str]]] = []
+        for executable in self._resolve_powershell_executables():
+            proc = self._run_ps_in_shell(executable, script)
+            results.append((executable, proc))
+            if proc.returncode == 0:
+                break
+        return results
+
+    @staticmethod
+    def _all_failed_with_code(
+        results: list[tuple[str, subprocess.CompletedProcess[str]]], code: int
+    ) -> bool:
+        return bool(results) and all(proc.returncode == code for _, proc in results)
+
     def set_secret(self, service: str, username: str, secret: str) -> None:
         script = (
             "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 11 }; "
             "Import-Module CredentialManager -ErrorAction Stop; "
-            f"$pass = ConvertTo-SecureString '{secret}' -AsPlainText -Force; "
-            f"$cred = New-Object System.Management.Automation.PSCredential('{username}', $pass); "
-            f"New-StoredCredential -Target '{service}' -Credential $cred -Type Generic -Persist LocalMachine | Out-Null"
+            "if (-not (Get-Command New-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
+            f"try {{ New-StoredCredential -Target '{service}' -UserName '{username}' -Password '{secret}' -Type Generic -Persist Enterprise | Out-Null; exit 0 }} "
+            "catch { "
+            f"try {{ New-StoredCredential -Target '{service}' -UserName '{username}' -Password '{secret}' -Type Generic -Persist LocalMachine | Out-Null; exit 0 }} "
+            "catch { exit 16 } "
+            "}"
         )
-        proc = self._run_ps(script)
-        if proc.returncode != 0:
-            if proc.returncode == 11:
-                raise SecretBackendUnavailableError("modulo CredentialManager ausente")
-            raise SecretProviderError("falha ao gravar credencial no windows vault")
+        results = self._run_ps_with_fallback(script)
+        if any(proc.returncode == 0 for _, proc in results):
+            return
+        if self._all_failed_with_code(results, 11):
+            raise SecretBackendUnavailableError("modulo CredentialManager ausente")
+        raise SecretProviderError("falha ao gravar credencial no windows vault")
 
     def get_secret(self, service: str, username: str) -> str:
         script = (
             "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 11 }; "
             "Import-Module CredentialManager -ErrorAction Stop; "
+            "if (-not (Get-Command Get-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
             f"$c = Get-StoredCredential -Target '{service}'; "
             "if ($null -eq $c) { exit 12 }; "
             "if ($c.UserName -ne "
             f"'{username}'"
             ") { exit 13 }; "
-            "$c.Password"
+            "if ($c.Password -is [System.Security.SecureString]) { "
+            "$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($c.Password); "
+            "try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } "
+            "finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) } "
+            "} else { $c.Password }"
         )
-        proc = self._run_ps(script)
-        if proc.returncode == 11:
+        results = self._run_ps_with_fallback(script)
+        for _, proc in results:
+            if proc.returncode == 0:
+                secret = proc.stdout.strip()
+                if not secret:
+                    raise SecretNotFoundError("secret vazio no windows vault")
+                return secret
+        if self._all_failed_with_code(results, 11):
             raise SecretBackendUnavailableError("modulo CredentialManager ausente")
-        if proc.returncode in {12, 13}:
+        if any(proc.returncode in {12, 13} for _, proc in results):
             raise SecretNotFoundError("secret nao encontrado no windows vault")
-        if proc.returncode != 0:
-            raise SecretProviderError("falha ao ler credencial no windows vault")
-        secret = proc.stdout.strip()
-        if not secret:
-            raise SecretNotFoundError("secret vazio no windows vault")
-        return secret
+        raise SecretProviderError("falha ao ler credencial no windows vault")
 
     def test_backend(self) -> bool:
-        proc = self._run_ps(
-            "if (Get-Module -ListAvailable -Name CredentialManager) { exit 0 } else { exit 11 }"
+        script = (
+            "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 11 }; "
+            "Import-Module CredentialManager -ErrorAction Stop; "
+            "if (-not (Get-Command New-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
+            "if (-not (Get-Command Get-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
+            "if (-not (Get-Command Remove-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
+            "$target = 'scrap_report.healthcheck.' + [guid]::NewGuid().ToString(); "
+            "try { "
+            "New-StoredCredential -Target $target -UserName 'healthcheck' -Password 'healthcheck' -Type Generic -Persist Enterprise | Out-Null; "
+            "$c = Get-StoredCredential -Target $target; "
+            "if ($null -eq $c) { exit 15 }; "
+            "Remove-StoredCredential -Target $target -ErrorAction SilentlyContinue | Out-Null; "
+            "exit 0 "
+            "} catch { exit 16 }"
         )
-        return proc.returncode == 0
+        results = self._run_ps_with_fallback(script)
+        return any(proc.returncode == 0 for _, proc in results)
 
 
 class LinuxSecretServiceProvider(SecretProvider):
