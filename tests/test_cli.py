@@ -276,3 +276,82 @@ def test_auth_flow_prompt_password_uses_terminal_input(
     )
     assert code == 0
     assert seen["password"] == "typed-secret"
+
+
+def test_windows_flow_uses_existing_secret_without_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "ok"
+        report_kind = "pendentes"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
+        telemetry = {"pipeline_ms": 10}
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", lambda cfg, generate_reports: _PipelineResult())
+    monkeypatch.setattr(
+        "scrap_report.cli._read_password_masked",
+        lambda _prompt: pytest.fail("nao deveria pedir senha"),
+    )
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "wf.json"),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert code == 0
+    assert '"status": "ok"' in captured.out
+
+
+def test_windows_flow_provisions_missing_secret_interactive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "typed-secret")
+
+    class _PipelineResult:
+        status = "ok"
+        report_kind = "pendentes"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
+        telemetry = {"pipeline_ms": 10}
+
+    seen = {}
+
+    def _run_pipeline(cfg, generate_reports):
+        seen["password"] = cfg.password
+        return _PipelineResult()
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", _run_pipeline)
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "wf.json"),
+        ]
+    )
+    assert code == 0
+    assert seen["password"] == "typed-secret"

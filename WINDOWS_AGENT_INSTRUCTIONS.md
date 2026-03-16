@@ -1,5 +1,12 @@
 # WINDOWS_AGENT_INSTRUCTIONS
 
+## TLDR
+1. Rodar fluxo sequencial unico:
+```powershell
+uv run --project . python -m scrap_report.cli windows-flow --username "menon@itaipu.gov.br" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
+```
+2. Se o secret ainda nao existir, o comando vai pedir senha com mascara `*****` e gravar no backend seguro.
+
 ## Objetivo
 - Executar validacao real em host Windows 11 e entregar evidencia consolidada para fechamento do pre-release.
 

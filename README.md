@@ -26,7 +26,17 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 ## Uso rapido
 
 ## Fluxo de segredo (quando pede credencial)
-1. Comandos que resolvem credencial antes da operacao: `scrape`, `pipeline` (sem `--report-only`) e `ingest-latest`.
+0. Ponto de partida recomendado no Windows (sequencial):
+```bash
+uv run python -m scrap_report.cli windows-flow \
+  --username "<usuario>" \
+  --setor IEE3 \
+  --report-kind pendentes \
+  --output-json staging/pipeline_online_windows.json
+```
+Se o secret nao existir, o comando pede senha com mascara e grava no backend seguro.
+
+1. Comandos que resolvem credencial antes da operacao: `windows-flow`, `scrape`, `pipeline` (sem `--report-only`) e `ingest-latest`.
 2. Aviso de seguranca e emitido em `stderr` no inicio desses comandos.
 3. Ordem de resolucao de senha:
   - `--prompt-password` (entrada interativa sem eco)

@@ -27,7 +27,7 @@ from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
 
-AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest"}
+AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest", "windows-flow"}
 
 
 def _read_password_masked(prompt: str = "password: ") -> str:
@@ -152,6 +152,33 @@ def _build_parser() -> argparse.ArgumentParser:
         parents=[common],
         help="ingere o xlsx mais recente de downloads para staging e gera relatorios",
     )
+    windows_flow = sub.add_parser(
+        "windows-flow",
+        help="fluxo sequencial windows: garante secret e executa pipeline seguro",
+    )
+    windows_flow.add_argument("--username", required=True)
+    windows_flow.add_argument("--setor", required=True)
+    windows_flow.add_argument(
+        "--report-kind", default="pendentes", choices=["pendentes", "executadas"]
+    )
+    windows_flow.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
+    windows_flow.add_argument("--download-dir", default="downloads")
+    windows_flow.add_argument("--staging-dir", default="staging")
+    windows_flow.add_argument("--headed", action="store_true", help="abre browser visivel")
+    windows_flow.add_argument(
+        "--secret-service",
+        default="scrap_report.sam",
+        help="nome do servico no backend de secrets",
+    )
+    windows_flow.add_argument(
+        "--selector-mode",
+        default="adaptive",
+        choices=["strict", "adaptive"],
+        help="modo de resiliencia de seletor",
+    )
+    windows_flow.add_argument(
+        "--output-json", default=None, help="salva resultado json em arquivo"
+    )
 
     stage = sub.add_parser("stage", help="move um xlsx para staging")
     stage.add_argument("--source", required=True)
@@ -242,6 +269,22 @@ def _print_secret_policy_notice(command: str, output_json: str | None) -> None:
             "[security] Aviso emitido em stderr para preservar JSON limpo em stdout.",
             file=sys.stderr,
         )
+
+
+def _ensure_secret_available(
+    provider: Any, secret_service: str, username: str
+) -> bool:
+    try:
+        provider.get_secret(secret_service, username)
+        return True
+    except SecretProviderError:
+        password = _read_password_masked("password (secret ausente): ")
+        try:
+            provider.set_secret(secret_service, username, password)
+        except SecretProviderError as exc:
+            print(f"[error] falha ao gravar secret: {exc}", file=sys.stderr)
+            return False
+        return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -345,6 +388,48 @@ def main(argv: list[str] | None = None) -> int:
         }
         _emit_json(payload, args.output_json, "scan_result")
         return 0 if not findings else 1
+
+    if args.command == "windows-flow":
+        _print_secret_policy_notice(args.command, args.output_json)
+        provider = build_secret_provider()
+        if not provider.test_backend():
+            print("[error] backend de secret indisponivel", file=sys.stderr)
+            return 1
+        if not _ensure_secret_available(provider, args.secret_service, args.username):
+            return 1
+        try:
+            cfg = CliConfigInput(
+                username=args.username,
+                password=None,
+                setor_executor=args.setor,
+                report_kind=args.report_kind,
+                base_url=args.base_url,
+                headless=not args.headed,
+                download_dir=args.download_dir,
+                staging_dir=args.staging_dir,
+                secure_required=True,
+                allow_transitional_plaintext=False,
+                secret_service=args.secret_service,
+                secret_provider=provider,
+                selector_mode=args.selector_mode,
+            ).to_scrape_config()
+        except ValueError as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+        pipeline_result = run_pipeline(cfg, generate_reports=True)
+        _emit_json(
+            {
+                "status": pipeline_result.status,
+                "report_kind": pipeline_result.report_kind,
+                "source_path": str(pipeline_result.source_path),
+                "staged_path": str(pipeline_result.staged_path),
+                "reports": pipeline_result.reports,
+                "telemetry": pipeline_result.telemetry,
+            },
+            args.output_json,
+            "pipeline_result",
+        )
+        return 0
 
     if args.command == "pipeline" and args.report_only:
         source_excel = (
