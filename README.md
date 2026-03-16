@@ -29,6 +29,7 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 1. Comandos que resolvem credencial antes da operacao: `scrape`, `pipeline` (sem `--report-only`) e `ingest-latest`.
 2. Aviso de seguranca e emitido em `stderr` no inicio desses comandos.
 3. Ordem de resolucao de senha:
+  - `--prompt-password` (entrada interativa sem eco)
   - `--password` (entrada explicita da execucao atual)
   - secret store do OS (`Keychain`, `Credential Manager`, `Secret Service`)
   - `SAM_PASSWORD` somente em modo transicional permitido
@@ -37,9 +38,8 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
   - se `--allow-transitional-plaintext` estiver desabilitado, sem secret seguro a execucao para
 5. Comando recomendado para provisionar secret sem exibir valor:
 ```bash
-uv run python -m scrap_report.cli secret set \
+uv run python -m scrap_report.cli secret set-interactive \
   --username "<usuario>" \
-  --password "<valor>" \
   --secret-service scrap_report.sam
 ```
 

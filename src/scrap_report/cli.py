@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
 from pathlib import Path
@@ -35,6 +36,11 @@ def _build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--username", default=None)
     common.add_argument("--password", default=None)
+    common.add_argument(
+        "--prompt-password",
+        action="store_true",
+        help="le senha no terminal sem eco, sem passar em linha de comando",
+    )
     common.add_argument("--setor", required=True)
     common.add_argument("--report-kind", default="pendentes", choices=["pendentes", "executadas"])
     common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
@@ -108,6 +114,12 @@ def _build_parser() -> argparse.ArgumentParser:
     secret_set.add_argument("--username", required=True)
     secret_set.add_argument("--password", required=True)
     secret_set.add_argument("--secret-service", default="scrap_report.sam")
+    secret_set_interactive = secret_sub.add_parser(
+        "set-interactive",
+        help="grava secret no backend seguro lendo senha sem eco",
+    )
+    secret_set_interactive.add_argument("--username", required=True)
+    secret_set_interactive.add_argument("--secret-service", default="scrap_report.sam")
 
     secret_get = secret_sub.add_parser(
         "get", help="verifica existencia de secret sem exibir valor"
@@ -219,6 +231,23 @@ def main(argv: list[str] | None = None) -> int:
                 "secret_result",
             )
             return 0
+        if args.secret_command == "set-interactive":
+            password = getpass.getpass("password: ")
+            try:
+                provider.set_secret(args.secret_service, args.username, password)
+            except SecretProviderError as exc:
+                _emit_json(
+                    {"status": "error", "message": str(exc)},
+                    None,
+                    "secret_result",
+                )
+                return 1
+            _emit_json(
+                {"status": "ok", "secret_set": True, "username": args.username},
+                None,
+                "secret_result",
+            )
+            return 0
         if args.secret_command == "get":
             try:
                 provider.get_secret(args.secret_service, args.username)
@@ -281,10 +310,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command in {"scrape", "pipeline", "ingest-latest"}:
         _print_secret_policy_notice(args.command, args.output_json)
+        input_password = args.password
+        if args.prompt_password and not input_password:
+            input_password = getpass.getpass("password: ")
         try:
             cfg = CliConfigInput(
                 username=args.username,
-                password=args.password,
+                password=input_password,
                 setor_executor=args.setor,
                 report_kind=args.report_kind,
                 base_url=args.base_url,

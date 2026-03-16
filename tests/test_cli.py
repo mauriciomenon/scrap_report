@@ -134,6 +134,29 @@ def test_secret_get_command_no_plaintext_leak(
     assert '"secret_found": true' in captured
 
 
+def test_secret_set_interactive_no_plaintext_leak(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli.getpass.getpass", lambda _prompt: "s3cr3t")
+
+    code = main(
+        [
+            "secret",
+            "set-interactive",
+            "--username",
+            "u1",
+            "--secret-service",
+            "svc",
+        ]
+    )
+    captured = capsys.readouterr().out
+    assert code == 0
+    assert "s3cr3t" not in captured
+    assert '"secret_set": true' in captured
+
+
 def test_scan_secrets_command_finds_issue(tmp_path: Path):
     bad = tmp_path / "bad.py"
     bad.write_text("api_key='123'\n", encoding="utf-8")
@@ -211,3 +234,45 @@ def test_auth_flow_fail_closed_message_is_clean(
     assert "secret set" in captured.err
     assert "Traceback" not in captured.err
     assert "safe-secret" not in captured.err
+
+
+def test_auth_flow_prompt_password_uses_terminal_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli.getpass.getpass", lambda _prompt: "typed-secret")
+
+    seen = {}
+
+    class _FakeScraper:
+        def __init__(self, cfg):
+            seen["password"] = cfg.password
+
+        def run(self):
+            return type(
+                "R",
+                (),
+                {
+                    "report_kind": "pendentes",
+                    "downloaded_path": tmp_path / "download.xlsx",
+                    "started_at": "2026-03-15T00:00:00Z",
+                    "finished_at": "2026-03-15T00:00:01Z",
+                },
+            )()
+
+    monkeypatch.setattr("scrap_report.cli.SAMScraper", _FakeScraper)
+
+    code = main(
+        [
+            "scrape",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--allow-transitional-plaintext",
+            "--prompt-password",
+        ]
+    )
+    assert code == 0
+    assert seen["password"] == "typed-secret"
