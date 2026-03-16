@@ -1,6 +1,6 @@
 import pytest
 
-from scrap_report.scraper import SAMScraper
+from scrap_report.scraper import SAMLocators, SAMScraper
 
 
 def test_resolve_report_navigation_pendentes():
@@ -16,3 +16,8 @@ def test_resolve_report_navigation_executadas():
 def test_resolve_report_navigation_invalid():
     with pytest.raises(ValueError):
         SAMScraper._resolve_report_navigation("x")
+
+
+def test_filter_contract_includes_emission_year_week_fields():
+    assert "EmissionYearWeekStart_input" in SAMLocators.FILTER["emission_year_week_start"]
+    assert "EmissionYearWeekEnd_input" in SAMLocators.FILTER["emission_year_week_end"]

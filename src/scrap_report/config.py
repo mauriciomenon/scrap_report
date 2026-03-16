@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 
 from .secret_provider import SecretBackendUnavailableError, SecretNotFoundError, SecretProvider
@@ -21,6 +22,18 @@ def _resolve_project_path(value: Path) -> Path:
     if path.is_absolute():
         return path
     return (PROJECT_ROOT / path).resolve()
+
+
+def build_recent_emission_year_week_window(
+    reference_date: date | None = None, weeks_back: int = 4
+) -> tuple[str, str]:
+    target_date = reference_date or date.today()
+    start_date = target_date - timedelta(weeks=weeks_back)
+    start_iso = start_date.isocalendar()
+    end_iso = target_date.isocalendar()
+    start_value = f"{start_iso.year}{start_iso.week:02d}"
+    end_value = f"{end_iso.year}{end_iso.week:02d}"
+    return start_value, end_value
 
 
 @dataclass(slots=True)
@@ -43,6 +56,8 @@ class ScrapeConfig:
     retry_attempts: int = 3
     selector_mode: str = "adaptive"
     ignore_https_errors: bool = False
+    emission_year_week_start: str = ""
+    emission_year_week_end: str = ""
 
     def __post_init__(self) -> None:
         self.report_kind = self.report_kind.strip().lower()
@@ -58,6 +73,11 @@ class ScrapeConfig:
             raise ValueError("password nao pode ser vazio")
         if not self.setor_executor.strip():
             raise ValueError("setor_executor nao pode ser vazio")
+        if not self.emission_year_week_start or not self.emission_year_week_end:
+            (
+                self.emission_year_week_start,
+                self.emission_year_week_end,
+            ) = build_recent_emission_year_week_window()
 
         self.download_dir = _resolve_project_path(Path(self.download_dir))
         self.staging_dir = _resolve_project_path(Path(self.staging_dir))

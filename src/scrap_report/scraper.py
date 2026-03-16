@@ -48,6 +48,8 @@ class SAMLocators:
     }
 
     FILTER = {
+        "emission_year_week_start": "input[id*='EmissionYearWeekStart_input']",
+        "emission_year_week_end": "input[id*='EmissionYearWeekEnd_input']",
         "setor_executor": "[id*='SectorExecutor']",
         "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
         "export_excel": "a[id*='ExportToExcel']",
@@ -171,11 +173,23 @@ class SAMScraper:
         )
 
     def _fill_filter(self, page: Page) -> None:
+        emission_start_selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["emission_year_week_start"],
+            name="[name*='EmissionYearWeekStart']",
+        )
+        emission_end_selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["emission_year_week_end"],
+            name="[name*='EmissionYearWeekEnd']",
+        )
         selector = self._resolve_selector(
             page,
             stable_id=self.locators.FILTER["setor_executor"],
             name="[name*='SectorExecutor']",
         )
+        page.fill(emission_start_selector, self.config.emission_year_week_start)
+        page.fill(emission_end_selector, self.config.emission_year_week_end)
         page.fill(selector, self.config.setor_executor)
 
     def _click_search(self, page: Page) -> None:
