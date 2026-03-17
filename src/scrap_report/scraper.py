@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
 
+import pandas as pd
 from playwright.sync_api import Page, sync_playwright
 
 from .config import ScrapeConfig
@@ -49,6 +50,7 @@ class SAMLocators:
         "consulta_ssa": "/SAM_SMA/SSASearch.aspx",
         "consulta_ssa_print": "/SAM_SMA/SSASearch.aspx",
         "aprovacao_emissao": "/SAM_SMA_Reports/SSAsPendingOfApprovalOnEmission.aspx",
+        "aprovacao_cancelamento": "/SAM_SMA_Reports/SSAsPendingOfApprovalForCancel.aspx",
         "reprogramacoes": "/SAM_SMA_Reports/SSAsRescheduled.aspx",
     }
 
@@ -72,6 +74,21 @@ class SAMLocators:
 class SAMScraper:
     """Executa fluxo de scraping de relatorio."""
 
+    EMPTY_RESULT_COLUMNS = (
+        "Numero da SSA",
+        "Situacao",
+        "Derivada de",
+        "Localizacao",
+        "Descricao da Localizacao",
+        "Equipamento",
+        "Semana de Cadastro",
+        "Emitida Em",
+        "Descricao da SSA",
+        "Setor Emissor",
+        "Setor Executor",
+        "Solicitante",
+    )
+
     def __init__(self, config: ScrapeConfig):
         self.config = config
         self.locators = SAMLocators()
@@ -94,7 +111,16 @@ class SAMScraper:
                 self._navigate_to_report(page)
                 self._wait_for_filter_field(page)
                 self._fill_filter(page)
-                self._click_search(page)
+                no_results = self._click_search(page)
+                if no_results:
+                    downloaded = self._build_empty_result_download()
+                    finished_at = datetime.now().isoformat(timespec="seconds")
+                    return ScrapeResult(
+                        report_kind=self.config.report_kind,
+                        downloaded_path=downloaded,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                    )
                 self._select_report_options(page)
                 downloaded = self._export_download(page)
                 finished_at = datetime.now().isoformat(timespec="seconds")
@@ -173,6 +199,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["consulta_ssa_print"]
         if report_kind == "aprovacao_emissao":
             return SAMLocators.NAVIGATION["aprovacao_emissao"]
+        if report_kind == "aprovacao_cancelamento":
+            return SAMLocators.NAVIGATION["aprovacao_cancelamento"]
         if report_kind == "reprogramacoes":
             return SAMLocators.NAVIGATION["reprogramacoes"]
         raise ValueError("report_kind invalido")
@@ -235,7 +263,7 @@ class SAMScraper:
         page.fill(emissor_selector, self.config.setor_emissor)
         page.fill(target_selector, self.config.setor_executor)
 
-    def _click_search(self, page: Page) -> None:
+    def _click_search(self, page: Page) -> bool:
         success = page.evaluate(
             """(args) => {
                 const icon = document.querySelector(args.iconSelector);
@@ -258,7 +286,7 @@ class SAMScraper:
         if not success:
             raise RuntimeError("falha ao acionar busca principal")
         self._wait_for_search_results(page)
-        self._raise_if_no_results(page)
+        return self._handle_no_results(page)
 
     def _select_report_options(self, page: Page) -> None:
         if self.config.report_kind in {"consulta_ssa", "consulta_ssa_print"}:
@@ -343,12 +371,43 @@ class SAMScraper:
         export_ready = page.locator(self.locators.FILTER["export_excel"]).count() > 0
         return export_ready and (not saw_loading or loading_state == "none")
 
-    def _raise_if_no_results(self, page: Page) -> None:
-        if self._has_no_results_message(page):
-            raise RuntimeError("busca sem resultados para os filtros informados")
+    def _handle_no_results(self, page: Page) -> bool:
+        if not self._has_no_results_message(page):
+            return False
+        if self._allow_empty_result_success():
+            logger.info(
+                "busca sem resultados para report_kind=%s; gerando artefato vazio sinalizado",
+                self.config.report_kind,
+            )
+            return True
+        raise RuntimeError("busca sem resultados para os filtros informados")
 
     def _has_no_results_message(self, page: Page) -> bool:
         return page.locator(self.locators.FILTER["no_results_message"]).count() > 0
+
+    def _allow_empty_result_success(self) -> bool:
+        return self.config.report_kind == "aprovacao_cancelamento"
+
+    def _build_empty_result_download(self) -> Path:
+        title = self._empty_result_title()
+        rows = [[title], list(self.EMPTY_RESULT_COLUMNS)]
+        placeholder = pd.DataFrame(rows)
+        target = self.config.download_dir / self._empty_result_filename()
+        with pd.ExcelWriter(target, engine="openpyxl") as writer:
+            placeholder.to_excel(writer, index=False, header=False, sheet_name="Dados")
+        return target
+
+    def _empty_result_title(self) -> str:
+        return (
+            "Sem resultados para os filtros: "
+            f"emissor={self.config.setor_emissor}; "
+            f"executor={self.config.setor_executor}; "
+            f"emissao={self.config.emission_year_week_start}..{self.config.emission_year_week_end}"
+        )
+
+    def _empty_result_filename(self) -> str:
+        stem = f"{self.config.report_kind}_sem_resultados_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        return f"{stem}.xlsx"
 
     def _wait_for_loading_complete(self, page: Page, timeout_ms: int) -> bool:
         started = time.time()

@@ -17,6 +17,7 @@ REPORT_KINDS = (
     "consulta_ssa",
     "consulta_ssa_print",
     "aprovacao_emissao",
+    "aprovacao_cancelamento",
     "reprogramacoes",
 )
 NON_TABULAR_REPORT_KINDS = ("consulta_ssa_print",)
@@ -85,7 +86,8 @@ class ScrapeConfig:
         if self.report_kind not in REPORT_KINDS:
             raise ValueError(
                 "report_kind deve ser 'pendentes', 'executadas', 'pendentes_execucao', "
-                "'consulta_ssa', 'consulta_ssa_print', 'aprovacao_emissao' ou 'reprogramacoes'"
+                "'consulta_ssa', 'consulta_ssa_print', 'aprovacao_emissao', "
+                "'aprovacao_cancelamento' ou 'reprogramacoes'"
             )
         self.selector_mode = self.selector_mode.strip().lower()
         if self.selector_mode not in {"strict", "adaptive"}:

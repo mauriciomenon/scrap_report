@@ -1,5 +1,6 @@
 import pytest
 
+from scrap_report.config import ScrapeConfig
 from scrap_report.scraper import SAMLocators, SAMScraper
 
 
@@ -33,6 +34,11 @@ def test_resolve_report_navigation_aprovacao_emissao():
     assert selector.endswith("/SAM_SMA_Reports/SSAsPendingOfApprovalOnEmission.aspx")
 
 
+def test_resolve_report_navigation_aprovacao_cancelamento():
+    selector = SAMScraper._resolve_report_navigation("aprovacao_cancelamento")
+    assert selector.endswith("/SAM_SMA_Reports/SSAsPendingOfApprovalForCancel.aspx")
+
+
 def test_resolve_report_navigation_reprogramacoes():
     selector = SAMScraper._resolve_report_navigation("reprogramacoes")
     assert selector.endswith("/SAM_SMA_Reports/SSAsRescheduled.aspx")
@@ -54,3 +60,45 @@ def test_filter_contract_includes_emission_year_week_fields():
     assert "wtLink_ExportToExcel" in SAMLocators.FILTER["export_excel"]
     assert "wtLink_ExportToPDF" in SAMLocators.FILTER["export_pdf"]
     assert "Nenhuma SSA encontrada para exibir" in SAMLocators.FILTER["no_results_message"]
+
+
+def test_allow_empty_result_success_only_for_aprovacao_cancelamento(tmp_path):
+    cfg_cancel = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="aprovacao_cancelamento",
+        download_dir=tmp_path / "downloads1",
+        staging_dir=tmp_path / "staging1",
+    )
+    cfg_pend = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads2",
+        staging_dir=tmp_path / "staging2",
+    )
+
+    assert SAMScraper(cfg_cancel)._allow_empty_result_success() is True
+    assert SAMScraper(cfg_pend)._allow_empty_result_success() is False
+
+
+def test_build_empty_result_download_creates_header_only_xlsx(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="aprovacao_cancelamento",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+    path = scraper._build_empty_result_download()
+
+    assert path.exists()
+    assert path.suffix.lower() == ".xlsx"
+    assert "sem_resultados" in path.name
