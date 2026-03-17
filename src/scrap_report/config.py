@@ -15,8 +15,10 @@ REPORT_KINDS = (
     "executadas",
     "pendentes_execucao",
     "consulta_ssa",
+    "consulta_ssa_print",
     "reprogramacoes",
 )
+NON_TABULAR_REPORT_KINDS = ("consulta_ssa_print",)
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
     "uv run python -m scrap_report.cli secret setup "
@@ -41,6 +43,16 @@ def build_recent_emission_year_week_window(
     start_value = f"{start_iso.year}{start_iso.week:02d}"
     end_value = f"{end_iso.year}{end_iso.week:02d}"
     return start_value, end_value
+
+
+def report_kind_uses_excel_output(report_kind: str) -> bool:
+    return report_kind not in NON_TABULAR_REPORT_KINDS
+
+
+def report_kind_download_suffixes(report_kind: str) -> tuple[str, ...]:
+    if report_kind in NON_TABULAR_REPORT_KINDS:
+        return (".pdf",)
+    return (".xlsx",)
 
 
 @dataclass(slots=True)
@@ -72,7 +84,7 @@ class ScrapeConfig:
         if self.report_kind not in REPORT_KINDS:
             raise ValueError(
                 "report_kind deve ser 'pendentes', 'executadas', 'pendentes_execucao', "
-                "'consulta_ssa' ou 'reprogramacoes'"
+                "'consulta_ssa', 'consulta_ssa_print' ou 'reprogramacoes'"
             )
         self.selector_mode = self.selector_mode.strip().lower()
         if self.selector_mode not in {"strict", "adaptive"}:

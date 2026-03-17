@@ -79,6 +79,73 @@ def test_run_pipeline_from_local_download(tmp_path: Path):
     assert "report_ms" in result.telemetry
 
 
+def test_run_pipeline_offline_pdf_skips_reports(monkeypatch, tmp_path: Path):
+    download_dir = tmp_path / "downloads"
+    stage_dir = tmp_path / "staging"
+    download_dir.mkdir()
+
+    downloaded = download_dir / "Consulta SSA.pdf"
+    downloaded.write_bytes(b"%PDF-1.4")
+
+    def fake_run(self):
+        return ScrapeResult(
+            report_kind="consulta_ssa_print",
+            downloaded_path=downloaded,
+            started_at="2026-03-15T10:00:00",
+            finished_at="2026-03-15T10:00:10",
+        )
+
+    monkeypatch.setattr("scrap_report.pipeline.SAMScraper.run", fake_run)
+
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_executor="MEL4",
+        setor_emissor="IEE3",
+        report_kind="consulta_ssa_print",
+        download_dir=download_dir,
+        staging_dir=stage_dir,
+    )
+
+    result = run_pipeline(cfg, generate_reports=True)
+
+    assert result.status == "ok"
+    assert result.staged_path.suffix.lower() == ".pdf"
+    assert result.reports == {}
+    assert "scrape_ms" in result.telemetry
+    assert "stage_ms" in result.telemetry
+    assert "report_ms" not in result.telemetry
+
+
+def test_run_pipeline_from_local_download_pdf_skips_reports(tmp_path: Path):
+    download_dir = tmp_path / "downloads"
+    stage_dir = tmp_path / "staging"
+    download_dir.mkdir()
+
+    downloaded = download_dir / "Consulta SSA.pdf"
+    downloaded.write_bytes(b"%PDF-1.4")
+
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_executor="MEL4",
+        setor_emissor="IEE3",
+        report_kind="consulta_ssa_print",
+        download_dir=download_dir,
+        staging_dir=stage_dir,
+    )
+
+    result = run_pipeline_from_local_download(cfg, generate_reports=True)
+
+    assert result.status == "ok"
+    assert result.source_path == downloaded
+    assert result.staged_path.suffix.lower() == ".pdf"
+    assert result.reports == {}
+    assert "find_download_ms" in result.telemetry
+    assert "stage_ms" in result.telemetry
+    assert "report_ms" not in result.telemetry
+
+
 def test_run_report_only(tmp_path: Path):
     source = tmp_path / "staging" / "entrada.xlsx"
     source.parent.mkdir(parents=True)
@@ -103,5 +170,18 @@ def test_run_report_only_missing_file_raises_typed_error(tmp_path: Path):
         run_report_only(
             source_excel=missing,
             report_kind="pendentes",
+            reports_output_dir=tmp_path / "staging" / "reports",
+        )
+
+
+def test_run_report_only_rejects_non_tabular_kind(tmp_path: Path):
+    source = tmp_path / "staging" / "entrada.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"x")
+
+    with pytest.raises(PipelineStepError):
+        run_report_only(
+            source_excel=source,
+            report_kind="consulta_ssa_print",
             reports_output_dir=tmp_path / "staging" / "reports",
         )

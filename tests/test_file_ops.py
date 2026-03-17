@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from scrap_report.file_ops import build_staged_filename, find_latest_xlsx, stage_download
+from scrap_report.file_ops import (
+    build_staged_filename,
+    find_latest_download,
+    find_latest_xlsx,
+    stage_download,
+)
 
 
 def test_build_staged_filename_contains_report_kind():
@@ -36,3 +41,13 @@ def test_find_latest_xlsx_returns_most_recent(tmp_path: Path):
 def test_find_latest_xlsx_raises_when_empty(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         find_latest_xlsx(tmp_path)
+
+
+def test_find_latest_download_supports_pdf(tmp_path: Path):
+    f1 = tmp_path / "a.pdf"
+    f2 = tmp_path / "b.pdf"
+    f1.write_bytes(b"1")
+    f2.write_bytes(b"2")
+
+    latest = find_latest_download(tmp_path, (".pdf",))
+    assert latest.name in {"a.pdf", "b.pdf"}

@@ -7,9 +7,13 @@ from pathlib import Path
 import time
 from typing import Dict
 
-from .config import ScrapeConfig
+from .config import (
+    ScrapeConfig,
+    report_kind_download_suffixes,
+    report_kind_uses_excel_output,
+)
 from .errors import PipelineStepError
-from .file_ops import find_latest_xlsx, stage_download
+from .file_ops import find_latest_download, stage_download
 from .reporting import artifacts_to_dict, generate_ssa_report_from_excel
 from .scraper import SAMScraper
 
@@ -47,7 +51,7 @@ def run_pipeline(config: ScrapeConfig, generate_reports: bool = True) -> Pipelin
         raise PipelineStepError("stage", str(exc)) from exc
 
     reports: Dict[str, str] = {}
-    if generate_reports:
+    if generate_reports and report_kind_uses_excel_output(config.report_kind):
         try:
             t0 = time.perf_counter()
             artifacts = generate_ssa_report_from_excel(
@@ -75,7 +79,10 @@ def run_pipeline_from_local_download(
     telemetry: Dict[str, int] = {}
     try:
         t0 = time.perf_counter()
-        source = find_latest_xlsx(config.download_dir)
+        source = find_latest_download(
+            config.download_dir,
+            report_kind_download_suffixes(config.report_kind),
+        )
         telemetry["find_download_ms"] = int((time.perf_counter() - t0) * 1000)
     except Exception as exc:
         raise PipelineStepError("find_download", str(exc)) from exc
@@ -92,7 +99,7 @@ def run_pipeline_from_local_download(
         raise PipelineStepError("stage", str(exc)) from exc
 
     reports: Dict[str, str] = {}
-    if generate_reports:
+    if generate_reports and report_kind_uses_excel_output(config.report_kind):
         try:
             t0 = time.perf_counter()
             artifacts = generate_ssa_report_from_excel(
@@ -118,6 +125,11 @@ def run_report_only(
     source_excel: Path, report_kind: str, reports_output_dir: Path
 ) -> PipelineResult:
     telemetry: Dict[str, int] = {}
+    if not report_kind_uses_excel_output(report_kind):
+        raise PipelineStepError(
+            "report",
+            "report_only indisponivel para report_kind sem excel",
+        )
     source = Path(source_excel)
     if not source.exists():
         raise PipelineStepError("source_excel", f"excel nao encontrado: {source}")

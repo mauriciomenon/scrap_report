@@ -10,7 +10,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .config import CliConfigInput, REPORT_KINDS, SECRET_SETUP_HINT
+from .config import (
+    CliConfigInput,
+    REPORT_KINDS,
+    SECRET_SETUP_HINT,
+    report_kind_uses_excel_output,
+)
 from .contract import (
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
@@ -475,6 +480,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "pipeline" and args.report_only:
+        if not report_kind_uses_excel_output(args.report_kind):
+            print(
+                "[error] report_only indisponivel para report_kind sem excel",
+                file=sys.stderr,
+            )
+            return 1
         source_excel = (
             Path(args.source_excel)
             if args.source_excel

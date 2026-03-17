@@ -30,9 +30,19 @@ def stage_download(source_path: Path, staging_dir: Path, report_kind: str, overw
     return target
 
 
-def find_latest_xlsx(download_dir: Path) -> Path:
+def find_latest_download(download_dir: Path, suffixes: tuple[str, ...]) -> Path:
     base = Path(download_dir)
-    candidates = sorted(base.glob("*.xlsx"), key=lambda p: p.stat().st_mtime, reverse=True)
+    normalized = {suffix.lower() for suffix in suffixes}
+    candidates = sorted(
+        (path for path in base.iterdir() if path.is_file() and path.suffix.lower() in normalized),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     if not candidates:
-        raise FileNotFoundError(f"nenhum xlsx encontrado em {base}")
+        joined = ", ".join(sorted(normalized))
+        raise FileNotFoundError(f"nenhum arquivo {joined} encontrado em {base}")
     return candidates[0]
+
+
+def find_latest_xlsx(download_dir: Path) -> Path:
+    return find_latest_download(download_dir, (".xlsx",))

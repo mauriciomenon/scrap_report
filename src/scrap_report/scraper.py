@@ -47,6 +47,7 @@ class SAMLocators:
         "executadas": "/SAM_SMA_Reports/SSAsExecuted.aspx",
         "pendentes_execucao": "/SAM_SMA_Reports/PendingToExecution.aspx",
         "consulta_ssa": "/SAM_SMA/SSASearch.aspx",
+        "consulta_ssa_print": "/SAM_SMA/SSASearch.aspx",
         "reprogramacoes": "/SAM_SMA_Reports/SSAsRescheduled.aspx",
     }
 
@@ -59,6 +60,7 @@ class SAMLocators:
         "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
         "actions_menu": "div[id*='wtButtonDropdownWrapper'] > div.dropdown-header.select",
         "export_excel": "a[id*='wtLink_ExportToExcel']",
+        "export_pdf": "a[id*='wtLink_ExportToPDF']",
         "consulta_results": "[id*='wtFinalPlaceholder_wtListSSAs'], [id*='wtListSSAs']",
         "consulta_result_link": "a[href*='SSAView.aspx?SSAId=']",
         "no_results_message": "text=Nenhuma SSA encontrada para exibir...",
@@ -92,7 +94,7 @@ class SAMScraper:
                 self._fill_filter(page)
                 self._click_search(page)
                 self._select_report_options(page)
-                downloaded = self._export_to_excel(page)
+                downloaded = self._export_download(page)
                 finished_at = datetime.now().isoformat(timespec="seconds")
                 return ScrapeResult(
                     report_kind=self.config.report_kind,
@@ -165,6 +167,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["pendentes_execucao"]
         if report_kind == "consulta_ssa":
             return SAMLocators.NAVIGATION["consulta_ssa"]
+        if report_kind == "consulta_ssa_print":
+            return SAMLocators.NAVIGATION["consulta_ssa_print"]
         if report_kind == "reprogramacoes":
             return SAMLocators.NAVIGATION["reprogramacoes"]
         raise ValueError("report_kind invalido")
@@ -239,7 +243,7 @@ class SAMScraper:
         self._raise_if_no_results(page)
 
     def _select_report_options(self, page: Page) -> None:
-        if self.config.report_kind == "consulta_ssa":
+        if self.config.report_kind in {"consulta_ssa", "consulta_ssa_print"}:
             return
         details_locator = page.locator("text=Relatorio com Detalhes")
         if details_locator.count() == 0:
@@ -247,10 +251,10 @@ class SAMScraper:
         details_locator.first.click()
         self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
-    def _export_to_excel(self, page: Page) -> Path:
+    def _export_download(self, page: Page) -> Path:
         selector = self._resolve_selector(
             page,
-            stable_id=self.locators.FILTER["export_excel"],
+            stable_id=self._resolve_export_locator(),
         )
         with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
             self._open_actions_menu(page)
@@ -262,6 +266,11 @@ class SAMScraper:
             download.save_as(str(target))
             logger.info("download concluido: %s", target)
             return target
+
+    def _resolve_export_locator(self) -> str:
+        if self.config.report_kind == "consulta_ssa_print":
+            return self.locators.FILTER["export_pdf"]
+        return self.locators.FILTER["export_excel"]
 
     def _open_actions_menu(self, page: Page) -> None:
         menu_selector = self._resolve_selector(
@@ -309,7 +318,7 @@ class SAMScraper:
     def _search_results_ready(self, page: Page, saw_loading: bool, loading_state: str) -> bool:
         if self._has_no_results_message(page):
             return not saw_loading or loading_state == "none"
-        if self.config.report_kind == "consulta_ssa":
+        if self.config.report_kind in {"consulta_ssa", "consulta_ssa_print"}:
             cards_ready = page.locator(self.locators.FILTER["consulta_results"]).count() > 0
             links_ready = page.locator(self.locators.FILTER["consulta_result_link"]).count() > 0
             return (cards_ready or links_ready) and (not saw_loading or loading_state == "none")
