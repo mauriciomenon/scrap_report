@@ -152,7 +152,24 @@ def test_run_pipeline_offline_derivadas_relacionadas_skips_reports(monkeypatch, 
     download_dir.mkdir()
 
     downloaded = download_dir / "Derivadas.xlsx"
-    pd.DataFrame({"Numero da SSA": ["1"], "Relacao": ["Derivada"]}).to_excel(downloaded, index=False)
+    pd.DataFrame(
+        {
+            "Número da SSA": ["202602343", None],
+            "Localização": ["T075Q002", None],
+            "Setor Emissor": ["IEE3", None],
+            "Setor Executor": ["MEL4", None],
+            "Situação": ["STE", None],
+            "Número da SSA.1": [None, "202602343"],
+            "Setor Emissor.1": [None, "IEE3"],
+            "Setor Executor.1": [None, "MEL4"],
+            "Situação.1": [None, "STE"],
+            "Relação": [None, "Derivada da"],
+            "Número da SSA.2": [None, "202517662"],
+            "Setor Emissor.2": [None, "IEQ1"],
+            "Setor Executor.2": [None, "IEE3"],
+            "Situação.2": [None, "ADM"],
+        }
+    ).to_excel(downloaded, index=False)
 
     def fake_run(self):
         return ScrapeResult(
@@ -178,10 +195,11 @@ def test_run_pipeline_offline_derivadas_relacionadas_skips_reports(monkeypatch, 
 
     assert result.status == "ok"
     assert result.staged_path.suffix.lower() == ".xlsx"
-    assert result.reports == {}
+    assert "dados" in result.reports
+    assert Path(result.reports["dados"]).exists()
     assert "scrape_ms" in result.telemetry
     assert "stage_ms" in result.telemetry
-    assert "report_ms" not in result.telemetry
+    assert "report_ms" in result.telemetry
 
 
 def test_run_report_only(tmp_path: Path):

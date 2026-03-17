@@ -57,6 +57,7 @@ def run_pipeline(config: ScrapeConfig, generate_reports: bool = True) -> Pipelin
             artifacts = generate_ssa_report_from_excel(
                 excel_path=staged,
                 output_dir=config.staging_dir / "reports",
+                report_kind=config.report_kind,
             )
             reports = artifacts_to_dict(artifacts)
             telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)
@@ -105,6 +106,7 @@ def run_pipeline_from_local_download(
             artifacts = generate_ssa_report_from_excel(
                 excel_path=staged,
                 output_dir=config.staging_dir / "reports",
+                report_kind=config.report_kind,
             )
             reports = artifacts_to_dict(artifacts)
             telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)
@@ -139,6 +141,7 @@ def run_report_only(
         artifacts = generate_ssa_report_from_excel(
             excel_path=source,
             output_dir=reports_output_dir,
+            report_kind=report_kind,
         )
         reports = artifacts_to_dict(artifacts)
         telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)

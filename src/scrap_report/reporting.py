@@ -6,11 +6,29 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+import unicodedata
 
 import pandas as pd
 
 TARGET_SETOR_EMISSOR = "IEE3"
 TARGET_SETOR_EXECUTOR = "MEL4"
+DERIVADAS_RELACIONADAS_COLUMNS = (
+    "ssa_referencia_numero",
+    "ssa_referencia_localizacao",
+    "ssa_referencia_setor_emissor",
+    "ssa_referencia_setor_executor",
+    "ssa_referencia_situacao",
+    "ssa_relacionada_numero",
+    "ssa_relacionada_setor_emissor",
+    "ssa_relacionada_setor_executor",
+    "ssa_relacionada_situacao",
+    "relacao",
+    "ssa_relacionada_destino_numero",
+    "ssa_relacionada_destino_setor_emissor",
+    "ssa_relacionada_destino_setor_executor",
+    "ssa_relacionada_destino_situacao",
+    "observacao",
+)
 
 
 @dataclass(slots=True)
@@ -47,11 +65,19 @@ def _detect_header_row(raw_df: pd.DataFrame) -> int:
 
 def _normalize_columns(values: pd.Series) -> list[str]:
     columns: list[str] = []
+    seen: dict[str, int] = {}
     for index, value in enumerate(values):
         if value in (None, "") or pd.isna(value):
-            columns.append(f"Unnamed: {index}")
+            base_name = f"Unnamed: {index}"
+        else:
+            base_name = str(value).strip()
+
+        duplicate_index = seen.get(base_name, 0)
+        seen[base_name] = duplicate_index + 1
+        if duplicate_index == 0:
+            columns.append(base_name)
             continue
-        columns.append(str(value).strip())
+        columns.append(f"{base_name}.{duplicate_index}")
     return columns
 
 
@@ -64,16 +90,136 @@ def _filter_report_scope(df: pd.DataFrame) -> pd.DataFrame:
     return filtered.reset_index(drop=True)
 
 
+def _normalize_nullable_text(value: object) -> str | None:
+    if value in (None, "") or pd.isna(value):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_column_key(value: object) -> str:
+    text = unicodedata.normalize("NFKD", str(value))
+    text = text.encode("ascii", "ignore").decode("ascii")
+    return text.strip().lower()
+
+
+def _resolve_first_column_name(df: pd.DataFrame, *candidates: str) -> str:
+    normalized_candidates = {_normalize_column_key(item) for item in candidates}
+    for column in df.columns:
+        if _normalize_column_key(column) in normalized_candidates:
+            return str(column)
+    raise KeyError(candidates[0])
+
+
+def _get_first_column_series(df: pd.DataFrame, *candidates: str) -> pd.Series:
+    column_name = _resolve_first_column_name(df, *candidates)
+    data = df.loc[:, column_name]
+    if isinstance(data, pd.DataFrame):
+        return data.iloc[:, 0]
+    return data
+
+
 def load_excel(excel_path: Path) -> pd.DataFrame:
     path = Path(excel_path)
     if not path.exists():
         raise FileNotFoundError(f"excel nao encontrado: {path}")
+    data = _load_outsystems_table(path)
+    return _filter_report_scope(data)
+
+
+def _load_outsystems_table(path: Path) -> pd.DataFrame:
     raw_df = pd.read_excel(path, header=None)
     header_row = _detect_header_row(raw_df)
     data = raw_df.iloc[header_row + 1 :].copy()
     data.columns = _normalize_columns(raw_df.iloc[header_row])
     data = data.dropna(axis=0, how="all").dropna(axis=1, how="all").reset_index(drop=True)
-    return _filter_report_scope(data)
+    return data
+
+
+def load_derivadas_relacionadas_excel(excel_path: Path) -> pd.DataFrame:
+    path = Path(excel_path)
+    if not path.exists():
+        raise FileNotFoundError(f"excel nao encontrado: {path}")
+
+    base_df = _load_outsystems_table(path)
+    if base_df.empty:
+        return pd.DataFrame(columns=list(DERIVADAS_RELACIONADAS_COLUMNS))
+
+    work = base_df.copy()
+    primary_number_col = _resolve_first_column_name(work, "Número da SSA", "Numero da SSA")
+    localizacao_col = _resolve_first_column_name(work, "Localização", "Localizacao")
+    setor_emissor_col = _resolve_first_column_name(work, "Setor Emissor")
+    setor_executor_col = _resolve_first_column_name(work, "Setor Executor")
+    situacao_col = _resolve_first_column_name(work, "Situação", "Situacao")
+    related_number_col = _resolve_first_column_name(work, "Número da SSA.1", "Numero da SSA.1")
+    related_emissor_col = _resolve_first_column_name(work, "Setor Emissor.1")
+    related_executor_col = _resolve_first_column_name(work, "Setor Executor.1")
+    related_situacao_col = _resolve_first_column_name(work, "Situação.1", "Situacao.1")
+    relacao_col = _resolve_first_column_name(work, "Relação", "Relacao")
+    target_number_col = _resolve_first_column_name(work, "Número da SSA.2", "Numero da SSA.2")
+    target_emissor_col = _resolve_first_column_name(work, "Setor Emissor.2")
+    target_executor_col = _resolve_first_column_name(work, "Setor Executor.2")
+    target_situacao_col = _resolve_first_column_name(work, "Situação.2", "Situacao.2")
+
+    work["_is_detail_row"] = _get_first_column_series(work, "Número da SSA", "Numero da SSA").isna()
+    work[primary_number_col] = _get_first_column_series(work, "Número da SSA", "Numero da SSA").ffill()
+    work[localizacao_col] = _get_first_column_series(work, "Localização", "Localizacao").ffill()
+    work[setor_emissor_col] = _get_first_column_series(work, "Setor Emissor").ffill()
+    work[setor_executor_col] = _get_first_column_series(work, "Setor Executor").ffill()
+    work[situacao_col] = _get_first_column_series(work, "Situação", "Situacao").ffill()
+
+    work = _filter_report_scope(work)
+    detail_mask = work["_is_detail_row"]
+
+    detail = work[detail_mask].copy()
+    if detail.empty:
+        return pd.DataFrame(columns=list(DERIVADAS_RELACIONADAS_COLUMNS))
+
+    observation_col = "Número da SSA.1"
+    observation_mask = detail[observation_col].astype(str).str.contains(
+        "Sem derivadas em visualização simplificada", na=False
+    )
+
+    normalized = pd.DataFrame(
+        {
+            "ssa_referencia_numero": detail[primary_number_col].map(_normalize_nullable_text),
+            "ssa_referencia_localizacao": detail[localizacao_col].map(_normalize_nullable_text),
+            "ssa_referencia_setor_emissor": detail[setor_emissor_col].map(_normalize_nullable_text),
+            "ssa_referencia_setor_executor": detail[setor_executor_col].map(_normalize_nullable_text),
+            "ssa_referencia_situacao": detail[situacao_col].map(_normalize_nullable_text),
+            "ssa_relacionada_numero": detail[related_number_col].map(_normalize_nullable_text),
+            "ssa_relacionada_setor_emissor": detail[related_emissor_col].map(_normalize_nullable_text),
+            "ssa_relacionada_setor_executor": detail[related_executor_col].map(_normalize_nullable_text),
+            "ssa_relacionada_situacao": detail[related_situacao_col].map(_normalize_nullable_text),
+            "relacao": detail[relacao_col].map(_normalize_nullable_text),
+            "ssa_relacionada_destino_numero": detail[target_number_col].map(_normalize_nullable_text),
+            "ssa_relacionada_destino_setor_emissor": detail[target_emissor_col].map(_normalize_nullable_text),
+            "ssa_relacionada_destino_setor_executor": detail[target_executor_col].map(_normalize_nullable_text),
+            "ssa_relacionada_destino_situacao": detail[target_situacao_col].map(_normalize_nullable_text),
+            "observacao": pd.Series([None] * len(detail), index=detail.index, dtype="object"),
+        }
+    )
+
+    normalized.loc[observation_mask, "observacao"] = (
+        detail.loc[observation_mask, related_number_col].map(_normalize_nullable_text)
+    )
+    normalized.loc[observation_mask, "ssa_relacionada_numero"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_setor_emissor"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_setor_executor"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_situacao"] = None
+    normalized.loc[observation_mask, "relacao"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_destino_numero"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_destino_setor_emissor"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_destino_setor_executor"] = None
+    normalized.loc[observation_mask, "ssa_relacionada_destino_situacao"] = None
+
+    return normalized.reset_index(drop=True)
+
+
+def load_excel_for_report(excel_path: Path, report_kind: str) -> pd.DataFrame:
+    if report_kind == "derivadas_relacionadas":
+        return load_derivadas_relacionadas_excel(excel_path)
+    return load_excel(excel_path)
 
 
 def export_data_excel(df: pd.DataFrame, filename: Path) -> Path:
@@ -129,11 +275,13 @@ def generate_text_report(df: pd.DataFrame, filename: Path) -> Path:
     return path
 
 
-def generate_ssa_report_from_excel(excel_path: Path, output_dir: Path) -> ReportArtifacts:
+def generate_ssa_report_from_excel(
+    excel_path: Path, output_dir: Path, report_kind: str = "pendentes"
+) -> ReportArtifacts:
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    df = load_excel(excel_path)
+    df = load_excel_for_report(excel_path, report_kind)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     dados = export_data_excel(df, output / f"ssas_dados_{ts}.xlsx")

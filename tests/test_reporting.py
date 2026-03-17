@@ -6,6 +6,7 @@ import pandas as pd
 from scrap_report.reporting import (
     artifacts_to_dict,
     load_excel,
+    load_derivadas_relacionadas_excel,
     export_data_excel,
     export_summary_statistics,
     generate_ssa_report_from_excel,
@@ -46,6 +47,38 @@ def _outsystems_like_excel(path: Path) -> Path:
     return path
 
 
+def _derivadas_relacionadas_excel(path: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "SSAs Derivadas e Relacionadas"
+    sheet.append(["", "", "", "SSAs Derivadas e Relacionadas"])
+    sheet.append(
+        [
+            "Número da SSA",
+            "Localização",
+            "Setor Emissor",
+            "Setor Executor",
+            "Situação",
+            "Número da SSA",
+            "Setor Emissor",
+            "Setor Executor",
+            "Situação",
+            "Relação",
+            "Número da SSA",
+            "Setor Emissor",
+            "Setor Executor",
+            "Situação",
+        ]
+    )
+    sheet.append(["202602343", "T075Q002", "IEE3", "MEL4", "STE", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["", "", "", "", "", "202602343", "IEE3", "MEL4", "STE", "Derivada da", "202517662", "IEQ1", "IEE3", "ADM"])
+    sheet.append(["202602395", "G097G013", "IEE3", "MEL4", "SEE", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["", "", "", "", "", "Sem derivadas em visualização simplificada.", "", "", "", "", "", "", "", ""])
+    workbook.save(path)
+    workbook.close()
+    return path
+
+
 def test_export_data_excel(tmp_path: Path):
     df = _sample_df()
     out = export_data_excel(df, tmp_path / "dados.xlsx")
@@ -81,6 +114,59 @@ def test_generate_ssa_report_from_excel(tmp_path: Path):
     assert Path(data["dados"]).exists()
     assert Path(data["estatisticas"]).exists()
     assert Path(data["relatorio_txt"]).exists()
+
+
+def test_load_derivadas_relacionadas_excel_normalizes_pairs(tmp_path: Path):
+    excel = _derivadas_relacionadas_excel(tmp_path / "derivadas.xlsx")
+    df = load_derivadas_relacionadas_excel(excel)
+
+    assert list(df.columns) == [
+        "ssa_referencia_numero",
+        "ssa_referencia_localizacao",
+        "ssa_referencia_setor_emissor",
+        "ssa_referencia_setor_executor",
+        "ssa_referencia_situacao",
+        "ssa_relacionada_numero",
+        "ssa_relacionada_setor_emissor",
+        "ssa_relacionada_setor_executor",
+        "ssa_relacionada_situacao",
+        "relacao",
+        "ssa_relacionada_destino_numero",
+        "ssa_relacionada_destino_setor_emissor",
+        "ssa_relacionada_destino_setor_executor",
+        "ssa_relacionada_destino_situacao",
+        "observacao",
+    ]
+    assert len(df) == 2
+    assert df.iloc[0]["ssa_referencia_numero"] == "202602343"
+    assert df.iloc[0]["relacao"] == "Derivada da"
+    assert df.iloc[0]["ssa_relacionada_destino_numero"] == "202517662"
+    assert df.iloc[1]["ssa_referencia_numero"] == "202602395"
+    assert df.iloc[1]["observacao"] == "Sem derivadas em visualização simplificada."
+
+
+def test_load_excel_assigns_suffixes_for_duplicate_headers(tmp_path: Path):
+    excel = _derivadas_relacionadas_excel(tmp_path / "derivadas_headers.xlsx")
+    df = load_excel(excel)
+
+    assert "Número da SSA" in df.columns
+    assert "Número da SSA.1" in df.columns
+    assert "Número da SSA.2" in df.columns
+    assert "Setor Emissor.1" in df.columns
+    assert "Setor Emissor.2" in df.columns
+
+
+def test_generate_ssa_report_from_excel_derivadas_relacionadas(tmp_path: Path):
+    excel = _derivadas_relacionadas_excel(tmp_path / "derivadas.xlsx")
+
+    artifacts = generate_ssa_report_from_excel(
+        excel, tmp_path / "out", report_kind="derivadas_relacionadas"
+    )
+    data = pd.read_excel(artifacts.dados)
+
+    assert len(data) == 2
+    assert "ssa_referencia_numero" in data.columns
+    assert "observacao" in data.columns
 
 
 def test_load_excel_detects_real_header_and_filters_scope(tmp_path: Path):

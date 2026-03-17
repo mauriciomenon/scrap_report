@@ -21,7 +21,7 @@ REPORT_KINDS = (
     "derivadas_relacionadas",
     "reprogramacoes",
 )
-NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print", "derivadas_relacionadas")
+NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print",)
 NON_XLSX_DOWNLOAD_KINDS = ("consulta_ssa_print",)
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
