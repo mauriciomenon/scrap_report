@@ -47,6 +47,7 @@ class SAMLocators:
         "executadas": "/SAM_SMA_Reports/SSAsExecuted.aspx",
         "pendentes_execucao": "/SAM_SMA_Reports/PendingToExecution.aspx",
         "consulta_ssa": "/SAM_SMA/SSASearch.aspx",
+        "reprogramacoes": "/SAM_SMA_Reports/SSAsRescheduled.aspx",
     }
 
     FILTER = {
@@ -60,6 +61,7 @@ class SAMLocators:
         "export_excel": "a[id*='wtLink_ExportToExcel']",
         "consulta_results": "[id*='wtFinalPlaceholder_wtListSSAs'], [id*='wtListSSAs']",
         "consulta_result_link": "a[href*='SSAView.aspx?SSAId=']",
+        "no_results_message": "text=Nenhuma SSA encontrada para exibir...",
     }
 
 
@@ -163,6 +165,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["pendentes_execucao"]
         if report_kind == "consulta_ssa":
             return SAMLocators.NAVIGATION["consulta_ssa"]
+        if report_kind == "reprogramacoes":
+            return SAMLocators.NAVIGATION["reprogramacoes"]
         raise ValueError("report_kind invalido")
 
     def _build_report_url(self, report_path: str) -> str:
@@ -232,6 +236,7 @@ class SAMScraper:
         if not success:
             raise RuntimeError("falha ao acionar busca principal")
         self._wait_for_search_results(page)
+        self._raise_if_no_results(page)
 
     def _select_report_options(self, page: Page) -> None:
         if self.config.report_kind == "consulta_ssa":
@@ -302,12 +307,21 @@ class SAMScraper:
         raise RuntimeError(f"resultado da busca nao estabilizou; snapshot={snapshot}")
 
     def _search_results_ready(self, page: Page, saw_loading: bool, loading_state: str) -> bool:
+        if self._has_no_results_message(page):
+            return not saw_loading or loading_state == "none"
         if self.config.report_kind == "consulta_ssa":
             cards_ready = page.locator(self.locators.FILTER["consulta_results"]).count() > 0
             links_ready = page.locator(self.locators.FILTER["consulta_result_link"]).count() > 0
             return (cards_ready or links_ready) and (not saw_loading or loading_state == "none")
         export_ready = page.locator(self.locators.FILTER["export_excel"]).count() > 0
         return export_ready and (not saw_loading or loading_state == "none")
+
+    def _raise_if_no_results(self, page: Page) -> None:
+        if self._has_no_results_message(page):
+            raise RuntimeError("busca sem resultados para os filtros informados")
+
+    def _has_no_results_message(self, page: Page) -> bool:
+        return page.locator(self.locators.FILTER["no_results_message"]).count() > 0
 
     def _wait_for_loading_complete(self, page: Page, timeout_ms: int) -> bool:
         started = time.time()

@@ -23,6 +23,11 @@ def test_resolve_report_navigation_consulta_ssa():
     assert selector.endswith("/SAM_SMA/SSASearch.aspx")
 
 
+def test_resolve_report_navigation_reprogramacoes():
+    selector = SAMScraper._resolve_report_navigation("reprogramacoes")
+    assert selector.endswith("/SAM_SMA_Reports/SSAsRescheduled.aspx")
+
+
 def test_resolve_report_navigation_invalid():
     with pytest.raises(ValueError):
         SAMScraper._resolve_report_navigation("x")
@@ -36,3 +41,4 @@ def test_filter_contract_includes_emission_year_week_fields():
     assert "wtButtonDropdownWrapper" in SAMLocators.FILTER["actions_menu"]
     assert "dropdown-header.select" in SAMLocators.FILTER["actions_menu"]
     assert "wtLink_ExportToExcel" in SAMLocators.FILTER["export_excel"]
+    assert "Nenhuma SSA encontrada para exibir" in SAMLocators.FILTER["no_results_message"]
