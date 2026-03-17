@@ -1,19 +1,16 @@
 # RECOVERY_BACKLOG
 
 ## NAO_BLOQUEANTE_DEFERIDO
-- generalizar o padrao de lupa + dropdown de exportacao para outras telas de relatorio do SAM
-- adicionar validacao de schema para consumo por outro programa via contrato versionado
-- incluir teste E2E real com ambiente SAM disponivel
-- avaliar retries adaptativos por tipo de falha de rede
-- adicionar gate local de scanner de segredos antes de execucao principal
-- incluir suite de testes de redacao de logs para excecoes encadeadas
-- implementar provider Windows 11 (Credential Manager/DPAPI)
-- implementar provider Linux (Secret Service)
-- adicionar comando `secret get` com resposta segura (sem valor bruto)
-- migrar backend Windows para leitura segura real (DPAPI/CredRead) para eliminar modo presenca
-- validar em Windows 11 real com modulo `CredentialManager` instalado
-- ampliar redacao para stack traces e pontos adicionais de logging estruturado
-- ampliar regras do `scan-secrets` com baseline de falso positivo por caminho
-- adicionar health-check DOM e modo strict/adaptive no selector engine
-- validar modo strict em ambiente SAM real e ajustar fallback por evidencias
-- avaliar exigencia de credencial em `ingest-latest` quando operando somente com arquivo local
+- ligar filtro real por `data de emissao` ao runtime do `sweep-run`
+- adicionar presets operacionais de agenda, sem criar script novo
+- preencher o grupo `demais` em `SETOR_PRIORITY_GROUPS`
+- executar rodada real de sweep com preset em pelo menos um report kind verde e guardar evidencia consolidada
+- avaliar paralelismo controlado no sweep sem quebrar ordem nem rastreabilidade
+- adicionar ordenacao opcional no derivado sem alterar a ordem fonte por padrao
+- classificar semanticamente `relacao` em `derivadas_relacionadas`, mantendo o bruto como evidencia
+- mapear e implementar telas ainda faltantes do menu `Relatorios`:
+  - `SSAs sem Registro de APR`
+  - `ATs Emitidas para uma SSA`
+  - `SSAs por Documento`
+- validar smoke Debian13 real em host com conectividade estavel ao PyPI
+- revisar naming e manifest consolidado para rotinas de agenda futuras

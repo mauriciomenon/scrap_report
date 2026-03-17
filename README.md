@@ -1,164 +1,208 @@
 # scrap_report
 
-Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao externa.
+Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao externa, operacao Windows e varredura em lote.
 
-## Escopo deste ciclo
-- abrir pagina em headless
-- navegar para tela de relatorio
-- preencher filtros
-- baixar xlsx
-- mover xlsx para pasta de staging
-- gerar artefatos locais (dados, estatisticas, txt)
+## Current truth
+- branch operacional: `master`
+- launcher Windows oficial: `EXECUTAR_SCRAP_WINDOWS.ps1`
+- launcher visual para duplo clique: `EXECUTAR_SCRAP_WINDOWS.cmd`
+- wrapper legado mantido: `scripts/main_windows.ps1`
+- fluxo Windows unitario: `windows-flow`
+- fluxo Windows em lote por preset: `sweep-run`
+- janela padrao operacional: semana atual ate 4 semanas para tras
+- exemplo validado em `2026-03-16`: `202608 -> 202612`
 
-## Nao esta no escopo
-- dashboard/ui/layout
-- criacao de repo git, branch ou PR
-- validacao E2E online (sem acesso ao ambiente SAM nesta fase)
+## Escopo entregue
+- login seguro com secret store do OS e fallback DPAPI no Windows
+- navegacao real nas telas do SAM via Playwright
+- export de xlsx e pdf conforme a tela
+- staging de artefatos com naming estavel
+- geracao de relatorios derivados quando o formato for suportado
+- varredura em lote por grupos de setores e presets operacionais
 
-## Estrutura
-- `src/scrap_report/config.py`: configuracao e validacao de entrada
-- `src/scrap_report/scraper.py`: fluxo Playwright
-- `src/scrap_report/file_ops.py`: staging e naming de arquivos
-- `src/scrap_report/reporting.py`: geracao de artefatos
-- `src/scrap_report/pipeline.py`: orquestracao completa
-- `src/scrap_report/cli.py`: comandos de execucao
+## Fora do escopo atual
+- dashboard ou GUI propria
+- agendamento
+- paralelismo no sweep
+- filtro real por data de emissao no runtime de lote
+- criacao de script novo para cada variacao operacional
 
-## Uso rapido
+## Estrutura do projeto
+- `src/scrap_report/config.py`: defaults, validacao e grupos de setores
+- `src/scrap_report/scraper.py`: automacao Playwright das telas SAM
+- `src/scrap_report/file_ops.py`: naming e staging de downloads
+- `src/scrap_report/reporting.py`: parser e artefatos derivados
+- `src/scrap_report/pipeline.py`: execucao unitaria de scrape + stage + reports
+- `src/scrap_report/sweep.py`: planejamento, runner e presets de lote
+- `src/scrap_report/cli.py`: comandos operacionais
 
-## Estado validado
-- telas validadas em ambiente real: `pendentes` e `executadas`
-- filtros operacionais atuais:
-  - `Setor Emissor = IEE3`
-  - `Setor Executor = MEL4`
-- janela automatica de emissao:
-  - semana atual ate 4 semanas para tras
-  - exemplo validado em `2026-03-16`: `202608 -> 202612`
-- exportacao validada pelo fluxo real da tela:
-  - clicar lupa de busca
-  - abrir menu de acoes do dropdown
-  - clicar `Exportar para Excel`
+## Report kinds suportados
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+- `derivadas_relacionadas`
+- `reprogramacoes`
 
-## Fluxo de segredo (quando pede credencial)
-0. Ponto de partida recomendado no Windows (sem argumentos):
-```bash
-./EXECUTAR_SCRAP_WINDOWS.cmd
+## Estado validado em ambiente real
+### Fluxos com export e conteudo validado
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `derivadas_relacionadas`
+
+### Fluxos estaveis com ausencia real de dados na rodada validada
+- `reprogramacoes`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+
+## Filtros de setor
+O sistema suporta quatro modos logicos:
+- apenas emissor
+- apenas executor
+- ambos
+- nenhum
+
+Tokens para nao filtrar um lado:
+- `ALL`
+- `*`
+- vazio
+
+Exemplos:
+- apenas executor: `--setor MEL4 --setor-emissor ALL`
+- apenas emissor: `--setor ALL --setor-emissor IEE3`
+- ambos: `--setor MEL4 --setor-emissor IEE3`
+- nenhum: `--setor ALL --setor-emissor ALL`
+
+## Grupos de setores atuais
+- principal: `IEE3`, `MEL4`, `MEL3`
+- segundo_plano: `IEE1`, `IEE2`, `IEE4`
+- terceiro_plano: `MEL1`, `MEL2`, `IEQ1`, `IEQ2`, `IEQ3`, `ILA1`, `ILA2`, `ILA3`
+- prioritarios: uniao de `principal`, `segundo_plano` e `terceiro_plano`
+- demais: reservado para preenchimento futuro
+
+## Uso rapido no Windows
+### 1. Launcher sem argumentos
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.cmd
 ```
 
-0.1 Entrada PowerShell equivalente (sem argumentos):
-```bash
-./EXECUTAR_SCRAP_WINDOWS.ps1
-```
-Esse wrapper executa `windows-flow` internamente.
-Em `both`, ele gera:
-- `staging/pipeline_online_windows_pendentes.json`
-- `staging/pipeline_online_windows_executadas.json`
-
-0.2 Entrada principal com parametros opcionais:
-```bash
-./EXECUTAR_SCRAP_WINDOWS.ps1 --Username "<usuario>" --Setor MEL4 --SetorEmissor IEE3 --ReportKind both
+### 2. Launcher PowerShell equivalente
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1
 ```
 
-Alias legado ainda disponivel:
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
-  -ReportKind both
+### 3. Execucao unitaria com filtros explicitos
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "MEL4" -SetorEmissor "IEE3" -ReportKind pendentes
 ```
 
-0.2 Fluxo CLI equivalente (sequencial):
-```bash
-uv run python -m scrap_report.cli windows-flow \
-  --username "<usuario>" \
-  --setor MEL4 \
-  --setor-emissor IEE3 \
-  --report-kind both \
-  --output-json staging/pipeline_online_windows.json
-```
-Se o secret nao existir, o comando pede senha com mascara e grava no backend seguro.
-
-1. Comandos que resolvem credencial antes da operacao: `windows-flow`, `scrape`, `pipeline` (sem `--report-only`) e `ingest-latest`.
-2. Aviso de seguranca e emitido em `stderr` no inicio desses comandos.
-3. Ordem de resolucao de senha:
-  - `--prompt-password` (entrada interativa sem eco)
-  - `--password` (entrada explicita da execucao atual)
-  - secret store do OS (`Keychain`, `Credential Manager`, `Secret Service`)
-  - no Windows, se `CredentialManager` nao estiver funcional, fallback automatico para cofre local DPAPI por usuario
-  - `SAM_PASSWORD` somente em modo transicional permitido
-4. Politica fail-closed:
-  - se `--secure-required` estiver ativo, sem secret seguro a execucao para com erro limpo
-  - se `--allow-transitional-plaintext` estiver desabilitado, sem secret seguro a execucao para
-5. Comando recomendado para provisionar secret sem exibir valor:
-```bash
-uv run python -m scrap_report.cli secret setup \
-  --username "<usuario>" \
-  --secret-service scrap_report.sam
+### 4. Execucao em lote com preset
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind pendentes
 ```
 
-### 1) somente scraping
-```bash
-uv run python -m scrap_report.cli scrape \
-  --username "$SAM_USERNAME" \
-  --setor MEL4 \
-  --setor-emissor IEE3 \
-  --secure-required \
-  --report-kind pendentes
+### 5. Execucao em lote com preset para os dois relatorios principais
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind both
 ```
 
-### 2) pipeline completo (scrape + stage + relatorios)
-```bash
-uv run python -m scrap_report.cli pipeline \
-  --username "$SAM_USERNAME" \
-  --setor MEL4 \
-  --setor-emissor IEE3 \
-  --secure-required \
-  --report-kind pendentes \
-  --download-dir downloads \
-  --staging-dir staging \
-  --output-json staging/pipeline_result.json
+## Presets de lote
+Scopes disponiveis por grupo:
+- `_emissor`
+- `_executor`
+- `_ambos`
+
+Grupos disponiveis:
+- `principal`
+- `segundo_plano`
+- `terceiro_plano`
+- `prioritarios`
+- `demais`
+
+Exemplos validos:
+- `principal_emissor`
+- `principal_executor`
+- `principal_ambos`
+- `prioritarios_executor`
+- `terceiro_plano_ambos`
+
+Regra importante:
+- `-Preset` nao pode ser combinado com `-Setor` nem `-SetorEmissor`
+
+## CLI principal
+### windows-flow unitario
+```powershell
+uv run --project . python -m scrap_report.cli windows-flow --username "menon" --setor MEL4 --setor-emissor IEE3 --report-kind pendentes --output-json staging/pipeline_pendentes.json
 ```
 
-### 3) pipeline em modo report-only (sem scraping)
-```bash
-uv run python -m scrap_report.cli pipeline \
-  --setor MEL4 \
-  --report-kind pendentes \
-  --staging-dir staging \
-  --report-only \
-  --source-excel staging/pendentes_arquivo.xlsx \
-  --output-json staging/pipeline_report_only.json
+### sweep-run manual
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode executor --setores-executor MEL4 MEL3 --year-week-start 202608 --year-week-end 202612 --output-json staging/sweep_manual.json
 ```
 
-### 4) ingestao local (sem acessar o site)
-```bash
-uv run python -m scrap_report.cli ingest-latest \
-  --setor MEL4 \
-  --report-kind pendentes \
-  --download-dir downloads \
-  --staging-dir staging \
-  --output-json staging/ingest_result.json
+### sweep-run com preset
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --preset principal_executor --output-json staging/sweep_principal_executor.json
 ```
 
-### 5) gerar artefatos a partir de um excel ja baixado
-```bash
-uv run python -m scrap_report.cli report-from-excel \
-  --excel staging/pendentes_arquivo.xlsx \
-  --output-dir staging/reports
+### pipeline report-only
+```powershell
+uv run --project . python -m scrap_report.cli pipeline --report-only --source-excel staging/pendentes_arquivo.xlsx --report-kind pendentes --staging-dir staging --output-json staging/pipeline_report_only.json
 ```
 
-### 6) validar contrato JSON
-```bash
-uv run python -m scrap_report.cli validate-contract \
-  --output-json staging/contract_info.json
+## Fluxo de segredo
+- comandos com auth resolvem credencial antes da operacao
+- ordem de resolucao:
+  - `--prompt-password`
+  - `--password`
+  - secret store do OS
+  - fallback DPAPI por usuario no Windows quando necessario
+  - `SAM_PASSWORD` apenas em modo transicional permitido
+- politica fail-closed mantida quando configurada
+
+Provisionamento recomendado:
+```powershell
+uv run --project . python -m scrap_report.cli secret setup --username "menon" --secret-service scrap_report.sam
 ```
 
-## Integracao com outro programa
-- o arquivo principal para consumo fica em `staging/*.xlsx`
-- os artefatos adicionais ficam em `staging/reports/`
-- os comandos retornam json com `schema_version` para contrato estavel de integracao
-- os comandos retornam tambem `generated_at` (UTC) e `producer`
-- o comando `pipeline` retorna json com caminhos finais para integracao automatica
+## Artefatos gerados
+### Fluxo unitario xlsx
+- bruto staged: `staging/*.xlsx`
+- derivados: `staging/reports/*.xlsx`
+- manifest json: caminho informado em `--output-json`
 
-## Politica de versao do contrato
-- `schema_version` segue semver (`MAJOR.MINOR.PATCH`)
-- bump MAJOR: mudanca incompativel de campo, remocao ou rename
-- bump MINOR: campo novo opcional, comando novo sem quebra
-- bump PATCH: ajuste interno sem mudanca estrutural do payload
+### Fluxo `consulta_ssa_print`
+- pdf staged em `staging/*.pdf`
+- `reports = {}` por desenho
+
+### Fluxo `derivadas_relacionadas`
+- xlsx bruto staged
+- xlsx derivado normalizado
+- estatisticas
+
+## Ordenacao e preservacao de dados
+- a ordem fonte do export SAM e preservada por padrao
+- o sweep preserva a ordem de expansao do plano
+- falha de um item em lote nao aborta os demais; o manifest final registra `ok`, `partial` ou `error`
+
+## Integracao externa
+- o contrato JSON inclui `schema_version`, `generated_at` e `producer`
+- o `pipeline` e o `sweep-run` retornam caminhos dos artefatos gerados
+- o manifest de lote consolida status por item, filtros aplicados e erros por item
+
+## Limites conhecidos
+- `data de emissao` ainda nao esta ligada ao runtime real do sweep
+- `demais_*` existe como preset, mas hoje depende de preencher o grupo `demais`
+- ainda faltam algumas telas adicionais do menu `Relatorios`
+
+## Referencias operacionais
+- `WINDOWS_AGENT_INSTRUCTIONS.md`: guia operacional Windows atual
+- `HANDOFF.md`: snapshot de estado atual do branch
+- `ROUND_STATUS.md`: historico recente por slice
+- `RECOVERY_BACKLOG.md`: pendencias reais fora do slice atual

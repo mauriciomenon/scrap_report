@@ -1,90 +1,189 @@
 # WINDOWS_AGENT_INSTRUCTIONS
 
-## TLDR
-1. Fluxo recomendado para usuario final (sem argumentos):
+## Current truth
+- entrypoint oficial: `EXECUTAR_SCRAP_WINDOWS.ps1`
+- launcher visual: `EXECUTAR_SCRAP_WINDOWS.cmd`
+- alias legado: `scripts/main_windows.ps1`
+- modo unitario: `windows-flow`
+- modo lote: `sweep-run`
+- branch alvo: `master`
+
+## Uso mais simples
+### 1. Sem argumentos
 ```powershell
 .\EXECUTAR_SCRAP_WINDOWS.cmd
 ```
-2. Entrada PowerShell equivalente (sem argumentos):
+
+### 2. Mesmo fluxo em PowerShell
 ```powershell
 .\EXECUTAR_SCRAP_WINDOWS.ps1
 ```
-3. O fluxo pede `username` se necessario e pede senha com mascara `*****` quando secret nao existir.
-4. Em `both` (padrao), gera duas rodadas no mesmo comando:
-   - `staging/pipeline_online_windows_pendentes.json`
-   - `staging/pipeline_online_windows_executadas.json`
-5. Se quiser passar parametros na entrada principal:
+
+Comportamento padrao:
+- pede `username` se necessario
+- pede senha com mascara quando o secret ainda nao existir
+- roda `both` por padrao
+- gera dois JSONs:
+  - `staging/pipeline_online_windows_pendentes.json`
+  - `staging/pipeline_online_windows_executadas.json`
+
+## Modo unitario com parametros
+### 1. Ambos os filtros
 ```powershell
-.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "<usuario>" -Setor MEL4 -SetorEmissor IEE3 -ReportKind both
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "MEL4" -SetorEmissor "IEE3" -ReportKind pendentes
 ```
-6. Opcao tecnica para cert estrito (desliga ignore de cert):
+
+### 2. Apenas executor
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "MEL4" -SetorEmissor "ALL" -ReportKind pendentes
+```
+
+### 3. Apenas emissor
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "ALL" -SetorEmissor "IEE3" -ReportKind pendentes
+```
+
+### 4. Sem filtro de setor
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "ALL" -SetorEmissor "ALL" -ReportKind pendentes
+```
+
+## Modo lote com preset
+### 1. Um report kind
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind pendentes
+```
+
+### 2. `both` com preset
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind both
+```
+
+Saidas no caso `both` com preset:
+- `staging/sweep_windows_pendentes.json`
+- `staging/sweep_windows_executadas.json`
+
+## Regras do modo preset
+- `-Preset` usa `sweep-run` internamente
+- `-Preset` nao pode ser combinado com `-Setor`
+- `-Preset` nao pode ser combinado com `-SetorEmissor`
+- `-ReportKind` continua obrigatorio no sentido operacional do launcher
+- `-ReportKind both` no preset hoje expande para:
+  - `pendentes`
+  - `executadas`
+
+## Presets disponiveis
+### Grupo principal
+- `principal_emissor`
+- `principal_executor`
+- `principal_ambos`
+
+### Segundo plano
+- `segundo_plano_emissor`
+- `segundo_plano_executor`
+- `segundo_plano_ambos`
+
+### Terceiro plano
+- `terceiro_plano_emissor`
+- `terceiro_plano_executor`
+- `terceiro_plano_ambos`
+
+### Prioritarios
+- `prioritarios_emissor`
+- `prioritarios_executor`
+- `prioritarios_ambos`
+
+### Demais
+- `demais_emissor`
+- `demais_executor`
+- `demais_ambos`
+
+## Grupos de setores atuais
+- principal: `IEE3`, `MEL4`, `MEL3`
+- segundo_plano: `IEE1`, `IEE2`, `IEE4`
+- terceiro_plano: `MEL1`, `MEL2`, `IEQ1`, `IEQ2`, `IEQ3`, `ILA1`, `ILA2`, `ILA3`
+- prioritarios: uniao dos tres grupos acima
+- demais: reservado para preenchimento futuro
+
+## Report kinds atuais
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+- `derivadas_relacionadas`
+- `reprogramacoes`
+- `both` apenas no wrapper PowerShell
+
+## Estado validado em ambiente real
+### Com conteudo validado
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `derivadas_relacionadas`
+
+### Estaveis com ausencia real de linhas na rodada validada
+- `reprogramacoes`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+
+## Janela temporal atual
+- padrao operacional: semana atual ate 4 semanas para tras
+- exemplo validado em `2026-03-16`: `202608 -> 202612`
+
+## Certificado HTTPS
+Padrao atual:
+- launcher usa `ignore https errors`
+- isso existe por causa do ambiente interno com cert nao confiavel no browser automatizado
+
+Modo estrito:
 ```powershell
 .\EXECUTAR_SCRAP_WINDOWS.ps1 -StrictCert
 ```
-7. Fluxo CLI equivalente (mantido):
+
+## Secret e credencial
+Provisionamento recomendado:
 ```powershell
-uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor MEL4 --setor-emissor IEE3 --report-kind both --output-json staging/pipeline_online_windows.json
-```
-8. Alias legado (mantido para compatibilidade):
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor MEL4 -SetorEmissor IEE3 -ReportKind both
-```
-9. Comandos anteriores (mantidos):
-```powershell
-uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
-uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam
-uv run --project . python -m scrap_report.cli pipeline --username "<usuario>" --setor MEL4 --setor-emissor IEE3 --secure-required --report-kind pendentes --download-dir downloads --staging-dir staging --base-url "https://osprd.itaipu/SAM_SMA/" --output-json staging/pipeline_online_windows.json
+uv run --project . python -m scrap_report.cli secret setup --username "menon" --secret-service scrap_report.sam
 ```
 
-## Escopo validado hoje
-- telas validadas em ambiente real:
-  - `pendentes`
-  - `executadas`
-- filtros validados:
-  - `Setor Emissor = IEE3`
-  - `Setor Executor = MEL4`
-- janela automatica:
-  - semana atual ate 4 semanas para tras
-  - exemplo validado em `2026-03-16`: `202608 -> 202612`
-- fluxo validado:
-  - preencher filtros
-  - clicar lupa
-  - abrir dropdown de acoes
-  - clicar `Exportar para Excel`
+Fluxo de resolucao:
+- `--prompt-password`
+- `--password`
+- secret store do OS
+- fallback DPAPI por usuario no Windows
+- `SAM_PASSWORD` apenas em modo transicional permitido
 
-## Objetivo
-- Executar validacao real em host Windows 11 e entregar evidencia consolidada para fechamento do pre-release.
+## Artefatos gerados
+### Unitario xlsx
+- bruto staged em `staging\*.xlsx`
+- derivados em `staging\reports\*.xlsx`
+- JSON no caminho informado em `-OutputJson`
 
-## Pre-requisitos
-1. Windows 11
-2. PowerShell 5.1+ ou PowerShell 7+
-3. Python 3.11+
-4. uv instalado
-5. Sem instalacao manual extra de modulo de segredo
+### `consulta_ssa_print`
+- pdf staged em `staging\*.pdf`
+- sem `reports` derivados
 
-## Passos obrigatorios
-1. Abrir PowerShell na raiz do projeto.
-2. (Opcional) validar modulo de segredo:
+### Sweep por preset
+- manifest JSON por execucao
+- em `both`, um JSON por report kind
+
+## Fluxos CLI equivalentes
+### windows-flow unitario
 ```powershell
-Get-Module -ListAvailable -Name CredentialManager
-```
-3. Se ausente, NAO precisa instalar. O app usa fallback DPAPI por usuario automaticamente.
-```powershell
-# nenhum comando adicional necessario
-```
-4. Rodar smoke completo:
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1
+uv run --project . python -m scrap_report.cli windows-flow --username "menon" --setor MEL4 --setor-emissor IEE3 --report-kind pendentes --output-json staging/pipeline_pendentes.json
 ```
 
-## Resultado esperado
-- Arquivo gerado: `staging/smoke_evidence_windows11.json`
-- Saida sem leak de segredo
-- `status: ok` para checks do JSON consolidado
+### sweep-run com preset
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --preset principal_executor --output-json staging/sweep_principal_executor.json
+```
 
-## Entrega para fechamento
-1. Enviar `staging/smoke_evidence_windows11.json`.
-2. Se houver falha, enviar tambem o log completo do comando.
-
-## Observacao
-- Nao alterar `src/` nem `tests/` durante essa rodada operacional.
+## Observacoes operacionais
+- o alias `scripts/main_windows.ps1` existe apenas para compatibilidade
+- nao ha necessidade de instalar modulo extra para secret no Windows atual
+- o launcher nao cria script novo para variacoes; lote e unitario passam pelo mesmo caminho oficial

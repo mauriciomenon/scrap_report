@@ -1,24 +1,28 @@
 # REVIEW_THREAD_TRIAGE
 
-## fix pequeno real (corrigir agora)
-- criar pipeline modular com entrada/saida clara para integracao
-- remover qualquer credencial hardcoded de fluxo executavel
-- garantir move seguro de xlsx para pasta alvo
-- criar baseline formal de seguranca (modelo, ameaca, politica)
-- implementar provider de segredo e fail-closed no carregamento de credencial
-- ampliar providers para Windows/Linux e comando `secret get` sem leak
+## Resolvido no branch atual
+- pipeline modular com entrada e saida claras para integracao
+- secret store por OS com fallback seguro no Windows
+- launcher Windows sem argumentos para usuario final
+- filtros por setor emissor, executor, ambos e nenhum
+- janela automatica de 4 semanas
+- exportacao real nas telas principais do SAM
+- cobertura de `pendentes`, `executadas`, `pendentes_execucao`, `consulta_ssa`, `consulta_ssa_print`, `reprogramacoes`, `aprovacao_emissao`, `aprovacao_cancelamento` e `derivadas_relacionadas`
+- parser normalizado para `derivadas_relacionadas`
+- base de sweep, runner, presets e `-Preset` no launcher Windows
 
-## falso positivo (justificar tecnicamente)
-- nao aplicar ajustes de layout/dashboard: fora do objetivo desta extracao
+## Falso positivo / nao aplicar
+- qualquer ajuste de layout ou dashboard proprio fora do fluxo de extracao
+- criar um script diferente para cada combinacao operacional
+- reorder silencioso do conteudo exportado pelo SAM
 
-## refactor amplo sem bug concreto (backlog)
-- unificar todos os wrappers de erro herdados dos legados em arquitetura nova
-- reescrever parser de colunas para suportar todos os formatos historicos
-- redesenhar logging completo com telemetria estruturada end-to-end
+## Refactor amplo sem bug concreto
+- paralelizar sweep antes de consolidar requisitos de ordem, erro e manifest
+- redesenhar toda a camada de reporting sem bug real especifico
+- unificar todas as telas do SAM em uma DSL propria agora
 
-## fora de escopo atual (pedir aprovacao)
-- criar repo git nesta pasta
-- push, PR, branch ou automacoes de CI
-- ampliar scraping para todos os tipos de relatorio alem do baseline atual
-- validar login real em ambiente SAM antes da janela autorizada
-- criar repositorio publico e publicar remote
+## Fora de escopo atual
+- agendamento
+- filtro real por data de emissao no runtime de lote
+- novas telas do menu `Relatorios` ainda nao priorizadas
+- preenchimento do grupo `demais` sem lista operacional fechada

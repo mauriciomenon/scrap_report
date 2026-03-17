@@ -1,33 +1,24 @@
 # MIGRATION_HANDOFF
 
-## Contexto
-- origem:
-  - /Users/menon/git/SCRAP_SAM
-  - /Users/menon/git/scrap_sam_rework
-- destino:
-  - /Users/menon/git/scrap_report
+## Historical snapshot
+Este arquivo existe apenas para registrar a origem da migracao do projeto.
+A verdade atual do branch esta em `README.md`, `HANDOFF.md` e `ROUND_STATUS.md`.
 
-## Funcionalidade extraida
-- fluxo de scraping de relatorios sem UI
-- fluxo de staging de xlsx para consumo externo
-- geracao de artefatos de apoio para analise local
+## Origem historica
+- `C:\Users\menon\git\SCRAP_SAM`
+- `C:\Users\menon\git\scrap_sam_rework`
 
-## O que ficou fora
-- dashboard e layout
-- refactor amplo de legado
-- qualquer operacao de git/repo/PR
+## Destino historico
+- `C:\Users\mauri\git\scrap_report`
 
-## Contrato de integracao (atual)
-- entrada:
-  - credenciais SAM (args ou env)
-  - setor executor
-  - tipo de relatorio (`pendentes` ou `executadas`)
-  - download_dir
-  - staging_dir
-- saida:
-  - `source_path` do download
-  - `staged_path` final
-  - paths de artefatos em `staging/reports`
+## Recorte originalmente extraido
+- scraping de relatorios SAM sem GUI propria
+- staging de xlsx para consumo externo
+- geracao de artefatos de apoio locais
 
-## Risco residual
-- sem acesso ao ambiente SAM nesta fase, logo sem prova E2E real
+## O que mudou desde a migracao inicial
+- o projeto deixou de ser apenas uma extracao minima
+- hoje ele tem fluxo Windows operacional, multiplos `report_kind`, parser especifico para formatos diferentes e camada de sweep por presets
+
+## Nota operacional
+Nao usar este arquivo como fonte de verdade para estado atual, prontidao ou backlog.

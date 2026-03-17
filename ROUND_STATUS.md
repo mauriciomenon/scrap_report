@@ -1,1018 +1,121 @@
 # ROUND_STATUS
 
-## Sessao
-- inicio: 2026-03-15T11:02:00-03:00
-- checkpoint: 2026-03-15T11:10:58-03:00
-- pasta: /Users/menon/git/scrap_report
-- git: nao inicializado
-
-## Objetivo
-- extrair fluxo modular: headless -> navegacao -> filtro -> download xlsx -> staging
-- disponibilizar artefatos para integracao com programa externo que gera SQL
-
-## Slice 1 - controle
-- alvo: criar MDs de controle e baseline
-- arquivos:
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - MIGRATION_HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - REVIEW_THREAD_TRIAGE.md
-  - RECOVERY_BACKLOG.md
-- validacao:
-  - comando: `ls -1 *.md`
-  - resultado: ok
-- status:
-  - feito: sim
-  - pendente: extracao modular
-  - risco residual: baixo
-
-## Slice 2 - extracao modular
-- alvo: criar pacote com scraping, staging, reporting, pipeline e CLI
-- arquivos criados:
-  - src/scrap_report/__init__.py
-  - src/scrap_report/config.py
-  - src/scrap_report/scraper.py
-  - src/scrap_report/file_ops.py
-  - src/scrap_report/reporting.py
-  - src/scrap_report/pipeline.py
-  - src/scrap_report/cli.py
-  - tests/test_scraper_contract.py
-  - tests/test_file_ops.py
-  - tests/test_reporting.py
-  - tests/test_pipeline_offline.py
-  - pyproject.toml
-  - README.md
-- risco: medio (E2E online indisponivel)
-
-## Validacao tecnica do slice 2
-- `uv run python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-- `uv run ruff check .`
-  - resultado: ok
-- `uv run pytest -q ...`
-  - resultado: falha de ambiente (pandas ausente em runtime 3.12)
-- `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-- `uv run --project . ruff check .`
-  - resultado: ok
-- `uv run --project . python -m pytest -q tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py tests/test_pipeline_offline.py`
-  - resultado: 12 passed
-
-## Ferramentas de verificacao obrigatoria
-- kluster_code_review_auto (controle): sem issues
-- kluster_code_review_auto (slice 2): sem issues
-- kluster_dependency_check (antes de acao de pacote): sem issues
-
-## Slice 3 - ingestao local sem site
-- alvo: permitir entregar xlsx de `downloads` para `staging` sem scraping online
-- arquivos alterados:
-  - src/scrap_report/pipeline.py
-  - src/scrap_report/cli.py
-  - tests/test_pipeline_offline.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 13 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: sem issues (uma tentativa com timeout de ferramenta, repetida com sucesso)
-
-## feito x pendente x risco residual
-- feito:
-  - pipeline modular implementado
-  - mds de controle criados
-  - testes focados verdes (slice 2)
-- pendente:
-  - teste E2E com acesso real ao SAM
-  - ajuste fino de relatorios adicionais (executadas completo)
-  - integrar retorno json do pipeline no programa SQL externo
-
-## Slice 4 - manifest json para integracao
-- alvo: permitir gravar saida em arquivo json para consumo externo
-- arquivos alterados:
-  - src/scrap_report/cli.py
-  - src/scrap_report/config.py
-  - tests/test_cli.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 14 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: 1 issue P4 encontrado e corrigido (`--base-url` default), revalidado limpo
-
-## Slice 5 - pipeline report-only
-- alvo: permitir `pipeline --report-only` para gerar artefatos sem scraping
-- arquivos alterados:
-  - src/scrap_report/pipeline.py
-  - src/scrap_report/cli.py
-  - tests/test_pipeline_offline.py
-  - tests/test_cli.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 16 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: bloqueado por timeout da ferramenta (multiplas tentativas no escopo completo e escopo quebrado)
-
-## Observacao operacional
-- caches locais gerados: `.venv/`, `.pytest_cache/`, `.ruff_cache/`
-- manter fora de commit por padrao ate sua confirmacao explicita
-
-## Slice 6 - schema_version no contrato JSON
-- alvo: estabilizar contrato de integracao com campo `schema_version`
-- arquivos alterados:
-  - src/scrap_report/cli.py
-  - tests/test_cli.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 16 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: sem issues
-
-## Slice 7 - contrato centralizado e fail-fast
-- alvo: centralizar regra de contrato e validar payload antes de emitir json
-- arquivos alterados:
-  - src/scrap_report/contract.py
-  - src/scrap_report/cli.py
-  - tests/test_contract.py
-  - tests/test_cli.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 20 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: parcial (tests/docs clean; escopo de codigo com timeout recorrente da ferramenta)
-
-## Slice 8 - generated_at, producer e validate-contract
-- alvo: reforcar rastreabilidade de payload e expor validacao do contrato via CLI
-- arquivos alterados:
-  - src/scrap_report/contract.py
-  - src/scrap_report/cli.py
-  - tests/test_contract.py
-  - tests/test_cli.py
-  - README.md
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 23 passed
-  - comando: `kluster_code_review_auto`
-  - resultado: bloqueado por timeout recorrente da ferramenta em todas as tentativas
-
-## Slice 9 - execucao operacional do contrato
-- alvo: gerar arquivo real de contrato para consumo externo
-- comandos:
-  - `uv run --project . python -m scrap_report.cli validate-contract --output-json staging/contract_info.json`
-  - `ls -la staging`
-  - `sed -n '1,80p' staging/contract_info.json`
-- resultado:
-  - arquivo gerado: `staging/contract_info.json`
-  - status retornado: `ok`
-  - schema_version: `1.0.0`
-  - timestamp de execucao: `2026-03-15T12:32:09-0300`
-- risco residual:
-  - seletores podem exigir ajuste no ambiente real
-
-## Slice 10 - checklist smoke multiplataforma
-- alvo: preparar roteiro executavel para macOS, Debian 13 e Windows 11
-- arquivos alterados:
-  - CROSS_PLATFORM_SMOKE.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- resultado:
-  - checklist criado com comandos, criterio de aceite e template de evidencia por plataforma
-  - comandos separados adicionados para `bash` (macOS/Debian) e `PowerShell` (Windows 11)
-
-## Slice 11 - ajuste para modo subdir
-- alvo: suportar `scrap_report` como subdiretorio de repo pai sem quebrar paths
-- arquivos alterados:
-  - src/scrap_report/config.py
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - ROUND_STATUS.md
-- resultado:
-  - paths relativos ancorados no root do subprojeto
-  - documentacao de controle atualizada com impacto da relacao de diretorio
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-
-## Slice 12 - Rodada 1 docs de seguranca baseline
-- alvo: criar baseline formal de seguranca antes de alterar runtime
-- arquivos alterados:
-  - SECURITY_MODEL.md
-  - THREAT_MODEL.md
-  - CREDENTIAL_POLICY.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - REVIEW_THREAD_TRIAGE.md
-  - RECOVERY_BACKLOG.md
-- entrada (evidencia):
-  - credencial atual ainda entra via `--password` e `SAM_PASSWORD`
-  - ausencia de politica formal de hard-fail para backend seguro
-  - ausencia de threat model documentado para subdir deployment
-- saida esperada:
-  - baseline documental completo para Rodada 1
-  - matriz de risco registrada
-  - criterio de rollback registrado
-- nao muda:
-  - nenhum arquivo runtime em `src/scrap_report/*.py`
-  - nenhum teste em `tests/*.py`
-- validacao:
-  - comando: `ls -la SECURITY_MODEL.md THREAT_MODEL.md CREDENTIAL_POLICY.md`
-  - resultado: ok
-  - comando: `rg -n "Hard-Fail|Risk Matrix|Rollback" SECURITY_MODEL.md THREAT_MODEL.md CREDENTIAL_POLICY.md`
-  - resultado: ok
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . ty check`
-  - resultado: bloqueado (unresolved-import de `pytest` no ambiente de tipos)
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 23 passed
-  - comando: `kluster_code_review_auto` (docs+controle em lote)
-  - resultado: timeout da ferramenta (120s)
-  - comando: `kluster_code_review_auto` (fallback, controle docs)
-  - resultado: sem issues
-  - comando: `kluster_code_review_auto` (fallback, docs de seguranca)
-  - resultado: timeout da ferramenta (120s, repetido com mesmo resultado)
-- feito x pendente x risco residual:
-  - feito:
-    - docs de seguranca criados
-    - criterios de hard-fail/rollback documentados
-  - pendente:
-    - implementar secret provider no runtime (Rodada 2)
-    - implementar redaction global no runtime (Rodada 3)
-  - risco residual:
-    - alto para credenciais ate concluir Rodada 2
-
-## Slice 13 - Rodada 2 (parte 1) secret provider + fail-closed
-- alvo: introduzir provider seguro e politica fail-closed sem refatoracao ampla
-- arquivos alterados:
-  - src/scrap_report/secret_provider.py
-  - src/scrap_report/config.py
-  - src/scrap_report/cli.py
-  - src/scrap_report/contract.py
-  - tests/test_secret_provider.py
-  - tests/test_config_secrets.py
-  - tests/test_cli.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - REVIEW_THREAD_TRIAGE.md
-  - RECOVERY_BACKLOG.md
-- entrada (evidencia):
-  - segredo ainda dependia de `--password` e `SAM_PASSWORD`
-  - faltava interface de backend seguro
-  - faltava comando operacional de secret no CLI
-- saida esperada:
-  - interface `SecretProvider`
-  - provider macOS Keychain via `security`
-  - fail-closed no carregamento quando `secure_required=true`
-  - comandos `secret set` e `secret test`
-- nao muda:
-  - sem alteracao de layout/UI
-  - sem login real no SAM
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . ty check`
-  - resultado: bloqueado por ambiente (`pytest` unresolved-import); erro de overload corrigido no provider
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 32 passed
-  - comando: `kluster_code_review_auto` (lote completo alterado)
-  - resultado: timeout da ferramenta (120s)
-  - comando: `kluster_code_review_auto` (fallback por lotes)
-  - resultado: timeout da ferramenta (120s em todos os lotes desta rodada)
-- feito x pendente x risco residual:
-  - feito:
-    - provider seguro base implementado (macOS + memoria para teste)
-    - fail-closed implementado por flags de politica
-    - comandos `secret set` e `secret test` adicionados
-    - testes novos de provider e fail-closed adicionados e verdes
-  - pendente:
-    - providers Windows/Linux (Rodada 2, proximo slice)
-    - comando `secret get` sem vazamento (Rodada 2, proximo slice)
-  - risco residual:
-    - medio (faltam backends W11/Linux e cobertura kluster da rodada foi bloqueada por timeout)
-
-## Slice 14 - Rodada 2 (parte 2) providers W11/Linux + secret get seguro
-- alvo: ampliar backend de segredo por OS e adicionar consulta segura sem exposicao
-- arquivos alterados:
-  - src/scrap_report/secret_provider.py
-  - src/scrap_report/config.py
-  - src/scrap_report/cli.py
-  - tests/test_secret_provider.py
-  - tests/test_cli.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - REVIEW_THREAD_TRIAGE.md
-  - RECOVERY_BACKLOG.md
-- entrada (evidencia):
-  - backlog aberto para providers Windows/Linux
-  - faltava comando `secret get` sem leak
-- saida esperada:
-  - provider Windows (cmdkey) e Linux (secret-tool)
-  - factory multi-OS
-  - comando `secret get` com resposta booleana
-- nao muda:
-  - sem alteracao de layout/UI
-  - sem login real no SAM
-- validacao:
-  - comando: `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`
-  - resultado: ok
-  - comando: `uv run --project . ruff check .`
-  - resultado: ok
-  - comando: `uv run --project . ty check`
-  - resultado: bloqueado por ambiente (`pytest` unresolved-import)
-  - comando: `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`
-  - resultado: 35 passed
-  - comando: `kluster_code_review_auto` (arquivos alterados)
-  - resultado: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - provider Windows (`cmdkey`) adicionado
-    - provider Linux (`secret-tool`) adicionado
-    - `build_secret_provider` multi-OS
-    - comando `secret get` adicionado com `secret_found` sem imprimir valor
-    - testes ampliados para provider e CLI sem leak
-  - pendente:
-    - suporte de leitura segura real no Windows (cmdkey retorna presenca, nao valor)
-    - hardening de redacao global (Rodada 3)
-  - risco residual:
-    - medio (W11 ainda com limitacao de leitura do segredo; kluster instavel)
-
-## Slice 15 - Rodada 2 (parte 3) leitura segura real no Windows
-- alvo: remover modo "presenca" do backend Windows e ler secret real de vault
-- arquivos alterados:
-  - src/scrap_report/secret_provider.py
-  - src/scrap_report/config.py
-  - tests/test_secret_provider.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- implementacao:
-  - provider Windows migrado de `cmdkey` para PowerShell + modulo `CredentialManager`
-  - `get_secret` agora retorna valor real (quando modulo disponivel)
-  - `config` removido tratamento de sentinel `__present__`
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 35 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - backend Windows com leitura real implementado (com pre-req de modulo)
-    - fallback sentinel removido da config
-  - pendente:
-    - redacao global de logs/output (Rodada 3)
-    - validacao real em maquina Windows 11 com modulo instalado
-  - risco residual:
-    - medio (dependencia de modulo `CredentialManager` no Windows + timeout kluster)
-
-## Slice 16 - Rodada 3 (parte 1) redacao global em logs e JSON
-- alvo: bloquear vazamento de segredo em logs e `--output-json`
-- arquivos alterados:
-  - src/scrap_report/redaction.py
-  - src/scrap_report/cli.py
-  - src/scrap_report/scraper.py
-  - tests/test_redaction.py
-  - tests/test_cli.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- implementacao:
-  - `redact_text` para mensagens de erro
-  - `assert_no_sensitive_fields` antes de serializar payload JSON
-  - aplicacao de redacao no log de excecao do scraper
-  - testes novos de redacao + bloqueio de campo sensivel no payload
-  - ajuste de allowlist para campos seguros (`secret_set`, `secret_found`, `secret_result`)
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 39 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - redacao base aplicada
-    - sanitizacao de payload ativa
-    - regressao corrigida e validada (campos seguros permitidos)
-  - pendente:
-    - ampliar redacao para todo ponto futuro de logging estruturado
-    - validacao em execucao real W11/Debian13
-  - risco residual:
-    - medio (timeout kluster recorrente + cobertura real cross-platform pendente)
-
-## Slice 17 - Rodada 3 (parte 2) scanner local de segredos
-- alvo: adicionar gate local de deteccao de segredo antes de execucao principal
-- arquivos alterados:
-  - src/scrap_report/secret_scan.py
-  - src/scrap_report/contract.py
-  - src/scrap_report/cli.py
-  - tests/test_secret_scan.py
-  - tests/test_cli.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- implementacao:
-  - comando CLI `scan-secrets`
-  - scanner por padroes comuns (`password`, `Bearer`, `api_key`, `SAM_PASSWORD`)
-  - schema `scan_result` no contrato JSON
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 43 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - gate local de scanner implementado
-    - testes de deteccao/nao deteccao adicionados
-  - pendente:
-    - ampliar cobertura de padroes com falso positivo controlado
-    - rodar scanner em W11 e Debian13 no checklist cruzado
-  - risco residual:
-    - medio (instabilidade kluster e validacao cross-platform pendente)
-
-## Slice 18 - Rodada 4 (parte 1) selector engine multicamada
-- alvo: aumentar resiliencia contra mudanca de tags/ids sem refatoracao ampla
-- arquivos alterados:
-  - src/scrap_report/selector_engine.py
-  - src/scrap_report/scraper.py
-  - tests/test_selector_engine.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- implementacao:
-  - engine de candidatos por prioridade: id -> name -> aria -> text -> xpath
-  - selecao de melhor candidato disponivel
-  - integracao no scraper para login, navegacao e filtro/pesquisa
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 46 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - fallback multicamada de seletor adicionado
-    - testes de prioridade e resolucao adicionados
-  - pendente:
-    - health-check de DOM estruturado com modo strict/adaptive (Rodada 4 parte 2)
-    - snapshot de falha controlado sem dado sensivel
-  - risco residual:
-    - medio (kluster indisponivel e validacao E2E real pendente)
-
-## Slice 19 - Rodada 4 (parte 2) modo strict/adaptive + DOM health-check
-- alvo: reforcar robustez de seletor com comportamento configuravel e diagnostico seguro
-- arquivos alterados:
-  - src/scrap_report/selector_engine.py
-  - src/scrap_report/config.py
-  - src/scrap_report/cli.py
-  - src/scrap_report/scraper.py
-  - tests/test_selector_engine.py
-  - tests/test_config_secrets.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- implementacao:
-  - `selector_mode` (`strict`/`adaptive`) em config e CLI
-  - filtro de candidatos por modo no selector engine
-  - health-check de DOM antes de resolver disponibilidade de seletor
-  - snapshot minimo seguro em falha de selecao (`ready/links/inputs`)
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 48 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - modo strict/adaptive operacional
-    - health-check e snapshot de DOM adicionados
-  - pendente:
-    - exercitar modo strict em ambiente real SAM
-    - ampliar snapshot com contexto sem sensivel para troubleshooting
-  - risco residual:
-    - medio (kluster instavel + E2E real pendente)
-
-## Slice 20 - Rodada 5 (parte 1) erros tipados por etapa no pipeline
-- alvo: diagnostico rapido com erro tipado sem mudar contrato de saida
-- arquivos alterados:
-  - src/scrap_report/errors.py
-  - src/scrap_report/pipeline.py
-  - tests/test_pipeline_offline.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - `PipelineStepError` com nome de etapa (`scrape`, `stage`, `report`, `find_download`, `source_excel`)
-  - encapsulamento minimo de excecoes por etapa no pipeline
-  - teste novo para arquivo ausente em `run_report_only` com erro tipado
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - erros tipados por etapa adicionados
-    - cobertura de teste atualizada
-  - pendente:
-    - telemetria por etapa no resultado operacional (proxima parte da Rodada 5)
-  - risco residual:
-    - medio (kluster instavel e validacao E2E real pendente)
-
-## Slice 21 - Rodada 5 (parte 2) telemetria por etapa no pipeline
-- alvo: registrar duracao por etapa sem quebrar contrato obrigatorio existente
-- arquivos alterados:
-  - src/scrap_report/pipeline.py
-  - src/scrap_report/cli.py
-  - tests/test_pipeline_offline.py
-  - tests/test_cli.py
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - `PipelineResult.telemetry` com duracoes em ms por etapa
-  - output de pipeline no CLI agora inclui `telemetry`
-  - testes atualizados para validar presenca de telemetria
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - telemetria por etapa implementada e exposta
-    - testes de regressao mantidos verdes
-  - pendente:
-    - consolidar uso operacional de telemetria no checklist cross-platform
-  - risco residual:
-    - medio (kluster instavel + sem E2E real em SAM)
-
-## Slice 22 - Rodada 6 (parte 1) release gate documental
-- alvo: preparar gate final de seguranca e revisao basica de dependencias/licencas
-- arquivos alterados:
-  - RELEASE_SECURITY_CHECKLIST.md
-  - DEPENDENCY_LICENSE_REVIEW.md
-  - CROSS_PLATFORM_SMOKE.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - checklist de release/hardening criado
-  - baseline de dependencias e licencas documentado
-  - smoke cross-platform ampliado com `scan-secrets` e `secret test`
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - docs de release gate e dependencia criados
-    - smoke checklist atualizado para novos comandos de seguranca
-  - pendente:
-    - execucao real do release gate em W11 e Debian13
-    - confirmacao final de licencas por versao travada no ambiente alvo
-  - risco residual:
-    - medio (validacao real cross-platform e kluster pendentes)
-
-## Slice 23 - Rodada 7 (parte 1) readiness Windows 11
-- alvo: preparar execucao segura em W11 antes do teste real
-- arquivos alterados:
-  - WINDOWS11_READINESS.md
-  - CROSS_PLATFORM_SMOKE.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - guia de setup PowerShell + CredentialManager
-  - fluxo `secret set/test/get` documentado
-  - smoke W11 atualizado com pre-step de backend seguro
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - readiness doc W11 criado
-    - smoke atualizado para secret backend
-  - pendente:
-    - executar o roteiro em maquina W11 real
-  - risco residual:
-    - medio (validacao real W11 pendente)
-
-## Slice 24 - Rodada 7 (parte 2) pre-flight local completo
-- alvo: executar roteiro de readiness local e consolidar evidencias antes da rodada W11 real
-- arquivos alterados:
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - RECOVERY_BACKLOG.md
-- comandos executados:
-  - `uv run --project . python -m scrap_report.cli scan-secrets --paths src tests README.md --output-json staging/scan_secrets.json` -> ok
-  - `uv run --project . python -m scrap_report.cli validate-contract --output-json staging/contract_info.json` -> ok
-  - `uv run --project . python -m scrap_report.cli secret test` -> ok
-  - `uv run --project . python -m scrap_report.cli stage --source downloads/Report.xlsx --staging-dir staging --report-kind pendentes --output-json staging/stage_result.json` -> ok
-  - `uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kind pendentes --staging-dir staging --report-only --source-excel <xlsx> --output-json staging/pipeline_report_only.json` -> ok
-  - `uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --password local_pass --output-json staging/ingest_result.json` -> ok
-  - `uv run --project . python -m scrap_report.cli secret set --username local_user --password local_pass --secret-service scrap_report.sam.test` -> ok
-  - `uv run --project . python -m scrap_report.cli secret get --username local_user --secret-service scrap_report.sam.test` -> ok
-- validacao tecnica:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - pre-flight local completo executado com evidencias em `staging/`
-    - comandos de segredo e scanner operacionais localmente
-  - pendente:
-    - executar mesmo roteiro em W11 real e Debian13
-  - risco residual:
-    - medio (cross-platform real pendente + kluster indisponivel)
-
-## Slice 25 - consolidacao pre-release
-- alvo: consolidar status unico antes de comando de criacao de repo
-- arquivos alterados:
-  - PRE_RELEASE_STATUS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - documento unico de prontidao criado
-  - matriz de concluido vs pendente formalizada
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - status pre-release consolidado
-  - pendente:
-    - evidencias W11/Debian13 reais
-  - risco residual:
-    - medio (cross-platform e kluster)
-
-## Slice 26 - scripts de execucao cross-platform
-- alvo: reduzir erro manual na rodada real W11/Debian13 com scripts prontos
-- arquivos alterados:
-  - scripts/smoke_debian13.sh
-  - scripts/smoke_windows11.ps1
-  - CROSS_PLATFORM_SMOKE.md
-  - WINDOWS11_READINESS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - script bash para Debian13/macOS
-  - script PowerShell para W11
-  - docs atualizados com opcao de execucao automatizada
-- validacao:
-  - `bash -n scripts/smoke_debian13.sh`: ok
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 49 passed
-  - `kluster_code_review_auto`: timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - scripts de execucao preparados
-  - pendente:
-    - executar scripts em hosts reais W11/Debian13
-  - risco residual:
-    - medio (validacao real pendente e kluster indisponivel)
-
-## Slice 27 - execucao real do script Debian13 (host local)
-- alvo: validar script automatizado `smoke_debian13.sh` em execucao completa
-- arquivos alterados:
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- execucao:
-  - comando: `bash scripts/smoke_debian13.sh`
-  - resultado: ok
-  - saida relevante:
-    - `ruff`: All checks passed
-    - `pytest`: 30 passed (suite focada do script)
-    - `scan-secrets`: `status: ok`, `findings_count: 0`
-    - `validate-contract`: `status: ok`
-    - `secret test`: `backend_ready: true`
-    - `stage`: `status: ok`
-    - `pipeline --report-only`: `status: ok`, `telemetry` presente
-    - `ingest-latest`: `status: ok`, `telemetry` presente
-- validacao tecnica adicional:
-  - nenhuma mudanca de runtime neste slice
-- feito x pendente x risco residual:
-  - feito:
-    - script Debian13 validado localmente em execucao fim a fim
-  - pendente:
-    - execucao em Debian13 real
-    - execucao em Windows11 real
-  - risco residual:
-    - medio (cross-platform real pendente + kluster indisponivel)
-
-## Slice 28 - validacao local do script Windows (sintaxe)
-- alvo: reduzir risco antes da rodada em host W11 real
-- arquivos alterados:
-  - PRE_RELEASE_STATUS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- comandos executados:
-  - `command -v pwsh` -> `/usr/local/bin/pwsh`
-  - `pwsh -NoProfile -Command '<parser>'` -> `powershell_syntax_ok`
-- feito x pendente x risco residual:
-  - feito:
-    - sintaxe do script W11 validada no host local
-  - pendente:
-    - execucao real do script em Windows 11
-  - risco residual:
-    - medio (ainda sem execucao em host W11 real)
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 23 passed
-  - `kluster_code_review_auto`: bloqueado por timeout da ferramenta
+## Sessao atual
+- data: `2026-03-17`
+- pasta: `C:\Users\mauri\git\scrap_report`
+- branch: `master`
+- commit atual: `3a8da8e`
 
 ## Snapshot executivo
-- timestamp: `2026-03-15T13:40:41-0300`
-- repo publico criado: nao
-- recorte extraido com sucesso: sim
-- modularidade/baixo acoplamento: sim
-- linter: ok
-- testes focados: 23 passed
-- saude/performance: arquitetura mais enxuta que o legado (sem camada dashboard no fluxo de integracao)
-- portabilidade:
-  - macOS: validado no ambiente atual
-  - Debian 13: esperado compativel, nao validado em rodada dedicada
-  - Windows 11: esperado compativel, nao validado em rodada dedicada
+- repo publico existente: sim
+- branch operacional: `master`
+- runtime atual: estavel para os fluxos principais do SAM
+- launcher Windows: unitario e preset ligados ao mesmo entrypoint
+- sweep: base, runner e presets entregues
 
-## Slice 29 - aviso de segredo em execucao + politica explicita em docs
-- alvo: deixar explicito quando credencial e resolvida, como e protegida e qual acao do operador
-- arquivos alterados:
-  - src/scrap_report/cli.py
-  - src/scrap_report/config.py
-  - tests/test_cli.py
-  - tests/test_config_secrets.py
-  - README.md
-  - CREDENTIAL_POLICY.md
-  - SECURITY_MODEL.md
-  - THREAT_MODEL.md
-  - RELEASE_SECURITY_CHECKLIST.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - aviso de seguranca em `stderr` para comandos com auth (`scrape`, `pipeline`, `ingest-latest`)
-  - orientacao operacional no erro fail-closed com comando `secret set`
-  - tratamento de erro limpo em CLI (sem traceback bruto para operador)
-  - docs atualizados com etapa exata de solicitacao de secret e politica de protecao
-  - testes novos/ajustados para aviso em execucao e mensagem fail-closed
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: bloqueado por ambiente (`pytest` unresolved-import)
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 51 passed
-  - `kluster_code_review_auto` (lote completo): timeout da ferramenta (120s)
-  - `kluster_code_review_auto` (fallback por lotes): timeout da ferramenta (120s)
-  - `kluster_code_review_auto` (arquivo unico `cli.py`): timeout da ferramenta (120s)
-  - fallback CLI: `kluster log` ok; `kluster show latest` erro 500; `kluster show 69b6edec8d4ce02ef2decac5` retornou issues historicas de scraping (fora deste patch de governanca)
-- feito x pendente x risco residual:
-  - feito:
-    - aviso em runtime + politica documentada
-    - orientacao segura para provisionamento de secret
-  - pendente:
-    - cobertura kluster sem timeout para este patch
-  - risco residual:
-    - medio (instabilidade recorrente do kluster e validacao cross-platform real ainda pendente)
+## Estado consolidado por fase
+### Fase 1 - launcher e fluxo Windows
+- `7ccc6a9`: `windows-flow` sequencial com secret seguro
+- `6020e37`: fallback real de shell e setup simplificado
+- `fa6d07a`: backend Windows sem instalacao manual extra
+- `ceaf855`: wrapper one-command e docs iniciais
+- `926d512`: correcao de parse PS1 e `both`
+- `0d188f7`: launcher no-args e desktop flow
+- `2b669e6`: launcher com args opcionais e cert handling
 
-## Slice 30 - destrave de `ty check` com dependencia dev
-- alvo: remover bloqueio de tipagem por `pytest` unresolved-import sem tocar runtime
-- arquivos alterados:
-  - pyproject.toml
-  - uv.lock
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - adicionado grupo `dev` em `pyproject.toml` com `pytest>=8.0.0`
-  - lockfile atualizado e ambiente sincronizado com `uv sync --group dev`
-  - nenhuma alteracao em `src/` e `tests/`
-- validacao:
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: ok
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 51 passed
-  - `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
-- feito x pendente x risco residual:
-  - feito:
-    - gate `ty check` destravado
-    - reproduzibilidade de ambiente melhorada via grupo `dev`
-  - pendente:
-    - nenhum
-  - risco residual:
-    - medio (instabilidade kluster e validacao cross-platform real ainda pendente)
-- kluster fechamento do slice:
-  - `kluster_code_review_auto` (chat_id `rreu0jm276r`): clean, 0 issues
+Resultado:
+- usuario final pode rodar sem conhecer CLI interna
+- secret e resolvido de forma segura
+- `both` ficou suportado no wrapper
 
-## Slice 31 - evidencia cross-platform e bloqueio objetivo de host real
-- alvo: fechar evidencias locais e preparar execucao em hosts reais Debian13/W11 sem tocar runtime
-- arquivos alterados:
-  - CROSS_PLATFORM_SMOKE.md
-  - WINDOWS11_READINESS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - execucao de `bash scripts/smoke_debian13.sh` concluida no host local
-  - secao macOS preenchida com evidencia real (data, comandos, resultados)
-  - criterios W11 atualizados para exigir aviso de seguranca em `stderr` com JSON limpo em `stdout`
-  - bloqueio objetivo mantido para rodada em host Debian13 real e Windows11 real
-- validacao:
-  - `bash scripts/smoke_debian13.sh`: ok
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: ok
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 51 passed
-  - `kluster_code_review_auto` (lote completo): timeout da ferramenta (120s)
-  - `kluster_code_review_auto` (fallback por lotes): timeout da ferramenta (120s)
-  - fallback CLI: `kluster log` ok; `kluster show latest` erro 500; sem review novo recuperavel para este slice
-- feito x pendente x risco residual:
-  - feito:
-    - evidencia local consolidada e checklist pronto para execucao remota
-  - pendente:
-    - execucao dedicada em host Debian13 real
-    - execucao dedicada em host Windows11 real
-  - risco residual:
-    - medio (dependencia de rodada real cross-platform antes do gate final)
+### Fase 2 - navegacao real do SAM e cobertura de telas
+- `60f59ca`: uso das rotas nativas de relatorio
+- `a05a444`: filtro de emissao limitado a 4 semanas
+- `41c603e`: estabilizacao de filtros e exportacao real
+- `f9a3bb5`: `pendentes_execucao`
+- `1e58f11`: `consulta_ssa`
+- `4885b47`: `reprogramacoes`
+- `49f1b6f`: `aprovacao_emissao`
+- `d915407`: `aprovacao_cancelamento`
+- `7cd1cb7`: `derivadas_relacionadas`
+- `409ed33`: parser normalizado para `derivadas_relacionadas`
 
-## Slice 32 - export de evidencia consolidada para execucao remota
-- alvo: padronizar coleta/entrega de evidencia de smoke em JSON unico por plataforma
-- arquivos alterados:
-  - scripts/smoke_debian13.sh
-  - scripts/smoke_windows11.ps1
-  - CROSS_PLATFORM_SMOKE.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - `smoke_debian13.sh` agora gera `staging/smoke_evidence_debian13.json`
-  - `smoke_windows11.ps1` agora gera `staging/smoke_evidence_windows11.json`
-  - guia atualizado com comando de leitura/envio da evidencia consolidada
-- validacao:
-  - `bash scripts/smoke_debian13.sh`: ok
-  - `pwsh` parser em `scripts/smoke_windows11.ps1`: `powershell_syntax_ok`
-  - `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: ok
-  - `uv run --project . --with pytest python -m pytest -q tests/test_pipeline_offline.py tests/test_selector_engine.py tests/test_secret_scan.py tests/test_redaction.py tests/test_secret_provider.py tests/test_config_secrets.py tests/test_cli.py tests/test_contract.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 51 passed
-  - evidencia local gerada: `staging/smoke_evidence_debian13.json`
-  - `kluster_code_review_auto` (lote completo): timeout da ferramenta (120s)
-  - `kluster_code_review_auto` (fallback por lotes): timeout da ferramenta (120s)
-  - fallback CLI: `kluster log` ok; `kluster show latest` erro 500
-- feito x pendente x risco residual:
-  - feito:
-    - padrao de evidencia unica por plataforma implementado
-  - pendente:
-    - coleta de `smoke_evidence_windows11.json` em host W11 real
-    - coleta de `smoke_evidence_debian13.json` em host Debian13 real
-    - cobertura kluster sem timeout para este slice
-  - risco residual:
-    - medio (gate final ainda depende das duas rodadas reais)
+Resultado:
+- telas principais do SAM foram mapeadas e operadas via Playwright
+- export por lupa + dropdown + `ExportToExcel` ficou estabilizado
+- `consulta_ssa_print` passou a gerar pdf staged
 
-## Slice 33 - criacao de repo publico + instrucao operacional W11
-- alvo: criar repositorio oficial em `master` e registrar instrucoes de execucao para agente Windows
-- arquivos alterados:
-  - PRE_RELEASE_STATUS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-  - WINDOWS_AGENT_INSTRUCTIONS.md
-  - .gitignore
-- implementacao:
-  - repo local inicializado: `git init -b master`
-  - commit inicial realizado
-  - repo publico criado e push concluido: `https://github.com/mauriciomenon/scrap_report`
-  - arquivo de instrucao W11 criado para agente operacional
-- validacao:
-  - `gh auth status`: ok
-  - `gh repo create scrap_report --public --source=. --remote=origin --push`: ok
-  - branch remota: `master` rastreando `origin/master`
-  - `kluster_code_review_auto` (docs operacionais): clean (0 issues), chat_id `rreu0jm276r`
-  - `kluster_code_review_auto` (pre-release/docs gerais): timeout da ferramenta (120s)
-- feito x pendente x risco residual:
-  - feito:
-    - repositorio publico criado em `master`
-    - instrucoes de execucao para agente Windows prontas
-  - pendente:
-    - execucao W11 real com `smoke_evidence_windows11.json`
-    - execucao Debian13 real dedicada
-  - risco residual:
-    - medio (gate cross-platform real ainda nao fechado)
+### Fase 3 - escopo de setores
+- `03f36aa`: suporte a emissor, executor, ambos e nenhum
 
-## Slice 34 - fix de smoke W11 + shell Windows com fallback correto
-- alvo: eliminar falso positivo no smoke W11 e tornar backend de segredo robusto em hosts com `pwsh`/`powershell`
-- arquivos alterados:
-  - scripts/smoke_windows11.ps1
-  - src/scrap_report/secret_provider.py
-  - tests/test_secret_provider.py
-  - PRE_RELEASE_STATUS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - `smoke_windows11.ps1` atualizado para fail-fast por etapa (checa exit code)
-  - `smoke_windows11.ps1` atualizado para `py_compile` com lista explicita de arquivos em PowerShell
-  - pre-check explicito do modulo `CredentialManager` antes do fluxo
-  - `WindowsCredentialManagerSecretProvider` atualizado para resolver shell com fallback
-  - ajuste de prioridade confirmado: `pwsh` primeiro, `powershell` como fallback
-  - testes adicionados para fallback `pwsh` e erro quando nenhum shell existe
-- validacao:
-  - `uv run --project . python -m py_compile <lista explicita>`: ok
-  - `uv run --project . ruff check .`: ok
-  - `uv run --project . ty check`: ok
-  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py tests/test_cli.py tests/test_contract.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: 41 passed
-  - `uv run --project . --with pytest python -m pytest -q tests/test_secret_provider.py`: 9 passed
-  - `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1`: ok
-  - evidencia gerada: `staging/smoke_evidence_windows11.json`
-- feito x pendente x risco residual:
-  - feito:
-    - rodada W11 local executada com evidencia consolidada
-    - falso `ok` em caso de erro de etapa removido do smoke W11
-    - backend Windows compatibilizado para ambientes com `pwsh` como shell principal
-  - pendente:
-    - execucao dedicada em host Debian13 real
-  - risco residual:
-    - medio (gate cross-platform final ainda depende da rodada Debian13 real)
+Resultado:
+- filtros `ALL`, `*` e vazio passam a significar sem filtro
+- runtime e reporting deixaram de depender de hardcode unico
 
-## Slice 35 - tentativa de rodada Debian13 real via WSL
-- alvo: executar `scripts/smoke_debian13.sh` em Debian 13 real e gerar evidencia consolidada
-- arquivos alterados:
-  - scripts/smoke_debian13.sh
-  - PRE_RELEASE_STATUS.md
-  - ROUND_STATUS.md
-  - HANDOFF.md
-  - CONVERSA_MIGRACAO_STATUS.md
-- implementacao:
-  - distro validada: Debian GNU/Linux 13 (trixie) no WSL
-  - `scripts/smoke_debian13.sh` normalizado para LF (remove `CRLF` que quebrava `set -euo pipefail`)
-  - tentativa de execucao do smoke em Debian13 iniciada
-- validacao:
-  - `wsl -d Debian -- bash -lc \"cat /etc/os-release\"`: ok (`VERSION_ID=13`)
-  - `wsl -d Debian -- bash -lc \"cd /mnt/c/Users/mauri/git/scrap_report && bash scripts/smoke_debian13.sh\"`: falha
-  - erro objetivo observado: timeout de rede no WSL ao acessar PyPI durante `uv sync`/build
-    - `Failed to fetch: https://pypi.org/simple/wheel/`
-    - `Request failed after 3 retries`
-    - `operation timed out`
-- feito x pendente x risco residual:
-  - feito:
-    - bloqueio de shell por `CRLF` removido
-    - host Debian13 real identificado e tentativa executada com evidencia de erro
-  - pendente:
-    - executar smoke Debian13 em host com conectividade estavel ao PyPI
-    - gerar `staging/smoke_evidence_debian13.json` no host alvo
-  - risco residual:
-    - medio (fechamento cross-platform bloqueado por conectividade externa no WSL Debian13)
+### Fase 4 - sweep e presets
+- `ffe2807`: base de planejamento (`FilterSpec`, `SweepPlan`)
+- `eb924f3`: `SweepRunner` e manifest consolidado
+- `571937e`: presets operacionais
+- `3a8da8e`: preset ligado ao launcher Windows
+
+Resultado:
+- lote e planejado por grupos de setores
+- falha por item nao mata o lote inteiro
+- o entrypoint Windows aceita `-Preset` sem script novo
+
+## Report kinds atuais
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+- `derivadas_relacionadas`
+- `reprogramacoes`
+
+## Validacao recente por slice documental e operacional
+### `ffe2807` - base de sweep
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest -q tests/test_sweep.py tests/test_config_secrets.py`: `25 passed`
+
+### `eb924f3` - runner de lote
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest -q tests/test_sweep.py tests/test_cli.py tests/test_config_secrets.py`: `57 passed`
+
+### `571937e` - presets operacionais
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest -q tests/test_sweep.py tests/test_cli.py tests/test_config_secrets.py`: `63 passed`
+
+### `3a8da8e` - preset no launcher Windows
+- parser PowerShell dos 3 wrappers: ok
+- smoke com `uv` stub no launcher oficial: ok
+- smoke com `uv` stub no alias legado: ok
+- smoke com `uv` stub para `both`: ok
+
+## Comportamento validado hoje
+- `EXECUTAR_SCRAP_WINDOWS.ps1` suporta:
+  - modo unitario
+  - modo `both`
+  - modo preset
+- `-Preset` nao combina com `-Setor` nem `-SetorEmissor`
+- `both` com preset gera um JSON por report kind alvo
+
+## Risco residual
+- `data de emissao` ainda nao esta ligada ao runtime de sweep
+- `demais_*` existe como preset, mas o grupo `demais` segue vazio
+- faltam telas adicionais do menu `Relatorios`
+- smoke Debian13 real continua dependente de conectividade externa estavel
+
+## Pendente real
+1. rodada real de sweep com preset e report kind verde
+2. decisao sobre proxima prioridade:
+   - `data de emissao` no sweep
+   - novas telas do menu `Relatorios`
+3. preenchimento do grupo `demais`
