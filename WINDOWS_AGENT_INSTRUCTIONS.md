@@ -15,7 +15,7 @@
    - `staging/pipeline_online_windows_executadas.json`
 5. Se quiser passar parametros na entrada principal:
 ```powershell
-.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind both
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "<usuario>" -Setor MEL4 -SetorEmissor IEE3 -ReportKind both
 ```
 6. Opcao tecnica para cert estrito (desliga ignore de cert):
 ```powershell
@@ -23,18 +23,34 @@
 ```
 7. Fluxo CLI equivalente (mantido):
 ```powershell
-uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor IEE3 --report-kind pendentes --output-json staging/pipeline_online_windows.json
+uv run --project . python -m scrap_report.cli windows-flow --username "<usuario>" --setor MEL4 --setor-emissor IEE3 --report-kind both --output-json staging/pipeline_online_windows.json
 ```
 8. Alias legado (mantido para compatibilidade):
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor IEE3 -ReportKind pendentes
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 -Username "<usuario>" -Setor MEL4 -SetorEmissor IEE3 -ReportKind both
 ```
 9. Comandos anteriores (mantidos):
 ```powershell
 uv run --project . python -m scrap_report.cli secret setup --username "<usuario>" --secret-service scrap_report.sam
 uv run --project . python -m scrap_report.cli secret get --username "<usuario>" --secret-service scrap_report.sam
-uv run --project . python -m scrap_report.cli pipeline --username "<usuario>" --setor IEE3 --secure-required --report-kind pendentes --download-dir downloads --staging-dir staging --base-url "https://osprd.itaipu/SAM_SMA/" --output-json staging/pipeline_online_windows.json
+uv run --project . python -m scrap_report.cli pipeline --username "<usuario>" --setor MEL4 --setor-emissor IEE3 --secure-required --report-kind pendentes --download-dir downloads --staging-dir staging --base-url "https://osprd.itaipu/SAM_SMA/" --output-json staging/pipeline_online_windows.json
 ```
+
+## Escopo validado hoje
+- telas validadas em ambiente real:
+  - `pendentes`
+  - `executadas`
+- filtros validados:
+  - `Setor Emissor = IEE3`
+  - `Setor Executor = MEL4`
+- janela automatica:
+  - semana atual ate 4 semanas para tras
+  - exemplo validado em `2026-03-16`: `202608 -> 202612`
+- fluxo validado:
+  - preencher filtros
+  - clicar lupa
+  - abrir dropdown de acoes
+  - clicar `Exportar para Excel`
 
 ## Objetivo
 - Executar validacao real em host Windows 11 e entregar evidencia consolidada para fechamento do pre-release.

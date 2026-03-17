@@ -25,6 +25,19 @@ Extracao modular de relatorio SAM para entregar arquivos xlsx para integracao ex
 
 ## Uso rapido
 
+## Estado validado
+- telas validadas em ambiente real: `pendentes` e `executadas`
+- filtros operacionais atuais:
+  - `Setor Emissor = IEE3`
+  - `Setor Executor = MEL4`
+- janela automatica de emissao:
+  - semana atual ate 4 semanas para tras
+  - exemplo validado em `2026-03-16`: `202608 -> 202612`
+- exportacao validada pelo fluxo real da tela:
+  - clicar lupa de busca
+  - abrir menu de acoes do dropdown
+  - clicar `Exportar para Excel`
+
 ## Fluxo de segredo (quando pede credencial)
 0. Ponto de partida recomendado no Windows (sem argumentos):
 ```bash
@@ -42,7 +55,7 @@ Em `both`, ele gera:
 
 0.2 Entrada principal com parametros opcionais:
 ```bash
-./EXECUTAR_SCRAP_WINDOWS.ps1 --Username "<usuario>" --Setor IEE3 --ReportKind both
+./EXECUTAR_SCRAP_WINDOWS.ps1 --Username "<usuario>" --Setor MEL4 --SetorEmissor IEE3 --ReportKind both
 ```
 
 Alias legado ainda disponivel:
@@ -55,8 +68,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/main_windows.ps1 \
 ```bash
 uv run python -m scrap_report.cli windows-flow \
   --username "<usuario>" \
-  --setor IEE3 \
-  --report-kind pendentes \
+  --setor MEL4 \
+  --setor-emissor IEE3 \
+  --report-kind both \
   --output-json staging/pipeline_online_windows.json
 ```
 Se o secret nao existir, o comando pede senha com mascara e grava no backend seguro.
@@ -83,7 +97,8 @@ uv run python -m scrap_report.cli secret setup \
 ```bash
 uv run python -m scrap_report.cli scrape \
   --username "$SAM_USERNAME" \
-  --setor IEE3 \
+  --setor MEL4 \
+  --setor-emissor IEE3 \
   --secure-required \
   --report-kind pendentes
 ```
@@ -92,7 +107,8 @@ uv run python -m scrap_report.cli scrape \
 ```bash
 uv run python -m scrap_report.cli pipeline \
   --username "$SAM_USERNAME" \
-  --setor IEE3 \
+  --setor MEL4 \
+  --setor-emissor IEE3 \
   --secure-required \
   --report-kind pendentes \
   --download-dir downloads \
@@ -103,7 +119,7 @@ uv run python -m scrap_report.cli pipeline \
 ### 3) pipeline em modo report-only (sem scraping)
 ```bash
 uv run python -m scrap_report.cli pipeline \
-  --setor IEE3 \
+  --setor MEL4 \
   --report-kind pendentes \
   --staging-dir staging \
   --report-only \
@@ -114,7 +130,7 @@ uv run python -m scrap_report.cli pipeline \
 ### 4) ingestao local (sem acessar o site)
 ```bash
 uv run python -m scrap_report.cli ingest-latest \
-  --setor IEE3 \
+  --setor MEL4 \
   --report-kind pendentes \
   --download-dir downloads \
   --staging-dir staging \

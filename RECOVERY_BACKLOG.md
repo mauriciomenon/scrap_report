@@ -1,7 +1,7 @@
 # RECOVERY_BACKLOG
 
 ## NAO_BLOQUEANTE_DEFERIDO
-- adicionar suporte completo para relatorio de executadas com seletor dedicado
+- generalizar o padrao de lupa + dropdown de exportacao para outras telas de relatorio do SAM
 - adicionar validacao de schema para consumo por outro programa via contrato versionado
 - incluir teste E2E real com ambiente SAM disponivel
 - avaliar retries adaptativos por tipo de falha de rede
