@@ -28,6 +28,11 @@ def test_resolve_report_navigation_consulta_ssa_print():
     assert selector.endswith("/SAM_SMA/SSASearch.aspx")
 
 
+def test_resolve_report_navigation_aprovacao_emissao():
+    selector = SAMScraper._resolve_report_navigation("aprovacao_emissao")
+    assert selector.endswith("/SAM_SMA_Reports/SSAsPendingOfApprovalOnEmission.aspx")
+
+
 def test_resolve_report_navigation_reprogramacoes():
     selector = SAMScraper._resolve_report_navigation("reprogramacoes")
     assert selector.endswith("/SAM_SMA_Reports/SSAsRescheduled.aspx")
@@ -42,6 +47,7 @@ def test_filter_contract_includes_emission_year_week_fields():
     assert "EmissionYearWeekStart_input" in SAMLocators.FILTER["emission_year_week_start"]
     assert "EmissionYearWeekEnd_input" in SAMLocators.FILTER["emission_year_week_end"]
     assert "SectorEmitter" in SAMLocators.FILTER["setor_emissor"]
+    assert "DivisionEmmiter" in SAMLocators.FILTER["divisao_emissora"]
     assert "wtSearchButton" in SAMLocators.FILTER["search_icon"]
     assert "wtButtonDropdownWrapper" in SAMLocators.FILTER["actions_menu"]
     assert "dropdown-header.select" in SAMLocators.FILTER["actions_menu"]

@@ -646,3 +646,48 @@ def test_windows_flow_accepts_reprogramacoes_report_kind(
 
     assert code == 0
     assert seen["report_kind"] == "reprogramacoes"
+
+
+def test_windows_flow_accepts_aprovacao_emissao_report_kind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "ok"
+        report_kind = "aprovacao_emissao"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
+        telemetry = {"pipeline_ms": 10}
+
+    seen = {}
+
+    def _run_pipeline(cfg, generate_reports):
+        seen["report_kind"] = cfg.report_kind
+        return _PipelineResult()
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", _run_pipeline)
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "MEL4",
+            "--setor-emissor",
+            "IEE3",
+            "--report-kind",
+            "aprovacao_emissao",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "wf.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["report_kind"] == "aprovacao_emissao"

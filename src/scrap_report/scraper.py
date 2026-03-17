@@ -48,6 +48,7 @@ class SAMLocators:
         "pendentes_execucao": "/SAM_SMA_Reports/PendingToExecution.aspx",
         "consulta_ssa": "/SAM_SMA/SSASearch.aspx",
         "consulta_ssa_print": "/SAM_SMA/SSASearch.aspx",
+        "aprovacao_emissao": "/SAM_SMA_Reports/SSAsPendingOfApprovalOnEmission.aspx",
         "reprogramacoes": "/SAM_SMA_Reports/SSAsRescheduled.aspx",
     }
 
@@ -56,6 +57,7 @@ class SAMLocators:
         "emission_year_week_end": "input[id*='EmissionYearWeekEnd_input']",
         "setor_emissor": "[id*='SectorEmitter']",
         "setor_executor": "[id*='SectorExecutor']",
+        "divisao_emissora": "[id*='DivisionEmmiter']",
         "search_icon": "a[id$='wtSearchButton'], a[id*='wtSearchButton']",
         "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
         "actions_menu": "div[id*='wtButtonDropdownWrapper'] > div.dropdown-header.select",
@@ -169,6 +171,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["consulta_ssa"]
         if report_kind == "consulta_ssa_print":
             return SAMLocators.NAVIGATION["consulta_ssa_print"]
+        if report_kind == "aprovacao_emissao":
+            return SAMLocators.NAVIGATION["aprovacao_emissao"]
         if report_kind == "reprogramacoes":
             return SAMLocators.NAVIGATION["reprogramacoes"]
         raise ValueError("report_kind invalido")
@@ -180,11 +184,18 @@ class SAMScraper:
         return f"{parts.scheme}://{parts.netloc}{report_path}"
 
     def _wait_for_filter_field(self, page: Page) -> None:
-        selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["setor_executor"],
-            name="[name*='SectorExecutor']",
-        )
+        if self.config.report_kind == "aprovacao_emissao":
+            selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["divisao_emissora"],
+                name="[name*='DivisionEmmiter']",
+            )
+        else:
+            selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["setor_executor"],
+                name="[name*='SectorExecutor']",
+            )
         page.wait_for_selector(
             selector,
             state="visible",
@@ -207,15 +218,22 @@ class SAMScraper:
             stable_id=self.locators.FILTER["setor_emissor"],
             name="[name*='SectorEmitter']",
         )
-        selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["setor_executor"],
-            name="[name*='SectorExecutor']",
-        )
+        if self.config.report_kind == "aprovacao_emissao":
+            target_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["divisao_emissora"],
+                name="[name*='DivisionEmmiter']",
+            )
+        else:
+            target_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["setor_executor"],
+                name="[name*='SectorExecutor']",
+            )
         page.fill(emission_start_selector, self.config.emission_year_week_start)
         page.fill(emission_end_selector, self.config.emission_year_week_end)
         page.fill(emissor_selector, self.config.setor_emissor)
-        page.fill(selector, self.config.setor_executor)
+        page.fill(target_selector, self.config.setor_executor)
 
     def _click_search(self, page: Page) -> None:
         success = page.evaluate(
