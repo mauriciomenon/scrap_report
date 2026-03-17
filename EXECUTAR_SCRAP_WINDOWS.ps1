@@ -2,6 +2,7 @@ param(
     [string]$Username = "",
     [string]$Setor = "MEL4",
     [string]$SetorEmissor = "IEE3",
+    [string]$Preset = "",
     [ValidateSet("pendentes", "executadas", "pendentes_execucao", "consulta_ssa", "consulta_ssa_print", "aprovacao_emissao", "aprovacao_cancelamento", "derivadas_relacionadas", "reprogramacoes", "both")]
     [string]$ReportKind = "both",
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
@@ -21,12 +22,15 @@ if (-not (Test-Path $entrypoint)) {
 
 $forward = @{
     Username = $Username
-    Setor = $Setor
-    SetorEmissor = $SetorEmissor
+    Preset = $Preset
     ReportKind = $ReportKind
     BaseUrl = $BaseUrl
     OutputJson = $OutputJson
     SecretService = $SecretService
+}
+if (-not $Preset) {
+    $forward.Setor = $Setor
+    $forward.SetorEmissor = $SetorEmissor
 }
 if ($Headed) {
     $forward.Headed = $true

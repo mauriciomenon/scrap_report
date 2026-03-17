@@ -2,6 +2,7 @@ param(
     [string]$Username = "",
     [string]$Setor = "MEL4",
     [string]$SetorEmissor = "IEE3",
+    [string]$Preset = "",
     [ValidateSet("pendentes", "executadas", "pendentes_execucao", "consulta_ssa", "consulta_ssa_print", "aprovacao_emissao", "aprovacao_cancelamento", "derivadas_relacionadas", "reprogramacoes", "both")]
     [string]$ReportKind = "both",
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
@@ -31,6 +32,16 @@ if (-not $Username) {
 
 if (-not $Username) {
     throw "username obrigatorio"
+}
+
+if ($Preset -and -not $PSBoundParameters.ContainsKey("OutputJson")) {
+    $OutputJson = "staging/sweep_windows.json"
+}
+
+if ($Preset) {
+    if ($PSBoundParameters.ContainsKey("Setor") -or $PSBoundParameters.ContainsKey("SetorEmissor")) {
+        throw "[scrape_sam_windows] preset nao pode ser combinado com Setor ou SetorEmissor"
+    }
 }
 
 $outputDir = Split-Path -Parent $OutputJson
@@ -84,19 +95,88 @@ function Invoke-WindowsFlow {
     }
 }
 
-if ($ReportKind -eq "both") {
-    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($OutputJson)
-    $extension = [System.IO.Path]::GetExtension($OutputJson)
+function Invoke-SweepRun {
+    param(
+        [Parameter(Mandatory = $true)][string]$Kind,
+        [Parameter(Mandatory = $true)][string]$OutFile
+    )
+
+    $args = @(
+        "run", "--project", ".", "python", "-m", "scrap_report.cli", "sweep-run",
+        "--username", $Username,
+        "--report-kind", $Kind,
+        "--preset", $Preset,
+        "--base-url", $BaseUrl,
+        "--secret-service", $SecretService,
+        "--output-json", $OutFile
+    )
+
+    if ($Headed) {
+        $args += "--headed"
+    }
+    if (-not $StrictCert) {
+        $args += "--ignore-https-errors"
+    }
+
+    Write-Host "[scrape_sam_windows] iniciando preset=$Preset report_kind=$Kind"
+    uv @args
+    if ($LASTEXITCODE -ne 0) {
+        throw "[scrape_sam_windows] falha no sweep-run para preset=$Preset report_kind=$Kind (exit_code=$LASTEXITCODE)"
+    }
+
+    if (Test-Path $OutFile) {
+        try {
+            $result = Get-Content $OutFile -Raw | ConvertFrom-Json
+            if ($result.status) {
+                Write-Host "[scrape_sam_windows] status=$($result.status) preset=$Preset report_kind=$Kind"
+            }
+        } catch {
+            Write-Host "[scrape_sam_windows] aviso: json invalido em $OutFile"
+        }
+    }
+}
+
+function Resolve-BatchOutputPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$BasePath,
+        [Parameter(Mandatory = $true)][string]$Suffix
+    )
+
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($BasePath)
+    $extension = [System.IO.Path]::GetExtension($BasePath)
     if (-not $extension) {
         $extension = ".json"
     }
-    $dirName = Split-Path -Parent $OutputJson
+    $dirName = Split-Path -Parent $BasePath
     if (-not $dirName) {
         $dirName = "."
     }
+    return (Join-Path $dirName ($baseName + "_" + $Suffix + $extension))
+}
 
-    $outPendentes = Join-Path $dirName ($baseName + "_pendentes" + $extension)
-    $outExecutadas = Join-Path $dirName ($baseName + "_executadas" + $extension)
+if ($Preset) {
+    if ($ReportKind -eq "both") {
+        $outPendentes = Resolve-BatchOutputPath -BasePath $OutputJson -Suffix "pendentes"
+        $outExecutadas = Resolve-BatchOutputPath -BasePath $OutputJson -Suffix "executadas"
+
+        Invoke-SweepRun -Kind "pendentes" -OutFile $outPendentes
+        Invoke-SweepRun -Kind "executadas" -OutFile $outExecutadas
+
+        Write-Host "[scrape_sam_windows] concluido preset both"
+        Write-Host "[scrape_sam_windows] saidas:"
+        Write-Host "  $outPendentes"
+        Write-Host "  $outExecutadas"
+        exit 0
+    }
+
+    Invoke-SweepRun -Kind $ReportKind -OutFile $OutputJson
+    Write-Host "[scrape_sam_windows] concluido preset com sucesso"
+    exit 0
+}
+
+if ($ReportKind -eq "both") {
+    $outPendentes = Resolve-BatchOutputPath -BasePath $OutputJson -Suffix "pendentes"
+    $outExecutadas = Resolve-BatchOutputPath -BasePath $OutputJson -Suffix "executadas"
 
     Invoke-WindowsFlow -Kind "pendentes" -OutFile $outPendentes
     Invoke-WindowsFlow -Kind "executadas" -OutFile $outExecutadas
