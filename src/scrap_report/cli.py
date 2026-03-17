@@ -12,6 +12,8 @@ from typing import Any
 
 from .config import (
     CliConfigInput,
+    DEFAULT_SETOR_EMISSOR,
+    DEFAULT_SETOR_EXECUTOR,
     REPORT_KINDS,
     SECRET_SETUP_HINT,
     report_kind_uses_excel_output,
@@ -109,8 +111,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="le senha no terminal sem eco, sem passar em linha de comando",
     )
-    common.add_argument("--setor", required=True)
-    common.add_argument("--setor-emissor", default="IEE3")
+    common.add_argument(
+        "--setor",
+        required=True,
+        help="setor executor; use ALL para nao filtrar executor",
+    )
+    common.add_argument(
+        "--setor-emissor",
+        default=DEFAULT_SETOR_EMISSOR,
+        help="setor emissor; use ALL para nao filtrar emissor",
+    )
     common.add_argument("--report-kind", default="pendentes", choices=REPORT_KINDS)
     common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     common.add_argument("--download-dir", default="downloads")
@@ -168,8 +178,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="fluxo sequencial windows: garante secret e executa pipeline seguro",
     )
     windows_flow.add_argument("--username", required=True)
-    windows_flow.add_argument("--setor", required=True)
-    windows_flow.add_argument("--setor-emissor", default="IEE3")
+    windows_flow.add_argument(
+        "--setor",
+        required=True,
+        help="setor executor; use ALL para nao filtrar executor",
+    )
+    windows_flow.add_argument(
+        "--setor-emissor",
+        default=DEFAULT_SETOR_EMISSOR,
+        help="setor emissor; use ALL para nao filtrar emissor",
+    )
     windows_flow.add_argument(
         "--report-kind", default="pendentes", choices=REPORT_KINDS
     )
@@ -206,6 +224,17 @@ def _build_parser() -> argparse.ArgumentParser:
     report = sub.add_parser("report-from-excel", help="gera artefatos de relatorio")
     report.add_argument("--excel", required=True)
     report.add_argument("--output-dir", default="staging/reports")
+    report.add_argument("--report-kind", default="pendentes", choices=REPORT_KINDS)
+    report.add_argument(
+        "--setor",
+        default=DEFAULT_SETOR_EXECUTOR,
+        help="setor executor; use ALL para nao filtrar executor",
+    )
+    report.add_argument(
+        "--setor-emissor",
+        default=DEFAULT_SETOR_EMISSOR,
+        help="setor emissor; use ALL para nao filtrar emissor",
+    )
     report.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
 
     contract = sub.add_parser(
@@ -495,6 +524,8 @@ def main(argv: list[str] | None = None) -> int:
             source_excel=source_excel,
             report_kind=args.report_kind,
             reports_output_dir=Path(args.staging_dir) / "reports",
+            setor_emissor=args.setor_emissor,
+            setor_executor=args.setor,
         )
         _emit_json(
             {
@@ -587,7 +618,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "report-from-excel":
-        artifacts = generate_ssa_report_from_excel(Path(args.excel), Path(args.output_dir))
+        artifacts = generate_ssa_report_from_excel(
+            Path(args.excel),
+            Path(args.output_dir),
+            report_kind=args.report_kind,
+            setor_emissor=args.setor_emissor,
+            setor_executor=args.setor,
+        )
         _emit_json(
             {"status": "ok", "reports": artifacts_to_dict(artifacts)},
             args.output_json,

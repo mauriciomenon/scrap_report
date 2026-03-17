@@ -58,6 +58,8 @@ def run_pipeline(config: ScrapeConfig, generate_reports: bool = True) -> Pipelin
                 excel_path=staged,
                 output_dir=config.staging_dir / "reports",
                 report_kind=config.report_kind,
+                setor_emissor=config.setor_emissor,
+                setor_executor=config.setor_executor,
             )
             reports = artifacts_to_dict(artifacts)
             telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)
@@ -107,6 +109,8 @@ def run_pipeline_from_local_download(
                 excel_path=staged,
                 output_dir=config.staging_dir / "reports",
                 report_kind=config.report_kind,
+                setor_emissor=config.setor_emissor,
+                setor_executor=config.setor_executor,
             )
             reports = artifacts_to_dict(artifacts)
             telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)
@@ -124,7 +128,11 @@ def run_pipeline_from_local_download(
 
 
 def run_report_only(
-    source_excel: Path, report_kind: str, reports_output_dir: Path
+    source_excel: Path,
+    report_kind: str,
+    reports_output_dir: Path,
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
 ) -> PipelineResult:
     telemetry: Dict[str, int] = {}
     if not report_kind_uses_excel_output(report_kind):
@@ -142,6 +150,8 @@ def run_report_only(
             excel_path=source,
             output_dir=reports_output_dir,
             report_kind=report_kind,
+            setor_emissor=setor_emissor,
+            setor_executor=setor_executor,
         )
         reports = artifacts_to_dict(artifacts)
         telemetry["report_ms"] = int((time.perf_counter() - t0) * 1000)

@@ -107,3 +107,20 @@ def test_build_empty_result_download_creates_header_only_xlsx(tmp_path):
     assert path.exists()
     assert path.suffix.lower() == ".xlsx"
     assert "sem_resultados" in path.name
+
+
+def test_empty_result_title_uses_all_when_filters_are_disabled(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="ALL",
+        setor_executor="ALL",
+        report_kind="aprovacao_cancelamento",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+
+    title = SAMScraper(cfg)._empty_result_title()
+
+    assert "emissor=ALL" in title
+    assert "executor=ALL" in title

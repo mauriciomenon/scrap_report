@@ -10,8 +10,7 @@ import unicodedata
 
 import pandas as pd
 
-TARGET_SETOR_EMISSOR = "IEE3"
-TARGET_SETOR_EXECUTOR = "MEL4"
+from .config import normalize_setor_filter
 DERIVADAS_RELACIONADAS_COLUMNS = (
     "ssa_referencia_numero",
     "ssa_referencia_localizacao",
@@ -81,12 +80,22 @@ def _normalize_columns(values: pd.Series) -> list[str]:
     return columns
 
 
-def _filter_report_scope(df: pd.DataFrame) -> pd.DataFrame:
+def _filter_report_scope(
+    df: pd.DataFrame,
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
+) -> pd.DataFrame:
     filtered = df.copy()
-    if "Setor Executor" in filtered.columns:
-        filtered = filtered[filtered["Setor Executor"].astype(str).str.strip() == TARGET_SETOR_EXECUTOR]
-    if "Setor Emissor" in filtered.columns:
-        filtered = filtered[filtered["Setor Emissor"].astype(str).str.strip() == TARGET_SETOR_EMISSOR]
+    normalized_executor = normalize_setor_filter(setor_executor)
+    normalized_emissor = normalize_setor_filter(setor_emissor)
+    if normalized_executor and "Setor Executor" in filtered.columns:
+        filtered = (
+            filtered[filtered["Setor Executor"].astype(str).str.strip().str.upper() == normalized_executor]
+        )
+    if normalized_emissor and "Setor Emissor" in filtered.columns:
+        filtered = (
+            filtered[filtered["Setor Emissor"].astype(str).str.strip().str.upper() == normalized_emissor]
+        )
     return filtered.reset_index(drop=True)
 
 
@@ -119,12 +128,16 @@ def _get_first_column_series(df: pd.DataFrame, *candidates: str) -> pd.Series:
     return data
 
 
-def load_excel(excel_path: Path) -> pd.DataFrame:
+def load_excel(
+    excel_path: Path,
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
+) -> pd.DataFrame:
     path = Path(excel_path)
     if not path.exists():
         raise FileNotFoundError(f"excel nao encontrado: {path}")
     data = _load_outsystems_table(path)
-    return _filter_report_scope(data)
+    return _filter_report_scope(data, setor_emissor=setor_emissor, setor_executor=setor_executor)
 
 
 def _load_outsystems_table(path: Path) -> pd.DataFrame:
@@ -136,7 +149,11 @@ def _load_outsystems_table(path: Path) -> pd.DataFrame:
     return data
 
 
-def load_derivadas_relacionadas_excel(excel_path: Path) -> pd.DataFrame:
+def load_derivadas_relacionadas_excel(
+    excel_path: Path,
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
+) -> pd.DataFrame:
     path = Path(excel_path)
     if not path.exists():
         raise FileNotFoundError(f"excel nao encontrado: {path}")
@@ -168,7 +185,7 @@ def load_derivadas_relacionadas_excel(excel_path: Path) -> pd.DataFrame:
     work[setor_executor_col] = _get_first_column_series(work, "Setor Executor").ffill()
     work[situacao_col] = _get_first_column_series(work, "Situação", "Situacao").ffill()
 
-    work = _filter_report_scope(work)
+    work = _filter_report_scope(work, setor_emissor=setor_emissor, setor_executor=setor_executor)
     detail_mask = work["_is_detail_row"]
 
     detail = work[detail_mask].copy()
@@ -216,10 +233,19 @@ def load_derivadas_relacionadas_excel(excel_path: Path) -> pd.DataFrame:
     return normalized.reset_index(drop=True)
 
 
-def load_excel_for_report(excel_path: Path, report_kind: str) -> pd.DataFrame:
+def load_excel_for_report(
+    excel_path: Path,
+    report_kind: str,
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
+) -> pd.DataFrame:
     if report_kind == "derivadas_relacionadas":
-        return load_derivadas_relacionadas_excel(excel_path)
-    return load_excel(excel_path)
+        return load_derivadas_relacionadas_excel(
+            excel_path,
+            setor_emissor=setor_emissor,
+            setor_executor=setor_executor,
+        )
+    return load_excel(excel_path, setor_emissor=setor_emissor, setor_executor=setor_executor)
 
 
 def export_data_excel(df: pd.DataFrame, filename: Path) -> Path:
@@ -276,12 +302,21 @@ def generate_text_report(df: pd.DataFrame, filename: Path) -> Path:
 
 
 def generate_ssa_report_from_excel(
-    excel_path: Path, output_dir: Path, report_kind: str = "pendentes"
+    excel_path: Path,
+    output_dir: Path,
+    report_kind: str = "pendentes",
+    setor_emissor: str | None = None,
+    setor_executor: str | None = None,
 ) -> ReportArtifacts:
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    df = load_excel_for_report(excel_path, report_kind)
+    df = load_excel_for_report(
+        excel_path,
+        report_kind,
+        setor_emissor=setor_emissor,
+        setor_executor=setor_executor,
+    )
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     dados = export_data_excel(df, output / f"ssas_dados_{ts}.xlsx")

@@ -171,7 +171,7 @@ def test_generate_ssa_report_from_excel_derivadas_relacionadas(tmp_path: Path):
 
 def test_load_excel_detects_real_header_and_filters_scope(tmp_path: Path):
     excel = _outsystems_like_excel(tmp_path / "entrada_outsystems.xlsx")
-    df = load_excel(excel)
+    df = load_excel(excel, setor_emissor="IEE3", setor_executor="MEL4")
 
     assert list(df.columns) == [
         "Numero da SSA",
@@ -184,3 +184,18 @@ def test_load_excel_detects_real_header_and_filters_scope(tmp_path: Path):
     assert df.iloc[0]["Numero da SSA"] == "001"
     assert df.iloc[0]["Setor Emissor"] == "IEE3"
     assert df.iloc[0]["Setor Executor"] == "MEL4"
+
+
+def test_load_excel_can_filter_only_by_emissor(tmp_path: Path):
+    excel = _outsystems_like_excel(tmp_path / "entrada_outsystems_emissor.xlsx")
+    df = load_excel(excel, setor_emissor="IEE3", setor_executor="ALL")
+
+    assert len(df) == 2
+    assert set(df["Numero da SSA"].astype(str)) == {"001", "003"}
+
+
+def test_load_excel_can_skip_both_filters(tmp_path: Path):
+    excel = _outsystems_like_excel(tmp_path / "entrada_outsystems_all.xlsx")
+    df = load_excel(excel, setor_emissor="ALL", setor_executor="ALL")
+
+    assert len(df) == 3

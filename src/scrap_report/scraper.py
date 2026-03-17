@@ -215,18 +215,7 @@ class SAMScraper:
         return f"{parts.scheme}://{parts.netloc}{report_path}"
 
     def _wait_for_filter_field(self, page: Page) -> None:
-        if self.config.report_kind == "aprovacao_emissao":
-            selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["divisao_emissora"],
-                name="[name*='DivisionEmmiter']",
-            )
-        else:
-            selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["setor_executor"],
-                name="[name*='SectorExecutor']",
-            )
+        selector = self._resolve_primary_filter_selector(page)
         page.wait_for_selector(
             selector,
             state="visible",
@@ -244,27 +233,18 @@ class SAMScraper:
             stable_id=self.locators.FILTER["emission_year_week_end"],
             name="[name*='EmissionYearWeekEnd']",
         )
-        emissor_selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["setor_emissor"],
-            name="[name*='SectorEmitter']",
-        )
-        if self.config.report_kind == "aprovacao_emissao":
-            target_selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["divisao_emissora"],
-                name="[name*='DivisionEmmiter']",
-            )
-        else:
-            target_selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["setor_executor"],
-                name="[name*='SectorExecutor']",
-            )
         page.fill(emission_start_selector, self.config.emission_year_week_start)
         page.fill(emission_end_selector, self.config.emission_year_week_end)
-        page.fill(emissor_selector, self.config.setor_emissor)
-        page.fill(target_selector, self.config.setor_executor)
+        if self.config.setor_emissor:
+            emissor_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["setor_emissor"],
+                name="[name*='SectorEmitter']",
+            )
+            page.fill(emissor_selector, self.config.setor_emissor)
+        if self.config.setor_executor:
+            target_selector = self._resolve_executor_filter_selector(page)
+            page.fill(target_selector, self.config.setor_executor)
 
     def _click_search(self, page: Page) -> bool:
         success = page.evaluate(
@@ -403,9 +383,43 @@ class SAMScraper:
     def _empty_result_title(self) -> str:
         return (
             "Sem resultados para os filtros: "
-            f"emissor={self.config.setor_emissor}; "
-            f"executor={self.config.setor_executor}; "
+            f"emissor={self.config.setor_emissor or 'ALL'}; "
+            f"executor={self.config.setor_executor or 'ALL'}; "
             f"emissao={self.config.emission_year_week_start}..{self.config.emission_year_week_end}"
+        )
+
+    def _resolve_primary_filter_selector(self, page: Page) -> str:
+        if self.config.report_kind == "aprovacao_emissao" and self.config.setor_executor:
+            return self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["divisao_emissora"],
+                name="[name*='DivisionEmmiter']",
+            )
+        if self.config.setor_executor and self.config.report_kind != "aprovacao_emissao":
+            return self._resolve_executor_filter_selector(page)
+        if self.config.setor_emissor:
+            return self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["setor_emissor"],
+                name="[name*='SectorEmitter']",
+            )
+        return self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["emission_year_week_start"],
+            name="[name*='EmissionYearWeekStart']",
+        )
+
+    def _resolve_executor_filter_selector(self, page: Page) -> str:
+        if self.config.report_kind == "aprovacao_emissao":
+            return self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["divisao_emissora"],
+                name="[name*='DivisionEmmiter']",
+            )
+        return self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["setor_executor"],
+            name="[name*='SectorExecutor']",
         )
 
     def _empty_result_filename(self) -> str:

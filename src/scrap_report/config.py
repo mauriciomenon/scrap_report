@@ -10,6 +10,15 @@ from pathlib import Path
 from .secret_provider import SecretBackendUnavailableError, SecretNotFoundError, SecretProvider
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SETOR_EMISSOR = "IEE3"
+DEFAULT_SETOR_EXECUTOR = "MEL4"
+SETOR_ALL_TOKENS = ("", "*", "ALL", "TODOS", "TODAS")
+SETOR_PRIORITY_GROUPS = {
+    "principal": ("IEE3", "MEL4", "MEL3"),
+    "segundo_plano": ("IEE1", "IEE2", "IEE4"),
+    "terceiro_plano": ("MEL1", "MEL2", "IEQ1", "IEQ2", "IEQ3", "ILA1", "ILA2", "ILA3"),
+    "demais": (),
+}
 REPORT_KINDS = (
     "pendentes",
     "executadas",
@@ -35,6 +44,15 @@ def _resolve_project_path(value: Path) -> Path:
     if path.is_absolute():
         return path
     return (PROJECT_ROOT / path).resolve()
+
+
+def normalize_setor_filter(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    if normalized in SETOR_ALL_TOKENS:
+        return None
+    return normalized
 
 
 def build_recent_emission_year_week_window(
@@ -65,8 +83,8 @@ class ScrapeConfig:
 
     username: str
     password: str
-    setor_executor: str
-    setor_emissor: str = "IEE3"
+    setor_executor: str | None = DEFAULT_SETOR_EXECUTOR
+    setor_emissor: str | None = DEFAULT_SETOR_EMISSOR
     report_kind: str = "pendentes"
     base_url: str = "https://osprd.itaipu/SAM_SMA/"
     headless: bool = True
@@ -99,10 +117,8 @@ class ScrapeConfig:
             raise ValueError("username nao pode ser vazio")
         if not self.password.strip():
             raise ValueError("password nao pode ser vazio")
-        if not self.setor_emissor.strip():
-            raise ValueError("setor_emissor nao pode ser vazio")
-        if not self.setor_executor.strip():
-            raise ValueError("setor_executor nao pode ser vazio")
+        self.setor_emissor = normalize_setor_filter(self.setor_emissor)
+        self.setor_executor = normalize_setor_filter(self.setor_executor)
         if not self.emission_year_week_start or not self.emission_year_week_end:
             (
                 self.emission_year_week_start,
@@ -121,13 +137,13 @@ class CliConfigInput:
 
     username: str | None
     password: str | None
-    setor_executor: str
+    setor_executor: str | None
     report_kind: str
     base_url: str
     headless: bool
     download_dir: str
     staging_dir: str
-    setor_emissor: str = "IEE3"
+    setor_emissor: str | None = DEFAULT_SETOR_EMISSOR
     secure_required: bool = False
     allow_transitional_plaintext: bool = True
     secret_service: str = "scrap_report.sam"

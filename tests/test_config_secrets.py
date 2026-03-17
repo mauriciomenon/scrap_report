@@ -2,8 +2,36 @@ import pytest
 
 from datetime import date
 
-from scrap_report.config import CliConfigInput, build_recent_emission_year_week_window
+from scrap_report.config import (
+    CliConfigInput,
+    SETOR_PRIORITY_GROUPS,
+    build_recent_emission_year_week_window,
+    normalize_setor_filter,
+)
 from scrap_report.secret_provider import MemorySecretProvider
+
+
+def test_normalize_setor_filter_accepts_all_tokens():
+    assert normalize_setor_filter("ALL") is None
+    assert normalize_setor_filter("*") is None
+    assert normalize_setor_filter("") is None
+    assert normalize_setor_filter("  iee3  ") == "IEE3"
+
+
+def test_setor_priority_groups_keep_expected_order():
+    assert SETOR_PRIORITY_GROUPS["principal"] == ("IEE3", "MEL4", "MEL3")
+    assert SETOR_PRIORITY_GROUPS["segundo_plano"] == ("IEE1", "IEE2", "IEE4")
+    assert SETOR_PRIORITY_GROUPS["terceiro_plano"] == (
+        "MEL1",
+        "MEL2",
+        "IEQ1",
+        "IEQ2",
+        "IEQ3",
+        "ILA1",
+        "ILA2",
+        "ILA3",
+    )
+    assert SETOR_PRIORITY_GROUPS["demais"] == ()
 
 
 def test_cli_config_uses_provider_secret():
