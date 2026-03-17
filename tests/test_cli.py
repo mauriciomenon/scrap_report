@@ -1025,3 +1025,77 @@ def test_sweep_run_rejects_preset_with_manual_scope(
 
     assert code == 1
     assert "preset nao pode ser combinado" in captured.err
+
+
+def test_sweep_run_accepts_emission_date_manual_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "pendentes",
+                "scope_mode": "emissor",
+                "item_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "items": [
+                    {
+                        "index": 1,
+                        "scope_mode": "emissor",
+                        "setor_emissor": "OUO5",
+                        "setor_executor": None,
+                        "emission_date_start": "25/12/2025",
+                        "emission_date_end": "25/12/2025",
+                        "status": "ok",
+                        "reports": {},
+                        "telemetry": {},
+                    }
+                ],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["scope_mode"] = plan.scope_mode
+            seen["setores_emissor"] = plan.setores_emissor
+            seen["emission_date_start"] = plan.emission_date_start
+            seen["emission_date_end"] = plan.emission_date_end
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "executadas",
+            "--scope-mode",
+            "emissor",
+            "--setores-emissor",
+            "OUO5",
+            "--emission-date-start",
+            "2025-12-25",
+            "--emission-date-end",
+            "25/12/2025",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_date.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["scope_mode"] == "emissor"
+    assert seen["setores_emissor"] == ("OUO5",)
+    assert seen["emission_date_start"] == "2025-12-25"
+    assert seen["emission_date_end"] == "25/12/2025"

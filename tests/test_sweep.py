@@ -206,13 +206,56 @@ def test_sweep_runner_continues_after_failure(tmp_path: Path):
     assert payload["items"][1]["error"] == "falha de teste"
 
 
-def test_sweep_runner_rejects_emission_date_until_runtime_supports_it(tmp_path: Path):
+def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="executadas",
+        scope_mode="executor",
+        setores_executor=("MEL4",),
+        emission_date_start="2025-12-25",
+        emission_date_end="2025-12-25",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    seen = {}
+
+    def _pipeline_runner(config, generate_reports):
+        seen["emission_date_start"] = config.emission_date_start
+        seen["emission_date_end"] = config.emission_date_end
+        seen["emission_year_week_start"] = config.emission_year_week_start
+        seen["emission_year_week_end"] = config.emission_year_week_end
+        return type(
+            "PipelineResult",
+            (),
+            {
+                "status": "ok",
+                "source_path": runtime.download_dir / "ok.xlsx",
+                "staged_path": runtime.staging_dir / "ok.xlsx",
+                "reports": {"dados": "ok.xlsx"},
+                "telemetry": {"pipeline_ms": 1},
+            },
+        )()
+
+    manifest = SweepRunner(pipeline_runner=_pipeline_runner).run(plan, runtime)
+
+    assert manifest.status == "ok"
+    assert manifest.failure_count == 0
+    assert seen["emission_date_start"] == "25/12/2025"
+    assert seen["emission_date_end"] == "25/12/2025"
+    assert seen["emission_year_week_start"] == ""
+    assert seen["emission_year_week_end"] == ""
+
+
+def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Path):
     plan = SweepPlan(
         report_kind="pendentes",
         scope_mode="executor",
         setores_executor=("MEL4",),
-        emission_date_start="2026-03-01",
-        emission_date_end="2026-03-17",
+        emission_date_start="2025-12-25",
+        emission_date_end="2025-12-25",
     )
     runtime = SweepRuntimeConfig(
         username="u1",
@@ -225,7 +268,7 @@ def test_sweep_runner_rejects_emission_date_until_runtime_supports_it(tmp_path: 
 
     assert manifest.status == "error"
     assert manifest.failure_count == 1
-    assert "data de emissao" in manifest.items[0].error
+    assert "nao suporta filtro por data de emissao validado" in (manifest.items[0].error or "")
 
 
 def test_preset_names_include_priority_groups_and_scope_modes():

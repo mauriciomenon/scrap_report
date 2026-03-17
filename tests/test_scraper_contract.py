@@ -55,6 +55,7 @@ def test_resolve_report_navigation_invalid():
 
 
 def test_filter_contract_includes_emission_year_week_fields():
+    assert "EmissionDate_input" in SAMLocators.FILTER["emission_date"]
     assert "EmissionYearWeekStart_input" in SAMLocators.FILTER["emission_year_week_start"]
     assert "EmissionYearWeekEnd_input" in SAMLocators.FILTER["emission_year_week_end"]
     assert "SectorEmitter" in SAMLocators.FILTER["setor_emissor"]
@@ -124,3 +125,54 @@ def test_empty_result_title_uses_all_when_filters_are_disabled(tmp_path):
 
     assert "emissor=ALL" in title
     assert "executor=ALL" in title
+
+
+def test_empty_result_title_uses_emission_date_when_configured(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="OUO5",
+        setor_executor="ALL",
+        report_kind="executadas",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        emission_date_start="25/12/2025",
+        emission_date_end="25/12/2025",
+    )
+
+    title = SAMScraper(cfg)._empty_result_title()
+
+    assert "emissao=25/12/2025..25/12/2025" in title
+
+
+def test_primary_filter_prefers_emission_date_when_active(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="OUO5",
+        setor_executor="ALL",
+        report_kind="executadas",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        emission_date_start="25/12/2025",
+        emission_date_end="25/12/2025",
+    )
+
+    assert SAMScraper(cfg)._uses_emission_date_filter() is True
+
+
+def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="OUO5",
+        setor_executor="ALL",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        emission_date_start="25/12/2025",
+        emission_date_end="25/12/2025",
+    )
+
+    with pytest.raises(RuntimeError, match="nao suporta filtro por data de emissao validado"):
+        SAMScraper(cfg)._resolve_emission_date_filter_selector(page=None)  # type: ignore[arg-type]

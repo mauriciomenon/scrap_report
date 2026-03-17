@@ -4,8 +4,10 @@ from datetime import date
 
 from scrap_report.config import (
     CliConfigInput,
+    ScrapeConfig,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
+    normalize_emission_date,
     normalize_setor_filter,
 )
 from scrap_report.secret_provider import MemorySecretProvider
@@ -154,6 +156,94 @@ def test_cli_config_derives_emission_year_week_window():
     assert cfg.emission_year_week_end
     assert len(cfg.emission_year_week_start) == 6
     assert len(cfg.emission_year_week_end) == 6
+
+
+def test_normalize_emission_date_accepts_iso_and_br_formats():
+    assert normalize_emission_date("25/12/2025") == "25/12/2025"
+    assert normalize_emission_date("2025-12-25") == "25/12/2025"
+
+
+def test_cli_config_accepts_emission_date_window():
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "user1", "p1")
+    cfg = CliConfigInput(
+        username="user1",
+        password=None,
+        setor_emissor="OUO5",
+        setor_executor="ALL",
+        report_kind="pendentes",
+        base_url="https://osprd.itaipu/SAM_SMA/",
+        headless=True,
+        download_dir="downloads",
+        staging_dir="staging",
+        secure_required=True,
+        allow_transitional_plaintext=False,
+        secret_service="svc",
+        secret_provider=provider,
+        emission_date_start="2025-12-25",
+        emission_date_end="2025-12-25",
+    ).to_scrape_config()
+    assert cfg.emission_date_start == "25/12/2025"
+    assert cfg.emission_date_end == "25/12/2025"
+    assert cfg.emission_year_week_start == ""
+    assert cfg.emission_year_week_end == ""
+
+
+def test_cli_config_rejects_mixed_emission_date_and_year_week():
+    with pytest.raises(ValueError, match="nao misturar filtro por ano/semana com data de emissao"):
+        ScrapeConfig(
+            username="user1",
+            password="p1",
+            setor_emissor="IEE3",
+            setor_executor="MEL4",
+            report_kind="pendentes",
+            download_dir="downloads",
+            staging_dir="staging",
+            emission_year_week_start="202551",
+            emission_year_week_end="202552",
+            emission_date_start="25/12/2025",
+            emission_date_end="25/12/2025",
+        )
+
+
+def test_scrape_config_rejects_partial_or_inverted_emission_date(tmp_path):
+    with pytest.raises(ValueError, match="filtro por data de emissao exige inicio e fim"):
+        CliConfigInput(
+            username="user1",
+            password="p1",
+            setor_emissor="IEE3",
+            setor_executor="MEL4",
+            report_kind="pendentes",
+            base_url="https://osprd.itaipu/SAM_SMA/",
+            headless=True,
+            download_dir=str(tmp_path / "downloads1"),
+            staging_dir=str(tmp_path / "staging1"),
+            secure_required=False,
+            allow_transitional_plaintext=True,
+            secret_service="svc",
+            secret_provider=None,
+            emission_date_start="25/12/2025",
+            emission_date_end=None,
+        ).to_scrape_config()
+
+    with pytest.raises(ValueError, match="data de emissao inicial nao pode ser maior que a final"):
+        CliConfigInput(
+            username="user1",
+            password="p1",
+            setor_emissor="IEE3",
+            setor_executor="MEL4",
+            report_kind="pendentes",
+            base_url="https://osprd.itaipu/SAM_SMA/",
+            headless=True,
+            download_dir=str(tmp_path / "downloads2"),
+            staging_dir=str(tmp_path / "staging2"),
+            secure_required=False,
+            allow_transitional_plaintext=True,
+            secret_service="svc",
+            secret_provider=None,
+            emission_date_start="26/12/2025",
+            emission_date_end="25/12/2025",
+        ).to_scrape_config()
 
 
 def test_cli_config_keeps_setor_emissor():

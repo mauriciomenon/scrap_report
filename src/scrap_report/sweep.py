@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 from .config import (
+    EMISSION_DATE_SUPPORTED_REPORT_KINDS,
     ScrapeConfig,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
@@ -377,7 +378,9 @@ class SweepRunner:
         runtime: SweepRuntimeConfig,
     ) -> SweepItemResult:
         spec = item.filter_spec
-        if spec.emission_date_start or spec.emission_date_end:
+        if (spec.emission_date_start or spec.emission_date_end) and (
+            report_kind not in EMISSION_DATE_SUPPORTED_REPORT_KINDS
+        ):
             return SweepItemResult(
                 index=item.index,
                 scope_mode=spec.scope_mode,
@@ -388,9 +391,11 @@ class SweepRunner:
                 emission_date_start=spec.emission_date_start,
                 emission_date_end=spec.emission_date_end,
                 status="error",
-                error="filtro por data de emissao ainda nao suportado no runner atual",
+                error=(
+                    f"report_kind={report_kind} nao suporta filtro por data de emissao "
+                    "validado neste runtime"
+                ),
             )
-
         config = ScrapeConfig(
             username=runtime.username,
             password=runtime.password,
@@ -405,6 +410,8 @@ class SweepRunner:
             ignore_https_errors=runtime.ignore_https_errors,
             emission_year_week_start=spec.emission_year_week_start or "",
             emission_year_week_end=spec.emission_year_week_end or "",
+            emission_date_start=spec.emission_date_start or "",
+            emission_date_end=spec.emission_date_end or "",
         )
         try:
             pipeline_result = self._pipeline_runner(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from .secret_provider import SecretBackendUnavailableError, SecretNotFoundError, SecretProvider
@@ -30,6 +30,7 @@ REPORT_KINDS = (
     "derivadas_relacionadas",
     "reprogramacoes",
 )
+EMISSION_DATE_SUPPORTED_REPORT_KINDS = ("executadas",)
 NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print",)
 NON_XLSX_DOWNLOAD_KINDS = ("consulta_ssa_print",)
 SECRET_SETUP_HINT = (
@@ -67,6 +68,21 @@ def build_recent_emission_year_week_window(
     return start_value, end_value
 
 
+def normalize_emission_date(value: str | None) -> str:
+    if value is None:
+        return ""
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            parsed = datetime.strptime(normalized, fmt)
+            return parsed.strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+    raise ValueError("data de emissao deve estar em DD/MM/YYYY ou YYYY-MM-DD")
+
+
 def report_kind_uses_excel_output(report_kind: str) -> bool:
     return report_kind not in NON_REPORT_GENERATION_KINDS
 
@@ -100,6 +116,8 @@ class ScrapeConfig:
     ignore_https_errors: bool = False
     emission_year_week_start: str = ""
     emission_year_week_end: str = ""
+    emission_date_start: str = ""
+    emission_date_end: str = ""
 
     def __post_init__(self) -> None:
         self.report_kind = self.report_kind.strip().lower()
@@ -119,7 +137,23 @@ class ScrapeConfig:
             raise ValueError("password nao pode ser vazio")
         self.setor_emissor = normalize_setor_filter(self.setor_emissor)
         self.setor_executor = normalize_setor_filter(self.setor_executor)
-        if not self.emission_year_week_start or not self.emission_year_week_end:
+        self.emission_date_start = normalize_emission_date(self.emission_date_start)
+        self.emission_date_end = normalize_emission_date(self.emission_date_end)
+
+        has_year_week = bool(self.emission_year_week_start or self.emission_year_week_end)
+        has_date = bool(self.emission_date_start or self.emission_date_end)
+        if has_year_week and has_date:
+            raise ValueError("nao misturar filtro por ano/semana com data de emissao")
+        if bool(self.emission_year_week_start) != bool(self.emission_year_week_end):
+            raise ValueError("filtro por ano/semana exige inicio e fim")
+        if bool(self.emission_date_start) != bool(self.emission_date_end):
+            raise ValueError("filtro por data de emissao exige inicio e fim")
+        if has_date:
+            start_date = datetime.strptime(self.emission_date_start, "%d/%m/%Y").date()
+            end_date = datetime.strptime(self.emission_date_end, "%d/%m/%Y").date()
+            if start_date > end_date:
+                raise ValueError("data de emissao inicial nao pode ser maior que a final")
+        elif not has_year_week:
             (
                 self.emission_year_week_start,
                 self.emission_year_week_end,
@@ -150,6 +184,8 @@ class CliConfigInput:
     secret_provider: SecretProvider | None = None
     selector_mode: str = "adaptive"
     ignore_https_errors: bool = False
+    emission_date_start: str | None = None
+    emission_date_end: str | None = None
 
     def to_scrape_config(self) -> ScrapeConfig:
         username = (self.username or os.getenv("SAM_USERNAME", "")).strip()
@@ -167,6 +203,8 @@ class CliConfigInput:
             staging_dir=Path(self.staging_dir),
             selector_mode=self.selector_mode,
             ignore_https_errors=self.ignore_https_errors,
+            emission_date_start=self.emission_date_start or "",
+            emission_date_end=self.emission_date_end or "",
         )
 
     def _resolve_password(self, username: str) -> str:

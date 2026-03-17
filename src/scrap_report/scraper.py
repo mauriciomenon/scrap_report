@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 import pandas as pd
 from playwright.sync_api import Page, sync_playwright
 
-from .config import ScrapeConfig
+from .config import EMISSION_DATE_SUPPORTED_REPORT_KINDS, ScrapeConfig
 from .redaction import redact_text
 from .selector_engine import (
     build_candidates,
@@ -56,6 +56,7 @@ class SAMLocators:
     }
 
     FILTER = {
+        "emission_date": "input[id*='EmissionDate_input']",
         "emission_year_week_start": "input[id*='EmissionYearWeekStart_input']",
         "emission_year_week_end": "input[id*='EmissionYearWeekEnd_input']",
         "setor_emissor": "[id*='SectorEmitter']",
@@ -223,18 +224,26 @@ class SAMScraper:
         )
 
     def _fill_filter(self, page: Page) -> None:
-        emission_start_selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["emission_year_week_start"],
-            name="[name*='EmissionYearWeekStart']",
-        )
-        emission_end_selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["emission_year_week_end"],
-            name="[name*='EmissionYearWeekEnd']",
-        )
-        page.fill(emission_start_selector, self.config.emission_year_week_start)
-        page.fill(emission_end_selector, self.config.emission_year_week_end)
+        if self._uses_emission_date_filter():
+            emission_date_selector = self._resolve_emission_date_filter_selector(page)
+            if self.config.emission_date_start != self.config.emission_date_end:
+                raise RuntimeError(
+                    "tela atual suporta apenas data de emissao unica; inicio e fim devem ser iguais"
+                )
+            page.fill(emission_date_selector, self.config.emission_date_start)
+        else:
+            emission_start_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_year_week_start"],
+                name="[name*='EmissionYearWeekStart']",
+            )
+            emission_end_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_year_week_end"],
+                name="[name*='EmissionYearWeekEnd']",
+            )
+            page.fill(emission_start_selector, self.config.emission_year_week_start)
+            page.fill(emission_end_selector, self.config.emission_year_week_end)
         if self.config.setor_emissor:
             emissor_selector = self._resolve_selector(
                 page,
@@ -385,10 +394,12 @@ class SAMScraper:
             "Sem resultados para os filtros: "
             f"emissor={self.config.setor_emissor or 'ALL'}; "
             f"executor={self.config.setor_executor or 'ALL'}; "
-            f"emissao={self.config.emission_year_week_start}..{self.config.emission_year_week_end}"
+            f"emissao={self._empty_result_emission_label()}"
         )
 
     def _resolve_primary_filter_selector(self, page: Page) -> str:
+        if self._uses_emission_date_filter():
+            return self._resolve_emission_date_filter_selector(page)
         if self.config.report_kind == "aprovacao_emissao" and self.config.setor_executor:
             return self._resolve_selector(
                 page,
@@ -408,6 +419,30 @@ class SAMScraper:
             stable_id=self.locators.FILTER["emission_year_week_start"],
             name="[name*='EmissionYearWeekStart']",
         )
+
+    def _uses_emission_date_filter(self) -> bool:
+        return bool(self.config.emission_date_start or self.config.emission_date_end)
+
+    def _resolve_emission_date_filter_selector(self, page: Page) -> str:
+        if self.config.report_kind not in EMISSION_DATE_SUPPORTED_REPORT_KINDS:
+            raise RuntimeError(
+                f"report_kind={self.config.report_kind} nao suporta filtro por data de emissao validado"
+            )
+        try:
+            return self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_date"],
+                name="[name*='EmissionDate']",
+            )
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"report_kind={self.config.report_kind} nao expoe campo de data de emissao compativel"
+            ) from exc
+
+    def _empty_result_emission_label(self) -> str:
+        if self._uses_emission_date_filter():
+            return f"{self.config.emission_date_start}..{self.config.emission_date_end}"
+        return f"{self.config.emission_year_week_start}..{self.config.emission_year_week_end}"
 
     def _resolve_executor_filter_selector(self, page: Page) -> str:
         if self.config.report_kind == "aprovacao_emissao":
