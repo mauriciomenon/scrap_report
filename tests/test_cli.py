@@ -945,3 +945,83 @@ def test_sweep_run_returns_error_on_partial_manifest(
     )
 
     assert code == 1
+
+
+def test_sweep_run_accepts_preset_without_scope_or_setores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "pendentes",
+                "scope_mode": "executor",
+                "item_count": 3,
+                "success_count": 3,
+                "failure_count": 0,
+                "items": [],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["scope_mode"] = plan.scope_mode
+            seen["setores_executor"] = plan.setores_executor
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--preset",
+            "principal_executor",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_preset.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["scope_mode"] == "executor"
+    assert seen["setores_executor"] == ("IEE3", "MEL4", "MEL3")
+
+
+def test_sweep_run_rejects_preset_with_manual_scope(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--preset",
+            "principal_executor",
+            "--scope-mode",
+            "executor",
+            "--secret-service",
+            "svc",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "preset nao pode ser combinado" in captured.err

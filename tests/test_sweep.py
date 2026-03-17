@@ -7,6 +7,8 @@ from scrap_report.sweep import (
     SweepPlan,
     SweepRunner,
     SweepRuntimeConfig,
+    SWEEP_PRESET_NAMES,
+    build_preset_plan,
     expand_setor_targets,
 )
 
@@ -224,3 +226,36 @@ def test_sweep_runner_rejects_emission_date_until_runtime_supports_it(tmp_path: 
     assert manifest.status == "error"
     assert manifest.failure_count == 1
     assert "data de emissao" in manifest.items[0].error
+
+
+def test_preset_names_include_priority_groups_and_scope_modes():
+    assert "principal_executor" in SWEEP_PRESET_NAMES
+    assert "principal_emissor" in SWEEP_PRESET_NAMES
+    assert "principal_ambos" in SWEEP_PRESET_NAMES
+    assert "prioritarios_executor" in SWEEP_PRESET_NAMES
+
+
+def test_build_preset_plan_executor_uses_recent_weeks():
+    plan = build_preset_plan("principal_executor", "pendentes")
+
+    assert plan.scope_mode == "executor"
+    assert plan.setores_executor == ("IEE3", "MEL4", "MEL3")
+    assert plan.setores_emissor == ()
+    assert len(plan.emission_year_week_start) == 6
+    assert len(plan.emission_year_week_end) == 6
+
+
+def test_build_preset_plan_emissor_uses_group_only_on_emissor():
+    plan = build_preset_plan("segundo_plano_emissor", "pendentes")
+
+    assert plan.scope_mode == "emissor"
+    assert plan.setores_emissor == ("IEE1", "IEE2", "IEE4")
+    assert plan.setores_executor == ()
+
+
+def test_build_preset_plan_ambos_uses_same_group_on_both_sides():
+    plan = build_preset_plan("terceiro_plano_ambos", "pendentes")
+
+    assert plan.scope_mode == "ambos"
+    assert plan.setores_emissor == ("MEL1", "MEL2", "IEQ1", "IEQ2", "IEQ3", "ILA1", "ILA2", "ILA3")
+    assert plan.setores_executor == ("MEL1", "MEL2", "IEQ1", "IEQ2", "IEQ3", "ILA1", "ILA2", "ILA3")

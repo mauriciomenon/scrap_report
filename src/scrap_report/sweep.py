@@ -6,10 +6,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from .config import ScrapeConfig, SETOR_PRIORITY_GROUPS, normalize_setor_filter
+from .config import (
+    ScrapeConfig,
+    SETOR_PRIORITY_GROUPS,
+    build_recent_emission_year_week_window,
+    normalize_setor_filter,
+)
 from .pipeline import run_pipeline
 
 SWEEP_SCOPE_MODES = ("emissor", "executor", "ambos", "nenhum")
+SWEEP_PRESET_SCOPES = ("emissor", "executor", "ambos")
 SETOR_GROUP_ALIASES = {
     "principal": "principal",
     "segundo_plano": "segundo_plano",
@@ -17,6 +23,11 @@ SETOR_GROUP_ALIASES = {
     "demais": "demais",
     "prioritarios": ("principal", "segundo_plano", "terceiro_plano"),
 }
+SWEEP_PRESET_NAMES = tuple(
+    f"{group_name}_{scope_name}"
+    for group_name in ("principal", "segundo_plano", "terceiro_plano", "prioritarios", "demais")
+    for scope_name in SWEEP_PRESET_SCOPES
+)
 
 
 def _dedupe_keep_order(values: Iterable[str]) -> tuple[str, ...]:
@@ -32,6 +43,16 @@ def _dedupe_keep_order(values: Iterable[str]) -> tuple[str, ...]:
 
 def _normalize_group_token(value: str) -> str:
     return value.strip().lower()
+
+
+def _resolve_group_alias(group_name: str) -> tuple[str, ...]:
+    normalized_group = _normalize_group_token(group_name)
+    alias = SETOR_GROUP_ALIASES.get(normalized_group)
+    if isinstance(alias, tuple):
+        return alias
+    if isinstance(alias, str):
+        return (alias,)
+    raise ValueError("preset de grupo invalido")
 
 
 def expand_setor_targets(targets: Sequence[str]) -> tuple[str, ...]:
@@ -54,6 +75,42 @@ def expand_setor_targets(targets: Sequence[str]) -> tuple[str, ...]:
             )
         expanded.append(normalized_setor)
     return _dedupe_keep_order(expanded)
+
+
+def build_preset_plan(preset_name: str, report_kind: str) -> "SweepPlan":
+    normalized = preset_name.strip().lower()
+    if normalized not in SWEEP_PRESET_NAMES:
+        raise ValueError("preset invalido")
+
+    group_name, scope_mode = normalized.rsplit("_", 1)
+    if scope_mode not in SWEEP_PRESET_SCOPES:
+        raise ValueError("preset invalido")
+
+    year_week_start, year_week_end = build_recent_emission_year_week_window()
+    if scope_mode == "emissor":
+        return SweepPlan(
+            report_kind=report_kind,
+            scope_mode="emissor",
+            setores_emissor=(group_name,),
+            emission_year_week_start=year_week_start,
+            emission_year_week_end=year_week_end,
+        )
+    if scope_mode == "executor":
+        return SweepPlan(
+            report_kind=report_kind,
+            scope_mode="executor",
+            setores_executor=(group_name,),
+            emission_year_week_start=year_week_start,
+            emission_year_week_end=year_week_end,
+        )
+    return SweepPlan(
+        report_kind=report_kind,
+        scope_mode="ambos",
+        setores_emissor=(group_name,),
+        setores_executor=(group_name,),
+        emission_year_week_start=year_week_start,
+        emission_year_week_end=year_week_end,
+    )
 
 
 @dataclass(frozen=True, slots=True)

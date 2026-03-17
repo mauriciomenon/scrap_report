@@ -34,7 +34,14 @@ from .redaction import assert_no_sensitive_fields
 from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
-from .sweep import SWEEP_SCOPE_MODES, SweepPlan, SweepRunner, SweepRuntimeConfig
+from .sweep import (
+    SWEEP_PRESET_NAMES,
+    SWEEP_SCOPE_MODES,
+    SweepPlan,
+    SweepRunner,
+    SweepRuntimeConfig,
+    build_preset_plan,
+)
 
 AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest", "windows-flow", "sweep-run"}
 
@@ -229,8 +236,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sweep_run.add_argument("--report-kind", required=True, choices=REPORT_KINDS)
     sweep_run.add_argument(
+        "--preset",
+        default=None,
+        choices=SWEEP_PRESET_NAMES,
+        help="preset operacional de lote com janela automatica das ultimas 4 semanas",
+    )
+    sweep_run.add_argument(
         "--scope-mode",
-        required=True,
+        required=False,
         choices=SWEEP_SCOPE_MODES,
         help="define se a varredura usa emissor, executor, ambos ou nenhum filtro de setor",
     )
@@ -592,6 +605,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.prompt_password and not input_password:
             input_password = _read_password_masked("password: ")
         try:
+            if args.preset:
+                conflict_values = [
+                    args.scope_mode,
+                    bool(args.setores_emissor),
+                    bool(args.setores_executor),
+                    args.year_week_start,
+                    args.year_week_end,
+                    args.emission_date_start,
+                    args.emission_date_end,
+                ]
+                if any(conflict_values):
+                    raise ValueError(
+                        "preset nao pode ser combinado com scope-mode, setores ou filtros de data manuais"
+                    )
             base_cfg = CliConfigInput(
                 username=args.username,
                 password=input_password,
@@ -609,16 +636,21 @@ def main(argv: list[str] | None = None) -> int:
                 selector_mode=args.selector_mode,
                 ignore_https_errors=args.ignore_https_errors,
             ).to_scrape_config()
-            plan = SweepPlan(
-                report_kind=args.report_kind,
-                scope_mode=args.scope_mode,
-                setores_emissor=tuple(args.setores_emissor),
-                setores_executor=tuple(args.setores_executor),
-                emission_year_week_start=args.year_week_start,
-                emission_year_week_end=args.year_week_end,
-                emission_date_start=args.emission_date_start,
-                emission_date_end=args.emission_date_end,
-            )
+            if args.preset:
+                plan = build_preset_plan(args.preset, args.report_kind)
+            else:
+                if not args.scope_mode:
+                    raise ValueError("scope-mode obrigatorio quando preset nao for informado")
+                plan = SweepPlan(
+                    report_kind=args.report_kind,
+                    scope_mode=args.scope_mode,
+                    setores_emissor=tuple(args.setores_emissor),
+                    setores_executor=tuple(args.setores_executor),
+                    emission_year_week_start=args.year_week_start,
+                    emission_year_week_end=args.year_week_end,
+                    emission_date_start=args.emission_date_start,
+                    emission_date_end=args.emission_date_end,
+                )
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
