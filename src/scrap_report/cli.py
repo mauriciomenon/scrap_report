@@ -105,6 +105,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="le senha no terminal sem eco, sem passar em linha de comando",
     )
     common.add_argument("--setor", required=True)
+    common.add_argument("--setor-emissor", default="IEE3")
     common.add_argument("--report-kind", default="pendentes", choices=["pendentes", "executadas"])
     common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     common.add_argument("--download-dir", default="downloads")
@@ -163,6 +164,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     windows_flow.add_argument("--username", required=True)
     windows_flow.add_argument("--setor", required=True)
+    windows_flow.add_argument("--setor-emissor", default="IEE3")
     windows_flow.add_argument(
         "--report-kind", default="pendentes", choices=["pendentes", "executadas"]
     )
@@ -440,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
             cfg = CliConfigInput(
                 username=args.username,
                 password=None,
+                setor_emissor=args.setor_emissor,
                 setor_executor=args.setor,
                 report_kind=args.report_kind,
                 base_url=args.base_url,
@@ -505,6 +508,7 @@ def main(argv: list[str] | None = None) -> int:
             cfg = CliConfigInput(
                 username=args.username,
                 password=input_password,
+                setor_emissor=args.setor_emissor,
                 setor_executor=args.setor,
                 report_kind=args.report_kind,
                 base_url=args.base_url,

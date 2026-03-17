@@ -1,6 +1,7 @@
 param(
     [string]$Username = "",
-    [string]$Setor = "IEE3",
+    [string]$Setor = "MEL4",
+    [string]$SetorEmissor = "IEE3",
     [ValidateSet("pendentes", "executadas", "both")]
     [string]$ReportKind = "both",
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
@@ -21,6 +22,7 @@ if (-not (Test-Path $entrypoint)) {
 $forward = @{
     Username = $Username
     Setor = $Setor
+    SetorEmissor = $SetorEmissor
     ReportKind = $ReportKind
     BaseUrl = $BaseUrl
     OutputJson = $OutputJson

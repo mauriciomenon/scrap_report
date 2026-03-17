@@ -21,3 +21,7 @@ def test_resolve_report_navigation_invalid():
 def test_filter_contract_includes_emission_year_week_fields():
     assert "EmissionYearWeekStart_input" in SAMLocators.FILTER["emission_year_week_start"]
     assert "EmissionYearWeekEnd_input" in SAMLocators.FILTER["emission_year_week_end"]
+    assert "SectorEmitter" in SAMLocators.FILTER["setor_emissor"]
+    assert "wtSearchButton" in SAMLocators.FILTER["search_icon"]
+    assert "wtButtonDropdownWrapper" in SAMLocators.FILTER["actions_menu"]
+    assert "wtLink_ExportToExcel" in SAMLocators.FILTER["export_excel"]

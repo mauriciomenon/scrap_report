@@ -9,6 +9,9 @@ from typing import Dict
 
 import pandas as pd
 
+TARGET_SETOR_EMISSOR = "IEE3"
+TARGET_SETOR_EXECUTOR = "MEL4"
+
 
 @dataclass(slots=True)
 class ReportArtifacts:
@@ -17,11 +20,60 @@ class ReportArtifacts:
     relatorio_txt: Path
 
 
+def _nonempty_count(values: pd.Series) -> int:
+    return int(sum(value not in (None, "") and not pd.isna(value) for value in values))
+
+
+def _detect_header_row(raw_df: pd.DataFrame) -> int:
+    for index in range(min(len(raw_df), 10)):
+        row = raw_df.iloc[index]
+        normalized = [
+            str(value).strip().lower()
+            for value in row
+            if value not in (None, "") and not pd.isna(value)
+        ]
+        if "numero da ssa" in normalized or "número da ssa" in normalized:
+            return index
+
+    best_index = 0
+    best_score = -1
+    for index in range(min(len(raw_df), 10)):
+        score = _nonempty_count(raw_df.iloc[index])
+        if score > best_score:
+            best_index = index
+            best_score = score
+    return best_index
+
+
+def _normalize_columns(values: pd.Series) -> list[str]:
+    columns: list[str] = []
+    for index, value in enumerate(values):
+        if value in (None, "") or pd.isna(value):
+            columns.append(f"Unnamed: {index}")
+            continue
+        columns.append(str(value).strip())
+    return columns
+
+
+def _filter_report_scope(df: pd.DataFrame) -> pd.DataFrame:
+    filtered = df.copy()
+    if "Setor Executor" in filtered.columns:
+        filtered = filtered[filtered["Setor Executor"].astype(str).str.strip() == TARGET_SETOR_EXECUTOR]
+    if "Setor Emissor" in filtered.columns:
+        filtered = filtered[filtered["Setor Emissor"].astype(str).str.strip() == TARGET_SETOR_EMISSOR]
+    return filtered.reset_index(drop=True)
+
+
 def load_excel(excel_path: Path) -> pd.DataFrame:
     path = Path(excel_path)
     if not path.exists():
         raise FileNotFoundError(f"excel nao encontrado: {path}")
-    return pd.read_excel(path)
+    raw_df = pd.read_excel(path, header=None)
+    header_row = _detect_header_row(raw_df)
+    data = raw_df.iloc[header_row + 1 :].copy()
+    data.columns = _normalize_columns(raw_df.iloc[header_row])
+    data = data.dropna(axis=0, how="all").dropna(axis=1, how="all").reset_index(drop=True)
+    return _filter_report_scope(data)
 
 
 def export_data_excel(df: pd.DataFrame, filename: Path) -> Path:
@@ -82,7 +134,7 @@ def generate_ssa_report_from_excel(excel_path: Path, output_dir: Path) -> Report
     output.mkdir(parents=True, exist_ok=True)
 
     df = load_excel(excel_path)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     dados = export_data_excel(df, output / f"ssas_dados_{ts}.xlsx")
     estat = export_summary_statistics(df, output / f"ssas_estatisticas_{ts}.xlsx")

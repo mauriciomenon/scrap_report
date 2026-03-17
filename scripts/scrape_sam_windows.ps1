@@ -1,6 +1,7 @@
 param(
     [string]$Username = "",
-    [string]$Setor = "IEE3",
+    [string]$Setor = "MEL4",
+    [string]$SetorEmissor = "IEE3",
     [ValidateSet("pendentes", "executadas", "both")]
     [string]$ReportKind = "both",
     [string]$BaseUrl = "https://osprd.itaipu/SAM_SMA/",
@@ -48,6 +49,7 @@ function Invoke-WindowsFlow {
         "run", "--project", ".", "python", "-m", "scrap_report.cli", "windows-flow",
         "--username", $Username,
         "--setor", $Setor,
+        "--setor-emissor", $SetorEmissor,
         "--report-kind", $Kind,
         "--base-url", $BaseUrl,
         "--secret-service", $SecretService,

@@ -43,6 +43,7 @@ class ScrapeConfig:
     username: str
     password: str
     setor_executor: str
+    setor_emissor: str = "IEE3"
     report_kind: str = "pendentes"
     base_url: str = "https://osprd.itaipu/SAM_SMA/"
     headless: bool = True
@@ -71,6 +72,8 @@ class ScrapeConfig:
             raise ValueError("username nao pode ser vazio")
         if not self.password.strip():
             raise ValueError("password nao pode ser vazio")
+        if not self.setor_emissor.strip():
+            raise ValueError("setor_emissor nao pode ser vazio")
         if not self.setor_executor.strip():
             raise ValueError("setor_executor nao pode ser vazio")
         if not self.emission_year_week_start or not self.emission_year_week_end:
@@ -97,6 +100,7 @@ class CliConfigInput:
     headless: bool
     download_dir: str
     staging_dir: str
+    setor_emissor: str = "IEE3"
     secure_required: bool = False
     allow_transitional_plaintext: bool = True
     secret_service: str = "scrap_report.sam"
@@ -111,6 +115,7 @@ class CliConfigInput:
         return ScrapeConfig(
             username=username,
             password=password,
+            setor_emissor=self.setor_emissor,
             setor_executor=self.setor_executor,
             report_kind=self.report_kind,
             base_url=self.base_url,

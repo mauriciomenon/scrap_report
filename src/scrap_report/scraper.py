@@ -50,9 +50,12 @@ class SAMLocators:
     FILTER = {
         "emission_year_week_start": "input[id*='EmissionYearWeekStart_input']",
         "emission_year_week_end": "input[id*='EmissionYearWeekEnd_input']",
+        "setor_emissor": "[id*='SectorEmitter']",
         "setor_executor": "[id*='SectorExecutor']",
+        "search_icon": "a[id$='wtSearchButton'], a[id*='wtSearchButton']",
         "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
-        "export_excel": "a[id*='ExportToExcel']",
+        "actions_menu": "div[id*='wtButtonDropdownWrapper'] > div.dropdown-header.select",
+        "export_excel": "a[id*='wtLink_ExportToExcel']",
     }
 
 
@@ -183,6 +186,11 @@ class SAMScraper:
             stable_id=self.locators.FILTER["emission_year_week_end"],
             name="[name*='EmissionYearWeekEnd']",
         )
+        emissor_selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["setor_emissor"],
+            name="[name*='SectorEmitter']",
+        )
         selector = self._resolve_selector(
             page,
             stable_id=self.locators.FILTER["setor_executor"],
@@ -190,27 +198,32 @@ class SAMScraper:
         )
         page.fill(emission_start_selector, self.config.emission_year_week_start)
         page.fill(emission_end_selector, self.config.emission_year_week_end)
+        page.fill(emissor_selector, self.config.setor_emissor)
         page.fill(selector, self.config.setor_executor)
 
     def _click_search(self, page: Page) -> None:
-        selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["search_button"],
-        )
         success = page.evaluate(
-            """(cssSelector) => {
-                const element = document.querySelector(cssSelector);
-                if (!element) {
-                    return false;
+            """(args) => {
+                const icon = document.querySelector(args.iconSelector);
+                if (icon) {
+                    icon.click();
+                    return 'icon';
                 }
-                element.click();
-                return true;
+                const fallback = document.querySelector(args.fallbackSelector);
+                if (fallback) {
+                    fallback.click();
+                    return 'fallback';
+                }
+                return '';
             }""",
-            selector,
+            {
+                "iconSelector": self.locators.FILTER["search_icon"],
+                "fallbackSelector": self.locators.FILTER["search_button"],
+            },
         )
         if not success:
             raise RuntimeError("falha ao acionar busca principal")
-        self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
+        self._wait_for_search_results(page)
 
     def _select_report_options(self, page: Page) -> None:
         details_locator = page.locator("text=Relatorio com Detalhes")
@@ -220,30 +233,58 @@ class SAMScraper:
         self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
     def _export_to_excel(self, page: Page) -> Path:
+        menu_selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["actions_menu"],
+        )
         selector = self._resolve_selector(
             page,
             stable_id=self.locators.FILTER["export_excel"],
         )
         with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
-            success = page.evaluate(
+            page.click(menu_selector, force=True)
+            page.wait_for_function(
                 """(cssSelector) => {
                     const exportButton = document.querySelector(cssSelector);
                     if (!exportButton) {
                         return false;
                     }
-                    exportButton.click();
-                    return true;
+                    const style = window.getComputedStyle(exportButton);
+                    return style.visibility !== 'hidden' && style.pointerEvents !== 'none';
                 }""",
-                selector,
+                arg=selector,
+                timeout=self.config.loading_timeout_ms,
             )
-            if not success:
-                raise RuntimeError("nao foi possivel acionar exportacao para excel")
+            page.click(selector)
 
             download = download_promise.value
             target = self.config.download_dir / download.suggested_filename
             download.save_as(str(target))
             logger.info("download concluido: %s", target)
             return target
+
+    def _wait_for_search_results(self, page: Page) -> None:
+        started = time.time()
+        saw_loading = False
+        while (time.time() - started) * 1000 < self.config.loading_timeout_ms:
+            loading_state = page.evaluate(
+                """() => {
+                    const loadingBar = document.querySelector('[id*="wtdivWait"]');
+                    if (!loadingBar) {
+                        return 'absent';
+                    }
+                    return window.getComputedStyle(loadingBar).display;
+                }"""
+            )
+            if loading_state not in {"none", "absent"}:
+                saw_loading = True
+            export_ready = page.locator(self.locators.FILTER["export_excel"]).count() > 0
+            if export_ready and (not saw_loading or loading_state == "none"):
+                page.wait_for_timeout(500)
+                return
+            page.wait_for_timeout(500)
+        snapshot = self._dom_snapshot(page)
+        raise RuntimeError(f"resultado da busca nao estabilizou; snapshot={snapshot}")
 
     def _wait_for_loading_complete(self, page: Page, timeout_ms: int) -> bool:
         started = time.time()

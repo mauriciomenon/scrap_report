@@ -12,6 +12,7 @@ def test_cli_config_uses_provider_secret():
     cfg = CliConfigInput(
         username="user1",
         password=None,
+        setor_emissor="IEE3",
         setor_executor="IEE3",
         report_kind="pendentes",
         base_url="https://osprd.itaipu/SAM_SMA/",
@@ -32,6 +33,7 @@ def test_cli_config_fail_closed_without_provider_secret():
         CliConfigInput(
             username="user1",
             password=None,
+            setor_emissor="IEE3",
             setor_executor="IEE3",
             report_kind="pendentes",
             base_url="https://osprd.itaipu/SAM_SMA/",
@@ -53,6 +55,7 @@ def test_cli_config_invalid_selector_mode():
         CliConfigInput(
             username="user1",
             password=None,
+            setor_emissor="IEE3",
             setor_executor="IEE3",
             report_kind="pendentes",
             base_url="https://osprd.itaipu/SAM_SMA/",
@@ -73,6 +76,7 @@ def test_cli_config_ignore_https_errors_flag():
     cfg = CliConfigInput(
         username="user1",
         password=None,
+        setor_emissor="IEE3",
         setor_executor="IEE3",
         report_kind="pendentes",
         base_url="https://osprd.itaipu/SAM_SMA/",
@@ -106,6 +110,7 @@ def test_cli_config_derives_emission_year_week_window():
     cfg = CliConfigInput(
         username="user1",
         password=None,
+        setor_emissor="IEE3",
         setor_executor="IEE3",
         report_kind="pendentes",
         base_url="https://osprd.itaipu/SAM_SMA/",
@@ -121,3 +126,25 @@ def test_cli_config_derives_emission_year_week_window():
     assert cfg.emission_year_week_end
     assert len(cfg.emission_year_week_start) == 6
     assert len(cfg.emission_year_week_end) == 6
+
+
+def test_cli_config_keeps_setor_emissor():
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "user1", "p1")
+    cfg = CliConfigInput(
+        username="user1",
+        password=None,
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        base_url="https://osprd.itaipu/SAM_SMA/",
+        headless=True,
+        download_dir="downloads",
+        staging_dir="staging",
+        secure_required=True,
+        allow_transitional_plaintext=False,
+        secret_service="svc",
+        secret_provider=provider,
+    ).to_scrape_config()
+    assert cfg.setor_emissor == "IEE3"
+    assert cfg.setor_executor == "MEL4"
