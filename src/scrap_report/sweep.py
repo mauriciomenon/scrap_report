@@ -1,11 +1,13 @@
-"""Base de planejamento para varredura multipla de setores e filtros."""
+"""Base de planejamento e execucao de varredura multipla."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, Sequence
 
-from .config import SETOR_PRIORITY_GROUPS, normalize_setor_filter
+from .config import ScrapeConfig, SETOR_PRIORITY_GROUPS, normalize_setor_filter
+from .pipeline import run_pipeline
 
 SWEEP_SCOPE_MODES = ("emissor", "executor", "ambos", "nenhum")
 SETOR_GROUP_ALIASES = {
@@ -199,3 +201,185 @@ class SweepPlan:
                     )
                 )
         return tuple(specs)
+
+    def expand_items(self) -> tuple["SweepItem", ...]:
+        return tuple(
+            SweepItem(index=index, filter_spec=filter_spec)
+            for index, filter_spec in enumerate(self.expand(), start=1)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SweepItem:
+    index: int
+    filter_spec: FilterSpec
+
+
+@dataclass(frozen=True, slots=True)
+class SweepRuntimeConfig:
+    username: str
+    password: str
+    base_url: str = "https://osprd.itaipu/SAM_SMA/"
+    headless: bool = True
+    download_dir: Path = Path("downloads")
+    staging_dir: Path = Path("staging")
+    selector_mode: str = "adaptive"
+    ignore_https_errors: bool = False
+    generate_reports: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class SweepItemResult:
+    index: int
+    scope_mode: str
+    setor_emissor: str | None
+    setor_executor: str | None
+    emission_year_week_start: str | None
+    emission_year_week_end: str | None
+    emission_date_start: str | None
+    emission_date_end: str | None
+    status: str
+    source_path: Path | None = None
+    staged_path: Path | None = None
+    reports: dict[str, str] | None = None
+    telemetry: dict[str, int] | None = None
+    error: str | None = None
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "index": self.index,
+            "scope_mode": self.scope_mode,
+            "setor_emissor": self.setor_emissor,
+            "setor_executor": self.setor_executor,
+            "emission_year_week_start": self.emission_year_week_start,
+            "emission_year_week_end": self.emission_year_week_end,
+            "emission_date_start": self.emission_date_start,
+            "emission_date_end": self.emission_date_end,
+            "status": self.status,
+            "source_path": str(self.source_path) if self.source_path else None,
+            "staged_path": str(self.staged_path) if self.staged_path else None,
+            "reports": self.reports or {},
+            "telemetry": self.telemetry or {},
+            "error": self.error,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SweepManifest:
+    status: str
+    report_kind: str
+    scope_mode: str
+    item_count: int
+    success_count: int
+    failure_count: int
+    items: tuple[SweepItemResult, ...]
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "report_kind": self.report_kind,
+            "scope_mode": self.scope_mode,
+            "item_count": self.item_count,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "items": [item.to_payload() for item in self.items],
+        }
+
+
+class SweepRunner:
+    def __init__(self, pipeline_runner=run_pipeline) -> None:
+        self._pipeline_runner = pipeline_runner
+
+    def run(self, plan: SweepPlan, runtime: SweepRuntimeConfig) -> SweepManifest:
+        results = tuple(
+            self._run_item(item=item, report_kind=plan.report_kind, runtime=runtime)
+            for item in plan.expand_items()
+        )
+        success_count = sum(1 for item in results if item.status == "ok")
+        failure_count = len(results) - success_count
+        if failure_count == 0:
+            status = "ok"
+        elif success_count == 0:
+            status = "error"
+        else:
+            status = "partial"
+        return SweepManifest(
+            status=status,
+            report_kind=plan.report_kind,
+            scope_mode=plan.scope_mode,
+            item_count=len(results),
+            success_count=success_count,
+            failure_count=failure_count,
+            items=results,
+        )
+
+    def _run_item(
+        self,
+        item: SweepItem,
+        report_kind: str,
+        runtime: SweepRuntimeConfig,
+    ) -> SweepItemResult:
+        spec = item.filter_spec
+        if spec.emission_date_start or spec.emission_date_end:
+            return SweepItemResult(
+                index=item.index,
+                scope_mode=spec.scope_mode,
+                setor_emissor=spec.setor_emissor,
+                setor_executor=spec.setor_executor,
+                emission_year_week_start=spec.emission_year_week_start,
+                emission_year_week_end=spec.emission_year_week_end,
+                emission_date_start=spec.emission_date_start,
+                emission_date_end=spec.emission_date_end,
+                status="error",
+                error="filtro por data de emissao ainda nao suportado no runner atual",
+            )
+
+        config = ScrapeConfig(
+            username=runtime.username,
+            password=runtime.password,
+            setor_emissor=spec.setor_emissor,
+            setor_executor=spec.setor_executor,
+            report_kind=report_kind,
+            base_url=runtime.base_url,
+            headless=runtime.headless,
+            download_dir=runtime.download_dir,
+            staging_dir=runtime.staging_dir,
+            selector_mode=runtime.selector_mode,
+            ignore_https_errors=runtime.ignore_https_errors,
+            emission_year_week_start=spec.emission_year_week_start or "",
+            emission_year_week_end=spec.emission_year_week_end or "",
+        )
+        try:
+            pipeline_result = self._pipeline_runner(
+                config,
+                generate_reports=runtime.generate_reports,
+            )
+        except Exception as exc:
+            return SweepItemResult(
+                index=item.index,
+                scope_mode=spec.scope_mode,
+                setor_emissor=spec.setor_emissor,
+                setor_executor=spec.setor_executor,
+                emission_year_week_start=spec.emission_year_week_start,
+                emission_year_week_end=spec.emission_year_week_end,
+                emission_date_start=spec.emission_date_start,
+                emission_date_end=spec.emission_date_end,
+                status="error",
+                error=str(exc),
+            )
+
+        return SweepItemResult(
+            index=item.index,
+            scope_mode=spec.scope_mode,
+            setor_emissor=spec.setor_emissor,
+            setor_executor=spec.setor_executor,
+            emission_year_week_start=spec.emission_year_week_start,
+            emission_year_week_end=spec.emission_year_week_end,
+            emission_date_start=spec.emission_date_start,
+            emission_date_end=spec.emission_date_end,
+            status=pipeline_result.status,
+            source_path=pipeline_result.source_path,
+            staged_path=pipeline_result.staged_path,
+            reports=dict(pipeline_result.reports),
+            telemetry=dict(pipeline_result.telemetry),
+        )

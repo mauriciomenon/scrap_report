@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import getpass
 import json
 import os
@@ -33,8 +34,9 @@ from .redaction import assert_no_sensitive_fields
 from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
+from .sweep import SWEEP_SCOPE_MODES, SweepPlan, SweepRunner, SweepRuntimeConfig
 
-AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest", "windows-flow"}
+AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest", "windows-flow", "sweep-run"}
 
 
 def _read_password_masked(prompt: str = "password: ") -> str:
@@ -214,6 +216,61 @@ def _build_parser() -> argparse.ArgumentParser:
     windows_flow.add_argument(
         "--output-json", default=None, help="salva resultado json em arquivo"
     )
+    sweep_run = sub.add_parser(
+        "sweep-run",
+        help="executa varredura em lote reaproveitando o pipeline atual",
+    )
+    sweep_run.add_argument("--username", default=None)
+    sweep_run.add_argument("--password", default=None)
+    sweep_run.add_argument(
+        "--prompt-password",
+        action="store_true",
+        help="le senha no terminal sem eco, sem passar em linha de comando",
+    )
+    sweep_run.add_argument("--report-kind", required=True, choices=REPORT_KINDS)
+    sweep_run.add_argument(
+        "--scope-mode",
+        required=True,
+        choices=SWEEP_SCOPE_MODES,
+        help="define se a varredura usa emissor, executor, ambos ou nenhum filtro de setor",
+    )
+    sweep_run.add_argument("--setores-emissor", nargs="+", default=())
+    sweep_run.add_argument("--setores-executor", nargs="+", default=())
+    sweep_run.add_argument("--year-week-start", default=None)
+    sweep_run.add_argument("--year-week-end", default=None)
+    sweep_run.add_argument("--emission-date-start", default=None)
+    sweep_run.add_argument("--emission-date-end", default=None)
+    sweep_run.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
+    sweep_run.add_argument("--download-dir", default="downloads")
+    sweep_run.add_argument("--staging-dir", default="staging")
+    sweep_run.add_argument("--headed", action="store_true", help="abre browser visivel")
+    sweep_run.add_argument(
+        "--ignore-https-errors",
+        action="store_true",
+        help="ignora erros de certificado TLS no navegador",
+    )
+    sweep_run.add_argument("--output-json", default=None, help="salva manifest json em arquivo")
+    sweep_run.add_argument(
+        "--secure-required",
+        action="store_true",
+        help="bloqueia execucao sem backend de secret seguro",
+    )
+    sweep_run.add_argument(
+        "--allow-transitional-plaintext",
+        action="store_true",
+        help="permite fallback transicional por argumento/env para senha",
+    )
+    sweep_run.add_argument(
+        "--secret-service",
+        default="scrap_report.sam",
+        help="nome do servico no backend de secrets",
+    )
+    sweep_run.add_argument(
+        "--selector-mode",
+        default="adaptive",
+        choices=["strict", "adaptive"],
+        help="modo de resiliencia de seletor",
+    )
 
     stage = sub.add_parser("stage", help="move um xlsx para staging")
     stage.add_argument("--source", required=True)
@@ -302,6 +359,27 @@ def _emit_json(
         out = Path(output_json)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text + "\n", encoding="utf-8")
+
+
+def _emit_unvalidated_json(payload: dict[str, Any], output_json: str | None) -> None:
+    assert_no_sensitive_fields(payload)
+    normalized = {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "producer": PRODUCER,
+        **payload,
+    }
+    text = json.dumps(normalized, ensure_ascii=True)
+    print(text)
+    if output_json:
+        out = Path(output_json)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+
+
+def _build_default_sweep_output_json(staging_dir: Path, report_kind: str) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return staging_dir / f"sweep_{report_kind}_{stamp}.json"
 
 
 def _print_secret_policy_notice(command: str, output_json: str | None) -> None:
@@ -507,6 +585,61 @@ def main(argv: list[str] | None = None) -> int:
             "pipeline_result",
         )
         return 0
+
+    if args.command == "sweep-run":
+        _print_secret_policy_notice(args.command, args.output_json)
+        input_password = args.password
+        if args.prompt_password and not input_password:
+            input_password = _read_password_masked("password: ")
+        try:
+            base_cfg = CliConfigInput(
+                username=args.username,
+                password=input_password,
+                setor_emissor="ALL",
+                setor_executor="ALL",
+                report_kind=args.report_kind,
+                base_url=args.base_url,
+                headless=not args.headed,
+                download_dir=args.download_dir,
+                staging_dir=args.staging_dir,
+                secure_required=args.secure_required,
+                allow_transitional_plaintext=args.allow_transitional_plaintext,
+                secret_service=args.secret_service,
+                secret_provider=build_secret_provider(),
+                selector_mode=args.selector_mode,
+                ignore_https_errors=args.ignore_https_errors,
+            ).to_scrape_config()
+            plan = SweepPlan(
+                report_kind=args.report_kind,
+                scope_mode=args.scope_mode,
+                setores_emissor=tuple(args.setores_emissor),
+                setores_executor=tuple(args.setores_executor),
+                emission_year_week_start=args.year_week_start,
+                emission_year_week_end=args.year_week_end,
+                emission_date_start=args.emission_date_start,
+                emission_date_end=args.emission_date_end,
+            )
+        except ValueError as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+
+        runtime = SweepRuntimeConfig(
+            username=base_cfg.username,
+            password=base_cfg.password,
+            base_url=base_cfg.base_url,
+            headless=base_cfg.headless,
+            download_dir=base_cfg.download_dir,
+            staging_dir=base_cfg.staging_dir,
+            selector_mode=base_cfg.selector_mode,
+            ignore_https_errors=base_cfg.ignore_https_errors,
+            generate_reports=True,
+        )
+        manifest = SweepRunner().run(plan, runtime)
+        output_json = args.output_json or str(
+            _build_default_sweep_output_json(base_cfg.staging_dir, args.report_kind)
+        )
+        _emit_unvalidated_json(manifest.to_payload(), output_json)
+        return 0 if manifest.status == "ok" else 1
 
     if args.command == "pipeline" and args.report_only:
         if not report_kind_uses_excel_output(args.report_kind):

@@ -826,3 +826,122 @@ def test_windows_flow_accepts_derivadas_relacionadas_report_kind(
 
     assert code == 0
     assert seen["report_kind"] == "derivadas_relacionadas"
+
+
+def test_sweep_run_writes_manifest_output_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "pendentes",
+                "scope_mode": "executor",
+                "item_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "items": [
+                    {
+                        "index": 1,
+                        "scope_mode": "executor",
+                        "setor_emissor": None,
+                        "setor_executor": "MEL4",
+                        "status": "ok",
+                        "reports": {},
+                        "telemetry": {},
+                    }
+                ],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["scope_mode"] = plan.scope_mode
+            seen["setores_executor"] = plan.setores_executor
+            seen["username"] = runtime.username
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    out_json = tmp_path / "out" / "sweep.json"
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "executor",
+            "--setores-executor",
+            "MEL4",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 0
+    assert seen["scope_mode"] == "executor"
+    assert seen["setores_executor"] == ("MEL4",)
+    assert seen["username"] == "u1"
+    assert out_json.exists()
+    content = out_json.read_text(encoding="utf-8")
+    assert '"status": "ok"' in content
+    assert '"item_count": 1' in content
+
+
+def test_sweep_run_returns_error_on_partial_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _Manifest:
+        status = "partial"
+
+        def to_payload(self):
+            return {
+                "status": "partial",
+                "report_kind": "pendentes",
+                "scope_mode": "executor",
+                "item_count": 2,
+                "success_count": 1,
+                "failure_count": 1,
+                "items": [],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "executor",
+            "--setores-executor",
+            "MEL4",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_partial.json"),
+        ]
+    )
+
+    assert code == 1
