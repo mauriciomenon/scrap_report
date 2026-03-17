@@ -233,28 +233,13 @@ class SAMScraper:
         self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
 
     def _export_to_excel(self, page: Page) -> Path:
-        menu_selector = self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["actions_menu"],
-        )
         selector = self._resolve_selector(
             page,
             stable_id=self.locators.FILTER["export_excel"],
         )
         with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
-            page.click(menu_selector, force=True)
-            page.wait_for_function(
-                """(cssSelector) => {
-                    const exportButton = document.querySelector(cssSelector);
-                    if (!exportButton) {
-                        return false;
-                    }
-                    const style = window.getComputedStyle(exportButton);
-                    return style.visibility !== 'hidden' && style.pointerEvents !== 'none';
-                }""",
-                arg=selector,
-                timeout=self.config.loading_timeout_ms,
-            )
+            self._open_actions_menu(page)
+            self._wait_for_export_ready(page, selector)
             page.click(selector)
 
             download = download_promise.value
@@ -262,6 +247,27 @@ class SAMScraper:
             download.save_as(str(target))
             logger.info("download concluido: %s", target)
             return target
+
+    def _open_actions_menu(self, page: Page) -> None:
+        menu_selector = self._resolve_selector(
+            page,
+            stable_id=self.locators.FILTER["actions_menu"],
+        )
+        page.click(menu_selector, force=True)
+
+    def _wait_for_export_ready(self, page: Page, export_selector: str) -> None:
+        page.wait_for_function(
+            """(cssSelector) => {
+                const exportButton = document.querySelector(cssSelector);
+                if (!exportButton) {
+                    return false;
+                }
+                const style = window.getComputedStyle(exportButton);
+                return style.visibility !== 'hidden' && style.pointerEvents !== 'none';
+            }""",
+            arg=export_selector,
+            timeout=self.config.loading_timeout_ms,
+        )
 
     def _wait_for_search_results(self, page: Page) -> None:
         started = time.time()

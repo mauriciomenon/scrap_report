@@ -24,4 +24,5 @@ def test_filter_contract_includes_emission_year_week_fields():
     assert "SectorEmitter" in SAMLocators.FILTER["setor_emissor"]
     assert "wtSearchButton" in SAMLocators.FILTER["search_icon"]
     assert "wtButtonDropdownWrapper" in SAMLocators.FILTER["actions_menu"]
+    assert "dropdown-header.select" in SAMLocators.FILTER["actions_menu"]
     assert "wtLink_ExportToExcel" in SAMLocators.FILTER["export_excel"]
