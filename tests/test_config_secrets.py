@@ -169,3 +169,24 @@ def test_cli_config_accepts_pendentes_execucao():
         secret_provider=provider,
     ).to_scrape_config()
     assert cfg.report_kind == "pendentes_execucao"
+
+
+def test_cli_config_accepts_consulta_ssa():
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "user1", "p1")
+    cfg = CliConfigInput(
+        username="user1",
+        password=None,
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="consulta_ssa",
+        base_url="https://osprd.itaipu/SAM_SMA/",
+        headless=True,
+        download_dir="downloads",
+        staging_dir="staging",
+        secure_required=True,
+        allow_transitional_plaintext=False,
+        secret_service="svc",
+        secret_provider=provider,
+    ).to_scrape_config()
+    assert cfg.report_kind == "consulta_ssa"

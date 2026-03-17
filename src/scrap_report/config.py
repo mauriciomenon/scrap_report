@@ -10,7 +10,7 @@ from pathlib import Path
 from .secret_provider import SecretBackendUnavailableError, SecretNotFoundError, SecretProvider
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-REPORT_KINDS = ("pendentes", "executadas", "pendentes_execucao")
+REPORT_KINDS = ("pendentes", "executadas", "pendentes_execucao", "consulta_ssa")
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
     "uv run python -m scrap_report.cli secret setup "
@@ -65,7 +65,7 @@ class ScrapeConfig:
         self.report_kind = self.report_kind.strip().lower()
         if self.report_kind not in REPORT_KINDS:
             raise ValueError(
-                "report_kind deve ser 'pendentes', 'executadas' ou 'pendentes_execucao'"
+                "report_kind deve ser 'pendentes', 'executadas', 'pendentes_execucao' ou 'consulta_ssa'"
             )
         self.selector_mode = self.selector_mode.strip().lower()
         if self.selector_mode not in {"strict", "adaptive"}:

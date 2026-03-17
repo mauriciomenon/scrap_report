@@ -18,6 +18,11 @@ def test_resolve_report_navigation_pendentes_execucao():
     assert selector.endswith("/SAM_SMA_Reports/PendingToExecution.aspx")
 
 
+def test_resolve_report_navigation_consulta_ssa():
+    selector = SAMScraper._resolve_report_navigation("consulta_ssa")
+    assert selector.endswith("/SAM_SMA/SSASearch.aspx")
+
+
 def test_resolve_report_navigation_invalid():
     with pytest.raises(ValueError):
         SAMScraper._resolve_report_navigation("x")

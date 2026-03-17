@@ -46,6 +46,7 @@ class SAMLocators:
         "pendentes": "/SAM_SMA_Reports/PendingGeneralSSAs.aspx",
         "executadas": "/SAM_SMA_Reports/SSAsExecuted.aspx",
         "pendentes_execucao": "/SAM_SMA_Reports/PendingToExecution.aspx",
+        "consulta_ssa": "/SAM_SMA/SSASearch.aspx",
     }
 
     FILTER = {
@@ -57,6 +58,8 @@ class SAMLocators:
         "search_button": "input[id$='wtSearch'][type='submit']:not([id*='SearchLocalization'])",
         "actions_menu": "div[id*='wtButtonDropdownWrapper'] > div.dropdown-header.select",
         "export_excel": "a[id*='wtLink_ExportToExcel']",
+        "consulta_results": "[id*='wtFinalPlaceholder_wtListSSAs'], [id*='wtListSSAs']",
+        "consulta_result_link": "a[href*='SSAView.aspx?SSAId=']",
     }
 
 
@@ -158,6 +161,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["executadas"]
         if report_kind == "pendentes_execucao":
             return SAMLocators.NAVIGATION["pendentes_execucao"]
+        if report_kind == "consulta_ssa":
+            return SAMLocators.NAVIGATION["consulta_ssa"]
         raise ValueError("report_kind invalido")
 
     def _build_report_url(self, report_path: str) -> str:
@@ -229,6 +234,8 @@ class SAMScraper:
         self._wait_for_search_results(page)
 
     def _select_report_options(self, page: Page) -> None:
+        if self.config.report_kind == "consulta_ssa":
+            return
         details_locator = page.locator("text=Relatorio com Detalhes")
         if details_locator.count() == 0:
             return
@@ -287,13 +294,20 @@ class SAMScraper:
             )
             if loading_state not in {"none", "absent"}:
                 saw_loading = True
-            export_ready = page.locator(self.locators.FILTER["export_excel"]).count() > 0
-            if export_ready and (not saw_loading or loading_state == "none"):
+            if self._search_results_ready(page, saw_loading, loading_state):
                 page.wait_for_timeout(500)
                 return
             page.wait_for_timeout(500)
         snapshot = self._dom_snapshot(page)
         raise RuntimeError(f"resultado da busca nao estabilizou; snapshot={snapshot}")
+
+    def _search_results_ready(self, page: Page, saw_loading: bool, loading_state: str) -> bool:
+        if self.config.report_kind == "consulta_ssa":
+            cards_ready = page.locator(self.locators.FILTER["consulta_results"]).count() > 0
+            links_ready = page.locator(self.locators.FILTER["consulta_result_link"]).count() > 0
+            return (cards_ready or links_ready) and (not saw_loading or loading_state == "none")
+        export_ready = page.locator(self.locators.FILTER["export_excel"]).count() > 0
+        return export_ready and (not saw_loading or loading_state == "none")
 
     def _wait_for_loading_complete(self, page: Page, timeout_ms: int) -> bool:
         started = time.time()
