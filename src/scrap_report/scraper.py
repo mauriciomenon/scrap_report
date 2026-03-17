@@ -51,6 +51,7 @@ class SAMLocators:
         "consulta_ssa_print": "/SAM_SMA/SSASearch.aspx",
         "aprovacao_emissao": "/SAM_SMA_Reports/SSAsPendingOfApprovalOnEmission.aspx",
         "aprovacao_cancelamento": "/SAM_SMA_Reports/SSAsPendingOfApprovalForCancel.aspx",
+        "derivadas_relacionadas": "/SAM_SMA_Reports/SSAsDerivatedAndRelated.aspx",
         "reprogramacoes": "/SAM_SMA_Reports/SSAsRescheduled.aspx",
     }
 
@@ -201,6 +202,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["aprovacao_emissao"]
         if report_kind == "aprovacao_cancelamento":
             return SAMLocators.NAVIGATION["aprovacao_cancelamento"]
+        if report_kind == "derivadas_relacionadas":
+            return SAMLocators.NAVIGATION["derivadas_relacionadas"]
         if report_kind == "reprogramacoes":
             return SAMLocators.NAVIGATION["reprogramacoes"]
         raise ValueError("report_kind invalido")

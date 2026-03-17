@@ -39,6 +39,11 @@ def test_resolve_report_navigation_aprovacao_cancelamento():
     assert selector.endswith("/SAM_SMA_Reports/SSAsPendingOfApprovalForCancel.aspx")
 
 
+def test_resolve_report_navigation_derivadas_relacionadas():
+    selector = SAMScraper._resolve_report_navigation("derivadas_relacionadas")
+    assert selector.endswith("/SAM_SMA_Reports/SSAsDerivatedAndRelated.aspx")
+
+
 def test_resolve_report_navigation_reprogramacoes():
     selector = SAMScraper._resolve_report_navigation("reprogramacoes")
     assert selector.endswith("/SAM_SMA_Reports/SSAsRescheduled.aspx")

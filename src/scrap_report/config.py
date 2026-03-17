@@ -18,9 +18,11 @@ REPORT_KINDS = (
     "consulta_ssa_print",
     "aprovacao_emissao",
     "aprovacao_cancelamento",
+    "derivadas_relacionadas",
     "reprogramacoes",
 )
-NON_TABULAR_REPORT_KINDS = ("consulta_ssa_print",)
+NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print", "derivadas_relacionadas")
+NON_XLSX_DOWNLOAD_KINDS = ("consulta_ssa_print",)
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
     "uv run python -m scrap_report.cli secret setup "
@@ -48,11 +50,11 @@ def build_recent_emission_year_week_window(
 
 
 def report_kind_uses_excel_output(report_kind: str) -> bool:
-    return report_kind not in NON_TABULAR_REPORT_KINDS
+    return report_kind not in NON_REPORT_GENERATION_KINDS
 
 
 def report_kind_download_suffixes(report_kind: str) -> tuple[str, ...]:
-    if report_kind in NON_TABULAR_REPORT_KINDS:
+    if report_kind in NON_XLSX_DOWNLOAD_KINDS:
         return (".pdf",)
     return (".xlsx",)
 
@@ -87,7 +89,7 @@ class ScrapeConfig:
             raise ValueError(
                 "report_kind deve ser 'pendentes', 'executadas', 'pendentes_execucao', "
                 "'consulta_ssa', 'consulta_ssa_print', 'aprovacao_emissao', "
-                "'aprovacao_cancelamento' ou 'reprogramacoes'"
+                "'aprovacao_cancelamento', 'derivadas_relacionadas' ou 'reprogramacoes'"
             )
         self.selector_mode = self.selector_mode.strip().lower()
         if self.selector_mode not in {"strict", "adaptive"}:

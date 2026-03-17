@@ -146,6 +146,44 @@ def test_run_pipeline_from_local_download_pdf_skips_reports(tmp_path: Path):
     assert "report_ms" not in result.telemetry
 
 
+def test_run_pipeline_offline_derivadas_relacionadas_skips_reports(monkeypatch, tmp_path: Path):
+    download_dir = tmp_path / "downloads"
+    stage_dir = tmp_path / "staging"
+    download_dir.mkdir()
+
+    downloaded = download_dir / "Derivadas.xlsx"
+    pd.DataFrame({"Numero da SSA": ["1"], "Relacao": ["Derivada"]}).to_excel(downloaded, index=False)
+
+    def fake_run(self):
+        return ScrapeResult(
+            report_kind="derivadas_relacionadas",
+            downloaded_path=downloaded,
+            started_at="2026-03-15T10:00:00",
+            finished_at="2026-03-15T10:00:10",
+        )
+
+    monkeypatch.setattr("scrap_report.pipeline.SAMScraper.run", fake_run)
+
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_executor="MEL4",
+        setor_emissor="IEE3",
+        report_kind="derivadas_relacionadas",
+        download_dir=download_dir,
+        staging_dir=stage_dir,
+    )
+
+    result = run_pipeline(cfg, generate_reports=True)
+
+    assert result.status == "ok"
+    assert result.staged_path.suffix.lower() == ".xlsx"
+    assert result.reports == {}
+    assert "scrape_ms" in result.telemetry
+    assert "stage_ms" in result.telemetry
+    assert "report_ms" not in result.telemetry
+
+
 def test_run_report_only(tmp_path: Path):
     source = tmp_path / "staging" / "entrada.xlsx"
     source.parent.mkdir(parents=True)
