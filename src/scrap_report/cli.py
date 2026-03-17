@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .config import CliConfigInput, SECRET_SETUP_HINT
+from .config import CliConfigInput, REPORT_KINDS, SECRET_SETUP_HINT
 from .contract import (
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
@@ -106,7 +106,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     common.add_argument("--setor", required=True)
     common.add_argument("--setor-emissor", default="IEE3")
-    common.add_argument("--report-kind", default="pendentes", choices=["pendentes", "executadas"])
+    common.add_argument("--report-kind", default="pendentes", choices=REPORT_KINDS)
     common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     common.add_argument("--download-dir", default="downloads")
     common.add_argument("--staging-dir", default="staging")
@@ -166,7 +166,7 @@ def _build_parser() -> argparse.ArgumentParser:
     windows_flow.add_argument("--setor", required=True)
     windows_flow.add_argument("--setor-emissor", default="IEE3")
     windows_flow.add_argument(
-        "--report-kind", default="pendentes", choices=["pendentes", "executadas"]
+        "--report-kind", default="pendentes", choices=REPORT_KINDS
     )
     windows_flow.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     windows_flow.add_argument("--download-dir", default="downloads")
@@ -195,7 +195,7 @@ def _build_parser() -> argparse.ArgumentParser:
     stage = sub.add_parser("stage", help="move um xlsx para staging")
     stage.add_argument("--source", required=True)
     stage.add_argument("--staging-dir", default="staging")
-    stage.add_argument("--report-kind", default="pendentes", choices=["pendentes", "executadas"])
+    stage.add_argument("--report-kind", default="pendentes", choices=REPORT_KINDS)
     stage.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
 
     report = sub.add_parser("report-from-excel", help="gera artefatos de relatorio")

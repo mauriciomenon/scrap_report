@@ -45,6 +45,7 @@ class SAMLocators:
     NAVIGATION = {
         "pendentes": "/SAM_SMA_Reports/PendingGeneralSSAs.aspx",
         "executadas": "/SAM_SMA_Reports/SSAsExecuted.aspx",
+        "pendentes_execucao": "/SAM_SMA_Reports/PendingToExecution.aspx",
     }
 
     FILTER = {
@@ -155,6 +156,8 @@ class SAMScraper:
             return SAMLocators.NAVIGATION["pendentes"]
         if report_kind == "executadas":
             return SAMLocators.NAVIGATION["executadas"]
+        if report_kind == "pendentes_execucao":
+            return SAMLocators.NAVIGATION["pendentes_execucao"]
         raise ValueError("report_kind invalido")
 
     def _build_report_url(self, report_path: str) -> str:
