@@ -30,7 +30,30 @@ REPORT_KINDS = (
     "derivadas_relacionadas",
     "reprogramacoes",
 )
-EMISSION_DATE_SUPPORTED_REPORT_KINDS = ("executadas",)
+VALIDATED_FILTER_CAPABILITIES = {
+    "pendentes": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "executadas": frozenset(
+        {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
+    ),
+    "pendentes_execucao": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "consulta_ssa": frozenset(
+        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
+    ),
+    "consulta_ssa_print": frozenset(
+        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
+    ),
+    "aprovacao_emissao": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "aprovacao_cancelamento": frozenset(
+        {"setor_emissor", "setor_executor", "emission_year_week"}
+    ),
+    "derivadas_relacionadas": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "reprogramacoes": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+}
+EMISSION_DATE_SUPPORTED_REPORT_KINDS = tuple(
+    kind
+    for kind, filters in VALIDATED_FILTER_CAPABILITIES.items()
+    if "emission_date" in filters
+)
 NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print",)
 NON_XLSX_DOWNLOAD_KINDS = ("consulta_ssa_print",)
 SECRET_SETUP_HINT = (
@@ -83,6 +106,16 @@ def normalize_emission_date(value: str | None) -> str:
     raise ValueError("data de emissao deve estar em DD/MM/YYYY ou YYYY-MM-DD")
 
 
+def normalize_text_filter(value: str | None) -> str:
+    if value is None:
+        return ""
+    return value.strip()
+
+
+def report_kind_supports_filter(report_kind: str, filter_name: str) -> bool:
+    return filter_name in VALIDATED_FILTER_CAPABILITIES.get(report_kind, frozenset())
+
+
 def report_kind_uses_excel_output(report_kind: str) -> bool:
     return report_kind not in NON_REPORT_GENERATION_KINDS
 
@@ -114,6 +147,7 @@ class ScrapeConfig:
     retry_attempts: int = 3
     selector_mode: str = "adaptive"
     ignore_https_errors: bool = False
+    numero_ssa: str = ""
     emission_year_week_start: str = ""
     emission_year_week_end: str = ""
     emission_date_start: str = ""
@@ -135,6 +169,7 @@ class ScrapeConfig:
             raise ValueError("username nao pode ser vazio")
         if not self.password.strip():
             raise ValueError("password nao pode ser vazio")
+        self.numero_ssa = normalize_text_filter(self.numero_ssa)
         self.setor_emissor = normalize_setor_filter(self.setor_emissor)
         self.setor_executor = normalize_setor_filter(self.setor_executor)
         self.emission_date_start = normalize_emission_date(self.emission_date_start)
@@ -184,6 +219,7 @@ class CliConfigInput:
     secret_provider: SecretProvider | None = None
     selector_mode: str = "adaptive"
     ignore_https_errors: bool = False
+    numero_ssa: str | None = None
     emission_date_start: str | None = None
     emission_date_end: str | None = None
 
@@ -203,6 +239,7 @@ class CliConfigInput:
             staging_dir=Path(self.staging_dir),
             selector_mode=self.selector_mode,
             ignore_https_errors=self.ignore_https_errors,
+            numero_ssa=self.numero_ssa or "",
             emission_date_start=self.emission_date_start or "",
             emission_date_end=self.emission_date_end or "",
         )

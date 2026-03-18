@@ -468,6 +468,53 @@ def test_windows_flow_passes_setor_emissor_to_config(
     assert seen["setor_executor"] == "MEL4"
 
 
+def test_windows_flow_passes_numero_ssa_to_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "ok"
+        report_kind = "consulta_ssa"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
+        telemetry = {"pipeline_ms": 10}
+
+    seen = {}
+
+    def _run_pipeline(cfg, generate_reports):
+        seen["numero_ssa"] = cfg.numero_ssa
+        return _PipelineResult()
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", _run_pipeline)
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "ALL",
+            "--setor-emissor",
+            "ALL",
+            "--numero-ssa",
+            "202603879",
+            "--report-kind",
+            "consulta_ssa",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "wf_numero.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["numero_ssa"] == "202603879"
+
+
 def test_windows_flow_accepts_all_for_emissor_or_executor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -1099,3 +1146,68 @@ def test_sweep_run_accepts_emission_date_manual_mode(
     assert seen["setores_emissor"] == ("OUO5",)
     assert seen["emission_date_start"] == "2025-12-25"
     assert seen["emission_date_end"] == "25/12/2025"
+
+
+def test_sweep_run_accepts_numero_ssa_manual_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "consulta_ssa",
+                "scope_mode": "nenhum",
+                "item_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "items": [
+                    {
+                        "index": 1,
+                        "scope_mode": "nenhum",
+                        "setor_emissor": None,
+                        "setor_executor": None,
+                        "numero_ssa": "202603879",
+                        "status": "ok",
+                        "reports": {},
+                        "telemetry": {},
+                    }
+                ],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["scope_mode"] = plan.scope_mode
+            seen["numero_ssa"] = plan.numero_ssa
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "consulta_ssa",
+            "--scope-mode",
+            "nenhum",
+            "--numero-ssa",
+            "202603879",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_numero.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["scope_mode"] == "nenhum"
+    assert seen["numero_ssa"] == "202603879"

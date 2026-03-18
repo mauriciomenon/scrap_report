@@ -165,6 +165,43 @@ def test_sweep_runner_keeps_order_and_collects_successes(tmp_path: Path):
     assert [item["setor_executor"] for item in manifest.to_payload()["items"]] == ["MEL4", "MEL3"]
 
 
+def test_sweep_runner_passes_numero_ssa_to_pipeline(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="consulta_ssa",
+        scope_mode="nenhum",
+        numero_ssa="202603879",
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    seen = {}
+
+    def _pipeline_runner(config, generate_reports):
+        seen["numero_ssa"] = config.numero_ssa
+        return type(
+            "PipelineResult",
+            (),
+            {
+                "status": "ok",
+                "source_path": runtime.download_dir / "ok.xlsx",
+                "staged_path": runtime.staging_dir / "ok.xlsx",
+                "reports": {"dados": "ok.xlsx"},
+                "telemetry": {"pipeline_ms": 1},
+            },
+        )()
+
+    manifest = SweepRunner(pipeline_runner=_pipeline_runner).run(plan, runtime)
+
+    assert manifest.status == "ok"
+    assert seen["numero_ssa"] == "202603879"
+    assert manifest.to_payload()["items"][0]["numero_ssa"] == "202603879"
+
+
 def test_sweep_runner_continues_after_failure(tmp_path: Path):
     plan = SweepPlan(
         report_kind="pendentes",

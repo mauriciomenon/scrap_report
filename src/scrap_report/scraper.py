@@ -13,7 +13,11 @@ from urllib.parse import urlsplit
 import pandas as pd
 from playwright.sync_api import Page, sync_playwright
 
-from .config import EMISSION_DATE_SUPPORTED_REPORT_KINDS, ScrapeConfig
+from .config import (
+    EMISSION_DATE_SUPPORTED_REPORT_KINDS,
+    ScrapeConfig,
+    report_kind_supports_filter,
+)
 from .redaction import redact_text
 from .selector_engine import (
     build_candidates,
@@ -56,6 +60,7 @@ class SAMLocators:
     }
 
     FILTER = {
+        "numero_ssa": "input[id*='SSADashboardFilter_SSANumber'], input[id*='SSANumber']",
         "emission_date": "input[id*='EmissionDate_input']",
         "emission_year_week_start": "input[id*='EmissionYearWeekStart_input']",
         "emission_year_week_end": "input[id*='EmissionYearWeekEnd_input']",
@@ -224,36 +229,8 @@ class SAMScraper:
         )
 
     def _fill_filter(self, page: Page) -> None:
-        if self._uses_emission_date_filter():
-            emission_date_selector = self._resolve_emission_date_filter_selector(page)
-            if self.config.emission_date_start != self.config.emission_date_end:
-                raise RuntimeError(
-                    "tela atual suporta apenas data de emissao unica; inicio e fim devem ser iguais"
-                )
-            page.fill(emission_date_selector, self.config.emission_date_start)
-        else:
-            emission_start_selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["emission_year_week_start"],
-                name="[name*='EmissionYearWeekStart']",
-            )
-            emission_end_selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["emission_year_week_end"],
-                name="[name*='EmissionYearWeekEnd']",
-            )
-            page.fill(emission_start_selector, self.config.emission_year_week_start)
-            page.fill(emission_end_selector, self.config.emission_year_week_end)
-        if self.config.setor_emissor:
-            emissor_selector = self._resolve_selector(
-                page,
-                stable_id=self.locators.FILTER["setor_emissor"],
-                name="[name*='SectorEmitter']",
-            )
-            page.fill(emissor_selector, self.config.setor_emissor)
-        if self.config.setor_executor:
-            target_selector = self._resolve_executor_filter_selector(page)
-            page.fill(target_selector, self.config.setor_executor)
+        for filter_name in self._iter_requested_filters():
+            self._apply_filter(page, filter_name)
 
     def _click_search(self, page: Page) -> bool:
         success = page.evaluate(
@@ -392,33 +369,99 @@ class SAMScraper:
     def _empty_result_title(self) -> str:
         return (
             "Sem resultados para os filtros: "
+            f"ssa={self.config.numero_ssa or 'ALL'}; "
             f"emissor={self.config.setor_emissor or 'ALL'}; "
             f"executor={self.config.setor_executor or 'ALL'}; "
             f"emissao={self._empty_result_emission_label()}"
         )
 
     def _resolve_primary_filter_selector(self, page: Page) -> str:
+        for filter_name in self._iter_requested_filters():
+            return self._resolve_filter_selector(page, filter_name)
+        raise RuntimeError("nenhum filtro primario disponivel para a tela atual")
+
+    def _iter_requested_filters(self) -> tuple[str, ...]:
+        requested: list[str] = []
+        if self.config.numero_ssa:
+            requested.append("numero_ssa")
         if self._uses_emission_date_filter():
-            return self._resolve_emission_date_filter_selector(page)
-        if self.config.report_kind == "aprovacao_emissao" and self.config.setor_executor:
+            requested.append("emission_date")
+        else:
+            requested.append("emission_year_week")
+        if self.config.setor_emissor:
+            requested.append("setor_emissor")
+        if self.config.setor_executor:
+            requested.append("setor_executor")
+        return tuple(requested)
+
+    def _apply_filter(self, page: Page, filter_name: str) -> None:
+        if filter_name == "numero_ssa":
+            selector = self._resolve_filter_selector(page, filter_name)
+            page.fill(selector, self.config.numero_ssa)
+            return
+        if filter_name == "emission_date":
+            selector = self._resolve_filter_selector(page, filter_name)
+            if self.config.emission_date_start != self.config.emission_date_end:
+                raise RuntimeError(
+                    "tela atual suporta apenas data de emissao unica; inicio e fim devem ser iguais"
+                )
+            page.fill(selector, self.config.emission_date_start)
+            return
+        if filter_name == "emission_year_week":
+            emission_start_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_year_week_start"],
+                name="[name*='EmissionYearWeekStart']",
+            )
+            emission_end_selector = self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_year_week_end"],
+                name="[name*='EmissionYearWeekEnd']",
+            )
+            page.fill(emission_start_selector, self.config.emission_year_week_start)
+            page.fill(emission_end_selector, self.config.emission_year_week_end)
+            return
+        if filter_name == "setor_emissor":
+            selector = self._resolve_filter_selector(page, filter_name)
+            page.fill(selector, self.config.setor_emissor or "")
+            return
+        if filter_name == "setor_executor":
+            selector = self._resolve_filter_selector(page, filter_name)
+            page.fill(selector, self.config.setor_executor or "")
+            return
+        raise RuntimeError(f"filtro nao suportado internamente: {filter_name}")
+
+    def _resolve_filter_selector(self, page: Page, filter_name: str) -> str:
+        self._ensure_filter_supported(filter_name)
+        if filter_name == "numero_ssa":
             return self._resolve_selector(
                 page,
-                stable_id=self.locators.FILTER["divisao_emissora"],
-                name="[name*='DivisionEmmiter']",
+                stable_id=self.locators.FILTER["numero_ssa"],
+                name="[name*='SSANumber']",
             )
-        if self.config.setor_executor and self.config.report_kind != "aprovacao_emissao":
-            return self._resolve_executor_filter_selector(page)
-        if self.config.setor_emissor:
+        if filter_name == "emission_date":
+            return self._resolve_emission_date_filter_selector(page)
+        if filter_name == "emission_year_week":
+            return self._resolve_selector(
+                page,
+                stable_id=self.locators.FILTER["emission_year_week_start"],
+                name="[name*='EmissionYearWeekStart']",
+            )
+        if filter_name == "setor_emissor":
             return self._resolve_selector(
                 page,
                 stable_id=self.locators.FILTER["setor_emissor"],
                 name="[name*='SectorEmitter']",
             )
-        return self._resolve_selector(
-            page,
-            stable_id=self.locators.FILTER["emission_year_week_start"],
-            name="[name*='EmissionYearWeekStart']",
-        )
+        if filter_name == "setor_executor":
+            return self._resolve_executor_filter_selector(page)
+        raise RuntimeError(f"filtro sem seletor mapeado: {filter_name}")
+
+    def _ensure_filter_supported(self, filter_name: str) -> None:
+        if not report_kind_supports_filter(self.config.report_kind, filter_name):
+            raise RuntimeError(
+                f"report_kind={self.config.report_kind} nao suporta filtro {filter_name} validado"
+            )
 
     def _uses_emission_date_filter(self) -> bool:
         return bool(self.config.emission_date_start or self.config.emission_date_end)

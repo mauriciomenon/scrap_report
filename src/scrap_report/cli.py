@@ -130,6 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SETOR_EMISSOR,
         help="setor emissor; use ALL para nao filtrar emissor",
     )
+    common.add_argument("--numero-ssa", default=None, help="numero da SSA para filtro direto")
     common.add_argument("--report-kind", default="pendentes", choices=REPORT_KINDS)
     common.add_argument("--base-url", default="https://osprd.itaipu/SAM_SMA/")
     common.add_argument("--download-dir", default="downloads")
@@ -197,6 +198,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_SETOR_EMISSOR,
         help="setor emissor; use ALL para nao filtrar emissor",
     )
+    windows_flow.add_argument("--numero-ssa", default=None, help="numero da SSA para filtro direto")
     windows_flow.add_argument(
         "--report-kind", default="pendentes", choices=REPORT_KINDS
     )
@@ -249,6 +251,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sweep_run.add_argument("--setores-emissor", nargs="+", default=())
     sweep_run.add_argument("--setores-executor", nargs="+", default=())
+    sweep_run.add_argument("--numero-ssa", default=None)
     sweep_run.add_argument("--year-week-start", default=None)
     sweep_run.add_argument("--year-week-end", default=None)
     sweep_run.add_argument("--emission-date-start", default=None)
@@ -580,6 +583,7 @@ def main(argv: list[str] | None = None) -> int:
                 secret_provider=provider,
                 selector_mode=args.selector_mode,
                 ignore_https_errors=args.ignore_https_errors,
+                numero_ssa=args.numero_ssa,
             ).to_scrape_config()
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)
@@ -646,6 +650,7 @@ def main(argv: list[str] | None = None) -> int:
                     scope_mode=args.scope_mode,
                     setores_emissor=tuple(args.setores_emissor),
                     setores_executor=tuple(args.setores_executor),
+                    numero_ssa=args.numero_ssa,
                     emission_year_week_start=args.year_week_start,
                     emission_year_week_end=args.year_week_end,
                     emission_date_start=args.emission_date_start,
@@ -728,6 +733,7 @@ def main(argv: list[str] | None = None) -> int:
                 secret_provider=build_secret_provider(),
                 selector_mode=args.selector_mode,
                 ignore_https_errors=args.ignore_https_errors,
+                numero_ssa=args.numero_ssa,
             ).to_scrape_config()
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)

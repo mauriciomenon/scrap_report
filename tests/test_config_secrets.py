@@ -5,6 +5,7 @@ from datetime import date
 from scrap_report.config import (
     CliConfigInput,
     ScrapeConfig,
+    VALIDATED_FILTER_CAPABILITIES,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
     normalize_emission_date,
@@ -34,6 +35,12 @@ def test_setor_priority_groups_keep_expected_order():
         "ILA3",
     )
     assert SETOR_PRIORITY_GROUPS["demais"] == ()
+
+
+def test_validated_filter_capabilities_keep_consulta_numero_ssa():
+    assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
+    assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
+    assert "numero_ssa" not in VALIDATED_FILTER_CAPABILITIES["pendentes"]
 
 
 def test_cli_config_uses_provider_secret():
@@ -266,6 +273,28 @@ def test_cli_config_keeps_setor_emissor():
     ).to_scrape_config()
     assert cfg.setor_emissor == "IEE3"
     assert cfg.setor_executor == "MEL4"
+
+
+def test_cli_config_keeps_numero_ssa():
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "user1", "p1")
+    cfg = CliConfigInput(
+        username="user1",
+        password=None,
+        setor_emissor="ALL",
+        setor_executor="ALL",
+        numero_ssa=" 202603879 ",
+        report_kind="consulta_ssa",
+        base_url="https://osprd.itaipu/SAM_SMA/",
+        headless=True,
+        download_dir="downloads",
+        staging_dir="staging",
+        secure_required=True,
+        allow_transitional_plaintext=False,
+        secret_service="svc",
+        secret_provider=provider,
+    ).to_scrape_config()
+    assert cfg.numero_ssa == "202603879"
 
 
 def test_cli_config_accepts_pendentes_execucao():

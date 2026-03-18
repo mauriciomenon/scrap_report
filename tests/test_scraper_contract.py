@@ -55,6 +55,7 @@ def test_resolve_report_navigation_invalid():
 
 
 def test_filter_contract_includes_emission_year_week_fields():
+    assert "SSADashboardFilter_SSANumber" in SAMLocators.FILTER["numero_ssa"]
     assert "EmissionDate_input" in SAMLocators.FILTER["emission_date"]
     assert "EmissionYearWeekStart_input" in SAMLocators.FILTER["emission_year_week_start"]
     assert "EmissionYearWeekEnd_input" in SAMLocators.FILTER["emission_year_week_end"]
@@ -161,6 +162,21 @@ def test_primary_filter_prefers_emission_date_when_active(tmp_path):
     assert SAMScraper(cfg)._uses_emission_date_filter() is True
 
 
+def test_primary_filter_prefers_numero_ssa_when_active(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="ALL",
+        setor_executor="ALL",
+        numero_ssa="202603879",
+        report_kind="consulta_ssa",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+
+    assert SAMScraper(cfg)._iter_requested_filters()[0] == "numero_ssa"
+
+
 def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
     cfg = ScrapeConfig(
         username="u",
@@ -176,3 +192,19 @@ def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
 
     with pytest.raises(RuntimeError, match="nao suporta filtro por data de emissao validado"):
         SAMScraper(cfg)._resolve_emission_date_filter_selector(page=None)  # type: ignore[arg-type]
+
+
+def test_unsupported_report_kind_rejects_numero_ssa_selector(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="ALL",
+        setor_executor="ALL",
+        numero_ssa="202603879",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+
+    with pytest.raises(RuntimeError, match="nao suporta filtro numero_ssa validado"):
+        SAMScraper(cfg)._resolve_filter_selector(page=None, filter_name="numero_ssa")  # type: ignore[arg-type]

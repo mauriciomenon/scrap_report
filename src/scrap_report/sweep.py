@@ -119,6 +119,7 @@ class FilterSpec:
     scope_mode: str
     setor_emissor: str | None = None
     setor_executor: str | None = None
+    numero_ssa: str | None = None
     emission_year_week_start: str | None = None
     emission_year_week_end: str | None = None
     emission_date_start: str | None = None
@@ -131,6 +132,7 @@ class FilterSpec:
         object.__setattr__(self, "scope_mode", normalized_scope)
         object.__setattr__(self, "setor_emissor", normalize_setor_filter(self.setor_emissor))
         object.__setattr__(self, "setor_executor", normalize_setor_filter(self.setor_executor))
+        object.__setattr__(self, "numero_ssa", (self.numero_ssa or "").strip() or None)
 
         self._validate_scope()
         self._validate_time_filter()
@@ -168,6 +170,7 @@ class SweepPlan:
     scope_mode: str
     setores_emissor: tuple[str, ...] = ()
     setores_executor: tuple[str, ...] = ()
+    numero_ssa: str | None = None
     emission_year_week_start: str | None = None
     emission_year_week_end: str | None = None
     emission_date_start: str | None = None
@@ -180,6 +183,7 @@ class SweepPlan:
         object.__setattr__(self, "scope_mode", normalized_scope)
         object.__setattr__(self, "setores_emissor", expand_setor_targets(self.setores_emissor))
         object.__setattr__(self, "setores_executor", expand_setor_targets(self.setores_executor))
+        object.__setattr__(self, "numero_ssa", (self.numero_ssa or "").strip() or None)
         self._validate_scope_inputs()
         self._validate_time_filter()
 
@@ -214,6 +218,7 @@ class SweepPlan:
             return (
                 FilterSpec(
                     scope_mode="nenhum",
+                    numero_ssa=self.numero_ssa,
                     emission_year_week_start=self.emission_year_week_start,
                     emission_year_week_end=self.emission_year_week_end,
                     emission_date_start=self.emission_date_start,
@@ -225,6 +230,7 @@ class SweepPlan:
                 FilterSpec(
                     scope_mode="emissor",
                     setor_emissor=setor,
+                    numero_ssa=self.numero_ssa,
                     emission_year_week_start=self.emission_year_week_start,
                     emission_year_week_end=self.emission_year_week_end,
                     emission_date_start=self.emission_date_start,
@@ -237,6 +243,7 @@ class SweepPlan:
                 FilterSpec(
                     scope_mode="executor",
                     setor_executor=setor,
+                    numero_ssa=self.numero_ssa,
                     emission_year_week_start=self.emission_year_week_start,
                     emission_year_week_end=self.emission_year_week_end,
                     emission_date_start=self.emission_date_start,
@@ -252,6 +259,7 @@ class SweepPlan:
                         scope_mode="ambos",
                         setor_emissor=setor_emissor,
                         setor_executor=setor_executor,
+                        numero_ssa=self.numero_ssa,
                         emission_year_week_start=self.emission_year_week_start,
                         emission_year_week_end=self.emission_year_week_end,
                         emission_date_start=self.emission_date_start,
@@ -292,6 +300,7 @@ class SweepItemResult:
     scope_mode: str
     setor_emissor: str | None
     setor_executor: str | None
+    numero_ssa: str | None
     emission_year_week_start: str | None
     emission_year_week_end: str | None
     emission_date_start: str | None
@@ -309,6 +318,7 @@ class SweepItemResult:
             "scope_mode": self.scope_mode,
             "setor_emissor": self.setor_emissor,
             "setor_executor": self.setor_executor,
+            "numero_ssa": self.numero_ssa,
             "emission_year_week_start": self.emission_year_week_start,
             "emission_year_week_end": self.emission_year_week_end,
             "emission_date_start": self.emission_date_start,
@@ -386,6 +396,7 @@ class SweepRunner:
                 scope_mode=spec.scope_mode,
                 setor_emissor=spec.setor_emissor,
                 setor_executor=spec.setor_executor,
+                numero_ssa=spec.numero_ssa,
                 emission_year_week_start=spec.emission_year_week_start,
                 emission_year_week_end=spec.emission_year_week_end,
                 emission_date_start=spec.emission_date_start,
@@ -401,6 +412,7 @@ class SweepRunner:
             password=runtime.password,
             setor_emissor=spec.setor_emissor,
             setor_executor=spec.setor_executor,
+            numero_ssa=spec.numero_ssa or "",
             report_kind=report_kind,
             base_url=runtime.base_url,
             headless=runtime.headless,
@@ -424,6 +436,7 @@ class SweepRunner:
                 scope_mode=spec.scope_mode,
                 setor_emissor=spec.setor_emissor,
                 setor_executor=spec.setor_executor,
+                numero_ssa=spec.numero_ssa,
                 emission_year_week_start=spec.emission_year_week_start,
                 emission_year_week_end=spec.emission_year_week_end,
                 emission_date_start=spec.emission_date_start,
@@ -437,6 +450,7 @@ class SweepRunner:
             scope_mode=spec.scope_mode,
             setor_emissor=spec.setor_emissor,
             setor_executor=spec.setor_executor,
+            numero_ssa=spec.numero_ssa,
             emission_year_week_start=spec.emission_year_week_start,
             emission_year_week_end=spec.emission_year_week_end,
             emission_date_start=spec.emission_date_start,
