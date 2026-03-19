@@ -38,7 +38,9 @@ VALIDATED_FILTER_CAPABILITIES = {
     "executadas": frozenset(
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
-    "pendentes_execucao": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "pendentes_execucao": frozenset(
+        {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
+    ),
     "consulta_ssa": frozenset(
         {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
     ),

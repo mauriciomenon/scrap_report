@@ -42,6 +42,7 @@ def test_validated_filter_capabilities_keep_consulta_numero_ssa():
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
     assert "numero_ssa" not in VALIDATED_FILTER_CAPABILITIES["pendentes"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes_execucao"]
 
 
 def test_cli_config_uses_provider_secret():
