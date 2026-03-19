@@ -464,3 +464,122 @@ This addendum defines operational behavior when kluster analysis becomes unstabl
 ### Cost and Token Discipline
 1. Use lightweight models/tools for side tasks when appropriate (for example `qwen` or `glm_coding`) to reduce token cost.
 2. Keep final technical validation and approval decisions in the main execution flow.
+
+## Licoes Aprendidas Recentes
+
+1. Nao inferir suporte a filtro apenas porque um seletor candidato existe no DOM.
+2. Nao inferir que `fill()` funcionou so porque a chamada nao falhou.
+3. Nao inferir que o filtro foi aplicado apenas porque a busca terminou sem erro.
+4. Nao inferir que o export respeitou o filtro apenas porque o arquivo foi gerado.
+5. Nao generalizar comportamento de uma tela para outra sem evidencia propria por `report_kind`.
+6. Nao generalizar comportamento de um caso positivo isolado para todos os formatos de entrada.
+7. Teste de wiring, parser e contrato interno nao substitui validacao funcional real no artefato final.
+8. Em filtros sensiveis, principalmente data e numero de SSA, o criterio de verdade e o resultado exportado, nao a suposicao do agente.
+9. Quando a evidencia for parcial, a linguagem publica deve refletir isso. Usar "tentativa de preenchimento", "seletor candidato", "valor persistido ou nao", "busca coerente ou nao", "export coerente ou nao".
+10. Se houver duvida entre problema de formato, problema de UI, problema de busca e problema de export, nao liberar suporte ate separar essas camadas com evidencia.
+
+## Metodologia De Validacao De Filtros Variaveis
+
+### Objetivo
+
+- Validar filtros com evidencia de ponta a ponta e impedir inferencia fraca.
+
+### Regra De Ouro
+
+- Um filtro so pode ser declarado como suportado quando houver evidencia suficiente nas quatro camadas abaixo:
+  1. seletor certo
+  2. valor persistido
+  3. busca coerente
+  4. export coerente
+
+### Quatro Camadas De Prova
+
+1. Seletor certo
+- Identificar o campo candidato e registrar qual seletor foi usado.
+- Nao assumir que o nome do campo implica suporte funcional.
+
+2. Valor persistido
+- Preencher o valor.
+- Reler o valor imediatamente apos `fill()`.
+- Reler o valor apos `blur`, `tab` ou evento equivalente.
+- Reler o valor apos clicar em buscar.
+- Se o valor sumir, for reformatado, truncado ou limpo, isso precisa ser registrado.
+
+3. Busca coerente
+- Verificar se o grid, cards ou mensagem de resultado ficou coerente com o filtro.
+- Ausencia de erro nao prova aplicacao correta.
+- Se necessario, comparar com uma busca sem filtro ou com filtro alternativo para confirmar sensibilidade.
+
+4. Export coerente
+- O artefato final precisa respeitar a mesma restricao observada na busca.
+- Se o grid parecer correto mas o export ignorar o filtro, o suporte nao esta validado.
+- O export final e parte obrigatoria da definicao de suporte.
+
+### Regras Especificas Para Filtros De Data
+
+1. Nao confundir formato aceito com filtro suportado.
+- Uma tela pode aceitar `DD/MM/YYYY`, `YYYY-MM-DD` ou normalizar entrada, e ainda assim nao respeitar semanticamente o filtro.
+
+2. Testar matriz minima de formatos quando houver risco de locale, mascara ou parser ambiguo.
+- Exemplos minimos:
+  - `DD/MM/YY`
+  - `DD/MM/YYYY`
+  - `MM/DD/YY`
+  - `MM/DD/YYYY`
+  - `YYYYMMDD`
+  - `YYYY-MM-DD`
+
+3. Para cada formato testado, registrar:
+- valor digitado
+- valor lido apos `fill()`
+- valor lido apos `blur/tab`
+- valor lido apos busca
+- resultado do grid
+- resultado do export
+
+4. Nao concluir que o problema e de formato sem antes provar:
+- se a UI alterou o valor
+- se a busca manteve o valor
+- se o export respeitou o mesmo valor
+
+### Regras Especificas Para Numero De SSA E Filtros Diretos
+
+1. Nao basta retornar poucas linhas. E preciso provar que o numero alvo esta presente e que numeros indevidos nao foram incluidos.
+2. Quando possivel, validar no derivado e no bruto staged.
+3. Se o bruto for dificil de ler por cabecalho ou layout, a validacao pode usar o derivado, mas isso deve ser declarado.
+
+### Linguagem Obrigatoria De Status
+
+- Em vez de "filtro preenchido corretamente", usar categorias observaveis:
+  - `selector_found`
+  - `input_persisted`
+  - `search_respected`
+  - `export_respected`
+
+- Em resposta tecnica ao usuario, traduzir isso em PT-BR ASCII:
+  - seletor encontrado
+  - valor persistido
+  - busca coerente
+  - export coerente
+
+### Proibicoes
+
+1. Proibido liberar suporte por heuristica baseada apenas em DOM.
+2. Proibido liberar suporte por um unico caso positivo sem revalidar formato e export.
+3. Proibido escrever teste apenas para confirmar o wiring do proprio patch sem tentar derrubar a hipotese principal.
+4. Proibido afirmar certeza operacional quando a evidencia disponivel for apenas parcial.
+
+### Criterio De Liberacao
+
+- Um filtro entra em runtime validado apenas quando:
+  1. as quatro camadas de prova fecharem
+  2. o comportamento for coerente no `report_kind` especifico
+  3. o artefato final confirmar a restricao pedida
+  4. houver pelo menos uma validacao real registrada no fluxo oficial
+
+### Criterio De Bloqueio
+
+- Se qualquer camada falhar, o filtro deve:
+  1. permanecer desabilitado para aquela tela
+  2. falhar cedo com erro explicito
+  3. nao ser anunciado como suportado
