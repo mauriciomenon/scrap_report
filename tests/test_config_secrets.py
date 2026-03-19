@@ -40,6 +40,8 @@ def test_setor_priority_groups_keep_expected_order():
 def test_validated_filter_capabilities_keep_consulta_numero_ssa():
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
+    assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
     assert "numero_ssa" not in VALIDATED_FILTER_CAPABILITIES["pendentes"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes_execucao"]

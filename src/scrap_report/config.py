@@ -42,7 +42,7 @@ VALIDATED_FILTER_CAPABILITIES = {
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
     "consulta_ssa": frozenset(
-        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
+        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
     "consulta_ssa_print": frozenset(
         {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}

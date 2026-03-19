@@ -193,6 +193,23 @@ def test_primary_filter_prefers_numero_ssa_when_active(tmp_path):
     assert SAMScraper(cfg)._iter_requested_filters()[0] == "numero_ssa"
 
 
+def test_consulta_ssa_keeps_numero_ssa_before_emission_date(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="ALL",
+        setor_executor="ALL",
+        numero_ssa="202602521",
+        report_kind="consulta_ssa",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        emission_date_start="23/02/2026",
+        emission_date_end="23/02/2026",
+    )
+
+    assert SAMScraper(cfg)._iter_requested_filters() == ("numero_ssa", "emission_date")
+
+
 def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
     cfg = ScrapeConfig(
         username="u",

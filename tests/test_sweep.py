@@ -245,11 +245,11 @@ def test_sweep_runner_continues_after_failure(tmp_path: Path):
 
 def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
     plan = SweepPlan(
-        report_kind="pendentes_execucao",
-        scope_mode="executor",
-        setores_executor=("MEL4",),
-        emission_date_start="2025-12-25",
-        emission_date_end="2025-12-25",
+        report_kind="consulta_ssa",
+        scope_mode="nenhum",
+        numero_ssa="202602521",
+        emission_date_start="2026-02-23",
+        emission_date_end="2026-02-23",
     )
     runtime = SweepRuntimeConfig(
         username="u1",
@@ -280,17 +280,16 @@ def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
 
     assert manifest.status == "ok"
     assert manifest.failure_count == 0
-    assert seen["emission_date_start"] == "25/12/2025"
-    assert seen["emission_date_end"] == "25/12/2025"
+    assert seen["emission_date_start"] == "23/02/2026"
+    assert seen["emission_date_end"] == "23/02/2026"
     assert seen["emission_year_week_start"] == ""
     assert seen["emission_year_week_end"] == ""
 
 
 def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Path):
     plan = SweepPlan(
-        report_kind="consulta_ssa",
-        scope_mode="executor",
-        setores_executor=("MEL4",),
+        report_kind="consulta_ssa_print",
+        scope_mode="nenhum",
         emission_date_start="2025-12-25",
         emission_date_end="2025-12-25",
     )
