@@ -45,14 +45,16 @@ VALIDATED_FILTER_CAPABILITIES = {
         {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
     "consulta_ssa_print": frozenset(
-        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
+        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
     "aprovacao_emissao": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
     "aprovacao_cancelamento": frozenset(
-        {"setor_emissor", "setor_executor", "emission_year_week"}
+        {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
     "derivadas_relacionadas": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
-    "reprogramacoes": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "reprogramacoes": frozenset(
+        {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
+    ),
 }
 EMISSION_DATE_SUPPORTED_REPORT_KINDS = tuple(
     kind

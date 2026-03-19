@@ -288,7 +288,7 @@ def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
 
 def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Path):
     plan = SweepPlan(
-        report_kind="consulta_ssa_print",
+        report_kind="aprovacao_emissao",
         scope_mode="nenhum",
         emission_date_start="2025-12-25",
         emission_date_end="2025-12-25",

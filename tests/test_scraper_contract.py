@@ -216,7 +216,7 @@ def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
         password="p",
         setor_emissor="OUO5",
         setor_executor="ALL",
-        report_kind="reprogramacoes",
+        report_kind="aprovacao_emissao",
         download_dir=tmp_path / "downloads",
         staging_dir=tmp_path / "staging",
         emission_date_start="25/12/2025",

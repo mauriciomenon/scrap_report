@@ -41,10 +41,14 @@ def test_validated_filter_capabilities_keep_consulta_numero_ssa():
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
-    assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
     assert "numero_ssa" not in VALIDATED_FILTER_CAPABILITIES["pendentes"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes"]
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes_execucao"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["aprovacao_cancelamento"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["reprogramacoes"]
+    assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["aprovacao_emissao"]
+    assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["derivadas_relacionadas"]
 
 
 def test_cli_config_uses_provider_secret():
