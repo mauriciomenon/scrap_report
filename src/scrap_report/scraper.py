@@ -384,14 +384,14 @@ class SAMScraper:
         requested: list[str] = []
         if self.config.numero_ssa:
             requested.append("numero_ssa")
-        if self._uses_emission_date_filter():
-            requested.append("emission_date")
-        else:
-            requested.append("emission_year_week")
         if self.config.setor_emissor:
             requested.append("setor_emissor")
         if self.config.setor_executor:
             requested.append("setor_executor")
+        if self._uses_emission_date_filter():
+            requested.append("emission_date")
+        else:
+            requested.append("emission_year_week")
         return tuple(requested)
 
     def _apply_filter(self, page: Page, filter_name: str) -> None:

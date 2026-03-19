@@ -245,7 +245,7 @@ def test_sweep_runner_continues_after_failure(tmp_path: Path):
 
 def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
     plan = SweepPlan(
-        report_kind="executadas",
+        report_kind="pendentes",
         scope_mode="executor",
         setores_executor=("MEL4",),
         emission_date_start="2025-12-25",
@@ -288,7 +288,7 @@ def test_sweep_runner_passes_emission_date_to_pipeline(tmp_path: Path):
 
 def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Path):
     plan = SweepPlan(
-        report_kind="pendentes",
+        report_kind="consulta_ssa",
         scope_mode="executor",
         setores_executor=("MEL4",),
         emission_date_start="2025-12-25",

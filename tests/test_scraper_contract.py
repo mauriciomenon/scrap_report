@@ -162,6 +162,22 @@ def test_primary_filter_prefers_emission_date_when_active(tmp_path):
     assert SAMScraper(cfg)._uses_emission_date_filter() is True
 
 
+def test_pending_orders_setor_before_emission_date(tmp_path):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="OUO5",
+        setor_executor="ALL",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        emission_date_start="25/12/2025",
+        emission_date_end="25/12/2025",
+    )
+
+    assert SAMScraper(cfg)._iter_requested_filters() == ("setor_emissor", "emission_date")
+
+
 def test_primary_filter_prefers_numero_ssa_when_active(tmp_path):
     cfg = ScrapeConfig(
         username="u",
@@ -183,7 +199,7 @@ def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
         password="p",
         setor_emissor="OUO5",
         setor_executor="ALL",
-        report_kind="pendentes",
+        report_kind="consulta_ssa",
         download_dir=tmp_path / "downloads",
         staging_dir=tmp_path / "staging",
         emission_date_start="25/12/2025",

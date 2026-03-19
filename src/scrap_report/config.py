@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -31,7 +32,9 @@ REPORT_KINDS = (
     "reprogramacoes",
 )
 VALIDATED_FILTER_CAPABILITIES = {
-    "pendentes": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "pendentes": frozenset(
+        {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
+    ),
     "executadas": frozenset(
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
@@ -97,13 +100,30 @@ def normalize_emission_date(value: str | None) -> str:
     normalized = value.strip()
     if not normalized:
         return ""
+    if re.fullmatch(r"\d{8}", normalized):
+        try:
+            parsed = datetime.strptime(normalized, "%d%m%Y")
+            return parsed.strftime("%d/%m/%Y")
+        except ValueError:
+            raise ValueError(
+                "data de emissao deve estar em DD/MM/YYYY, DDMMYYYY ou YYYY-MM-DD"
+            ) from None
     for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
         try:
             parsed = datetime.strptime(normalized, fmt)
             return parsed.strftime("%d/%m/%Y")
         except ValueError:
             continue
-    raise ValueError("data de emissao deve estar em DD/MM/YYYY ou YYYY-MM-DD")
+    if re.fullmatch(r"\d{2}/\d{2}/\d{4}", normalized):
+        try:
+            datetime.strptime(normalized, "%m/%d/%Y")
+        except ValueError:
+            pass
+        else:
+            raise ValueError(
+                "formato MM/DD/YYYY nao e suportado; use DD/MM/YYYY, DDMMYYYY ou YYYY-MM-DD"
+            )
+    raise ValueError("data de emissao deve estar em DD/MM/YYYY, DDMMYYYY ou YYYY-MM-DD")
 
 
 def normalize_text_filter(value: str | None) -> str:

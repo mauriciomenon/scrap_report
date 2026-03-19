@@ -41,6 +41,7 @@ def test_validated_filter_capabilities_keep_consulta_numero_ssa():
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa"]
     assert "numero_ssa" in VALIDATED_FILTER_CAPABILITIES["consulta_ssa_print"]
     assert "numero_ssa" not in VALIDATED_FILTER_CAPABILITIES["pendentes"]
+    assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["pendentes"]
 
 
 def test_cli_config_uses_provider_secret():
@@ -168,6 +169,12 @@ def test_cli_config_derives_emission_year_week_window():
 def test_normalize_emission_date_accepts_iso_and_br_formats():
     assert normalize_emission_date("25/12/2025") == "25/12/2025"
     assert normalize_emission_date("2025-12-25") == "25/12/2025"
+    assert normalize_emission_date("25122025") == "25/12/2025"
+
+
+def test_normalize_emission_date_rejects_mmddyyyy():
+    with pytest.raises(ValueError, match="MM/DD/YYYY nao e suportado"):
+        normalize_emission_date("12/31/2025")
 
 
 def test_cli_config_accepts_emission_date_window():
