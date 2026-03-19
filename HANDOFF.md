@@ -4,7 +4,7 @@
 - repo: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
 - remoto: `origin/master`
-- commit atual de referencia: `3a8da8e`
+- commit atual de referencia: `25f46e1`
 - status: runtime e launcher Windows atualizados e sincronizados com remoto
 
 ## Current truth
@@ -48,11 +48,33 @@ Hoje existem tres camadas claras:
 - `consulta_ssa`
 - `consulta_ssa_print`
 - `derivadas_relacionadas`
+- `aprovacao_cancelamento`
+- `reprogramacoes`
 
 ### Fluxo estavel com 0 linhas na rodada validada
-- `reprogramacoes`
 - `aprovacao_emissao`
+
+## Matriz atual de `data de emissao`
+Validado no runtime:
+- `executadas`
+- `pendentes`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
 - `aprovacao_cancelamento`
+- `reprogramacoes`
+
+Bloqueado no runtime:
+- `aprovacao_emissao`
+- `derivadas_relacionadas`
+
+Regra de formato:
+- aceitos no parser central:
+  - `DD/MM/YYYY`
+  - `DDMMYYYY`
+  - `YYYY-MM-DD`
+- rejeitado cedo:
+  - `MM/DD/YYYY`
 
 ## Filtros e setores
 Defaults operacionais atuais:
@@ -81,7 +103,6 @@ Ja entregue:
 - integracao de `-Preset` ao launcher Windows
 
 Ainda nao entregue:
-- filtro real por data de emissao no runtime do sweep
 - agendamento
 - paralelismo
 - presets ligados a rotina de agenda
@@ -106,7 +127,9 @@ Ainda nao entregue:
 - `pytest` focado: verde nos slices recentes, incluindo `test_sweep.py`
 
 ## Riscos residuais reais
-- `data de emissao` ainda nao entra no runtime real do sweep
+- `data de emissao` no sweep ainda e parcial por `report_kind`
+- `aprovacao_emissao` segue bloqueado por semantica fraca do export
+- `derivadas_relacionadas` segue bloqueado por instabilidade de export
 - grupo `demais` ainda esta vazio
 - ainda faltam algumas telas adicionais do menu `Relatorios`
 - smoke Debian13 real segue dependente de conectividade externa estavel

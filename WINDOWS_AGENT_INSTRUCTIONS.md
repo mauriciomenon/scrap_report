@@ -125,11 +125,39 @@ Saidas no caso `both` com preset:
 - `consulta_ssa`
 - `consulta_ssa_print`
 - `derivadas_relacionadas`
+- `aprovacao_cancelamento`
+- `reprogramacoes`
 
 ### Estaveis com ausencia real de linhas na rodada validada
-- `reprogramacoes`
 - `aprovacao_emissao`
+
+## Matriz atual de `data de emissao`
+Suportado hoje no runtime:
+- `executadas`
+- `pendentes`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
 - `aprovacao_cancelamento`
+- `reprogramacoes`
+
+Bloqueado hoje no runtime:
+- `aprovacao_emissao`
+- `derivadas_relacionadas`
+
+Formato aceito pelo parser:
+- `DD/MM/YYYY`
+- `DDMMYYYY`
+- `YYYY-MM-DD`
+
+Formato rejeitado cedo:
+- `MM/DD/YYYY`
+
+Exemplos unitarios validos:
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "ALL" -SetorEmissor "ALL" -ReportKind reprogramacoes
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind consulta_ssa --scope-mode nenhum --numero-ssa 202602521 --emission-date-start 2026-02-23 --emission-date-end 2026-02-23 --ignore-https-errors --output-json staging/sweep_emission_date_consulta_ssa_20260223.json
+```
 
 ## Janela temporal atual
 - padrao operacional: semana atual ate 4 semanas para tras

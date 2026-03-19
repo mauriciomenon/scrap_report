@@ -1,7 +1,14 @@
 # RECOVERY_BACKLOG
 
 ## NAO_BLOQUEANTE_DEFERIDO
-- ligar filtro real por `data de emissao` ao runtime do `sweep-run`
+- completar `data de emissao` nos `report_kind` ainda bloqueados:
+  - `aprovacao_emissao`
+  - `derivadas_relacionadas`
+- ampliar prova oficial de formatos nas telas ja liberadas:
+  - `executadas`
+  - `consulta_ssa_print`
+  - `aprovacao_cancelamento`
+  - `reprogramacoes`
 - adicionar presets operacionais de agenda, sem criar script novo
 - preencher o grupo `demais` em `SETOR_PRIORITY_GROUPS`
 - executar rodada real de sweep com preset em pelo menos um report kind verde e guardar evidencia consolidada

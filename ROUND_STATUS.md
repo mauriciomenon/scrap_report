@@ -1,10 +1,10 @@
 # ROUND_STATUS
 
 ## Sessao atual
-- data: `2026-03-17`
+- data: `2026-03-19`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- commit atual: `3a8da8e`
+- commit atual: `25f46e1`
 
 ## Snapshot executivo
 - repo publico existente: sim
@@ -57,11 +57,21 @@ Resultado:
 - `eb924f3`: `SweepRunner` e manifest consolidado
 - `571937e`: presets operacionais
 - `3a8da8e`: preset ligado ao launcher Windows
+- `bafbdf9`: gate seguro de `data de emissao`
+- `52ef379`: base geral de filtros e `numero_ssa`
+- `27fbba3`: `data de emissao` em `pendentes`
+- `904d865`: `data de emissao` em `pendentes_execucao`
+- `44d846d`: `data de emissao` em `consulta_ssa`
 
 Resultado:
 - lote e planejado por grupos de setores
 - falha por item nao mata o lote inteiro
 - o entrypoint Windows aceita `-Preset` sem script novo
+- `data de emissao` agora esta validada de forma parcial e controlada por `report_kind`
+
+### Fase 5 - expansao final de `data de emissao`
+- `44d846d`: `consulta_ssa`
+- `25f46e1`: `consulta_ssa_print`, `aprovacao_cancelamento` e `reprogramacoes`
 
 ## Report kinds atuais
 - `pendentes`
@@ -99,6 +109,26 @@ Resultado:
 - smoke com `uv` stub no alias legado: ok
 - smoke com `uv` stub para `both`: ok
 
+### `44d846d` - `consulta_ssa` com `data de emissao`
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest -q tests/test_config_secrets.py tests/test_scraper_contract.py tests/test_sweep.py`: `62 passed`
+- prova real oficial:
+  - `consulta_ssa` com `numero_ssa=202602521` e `2026-02-23`: `ok`
+  - `consulta_ssa` com `02/23/2026`: erro cedo por formato US
+
+### `25f46e1` - expansao final de `data de emissao`
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest -q tests/test_config_secrets.py tests/test_scraper_contract.py tests/test_sweep.py`: `62 passed`
+- prova real oficial:
+  - `consulta_ssa_print` com `numero_ssa=202602521` e `2026-02-23`: `ok`
+  - `aprovacao_cancelamento` com `2026-02-24`: `ok`
+  - `reprogramacoes` com `2026-02-23`: `ok`
+  - `aprovacao_emissao` com `2026-03-02`: continua bloqueado
+
 ## Comportamento validado hoje
 - `EXECUTAR_SCRAP_WINDOWS.ps1` suporta:
   - modo unitario
@@ -106,9 +136,19 @@ Resultado:
   - modo preset
 - `-Preset` nao combina com `-Setor` nem `-SetorEmissor`
 - `both` com preset gera um JSON por report kind alvo
+- `data de emissao` validada hoje para:
+  - `executadas`
+  - `pendentes`
+  - `pendentes_execucao`
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_cancelamento`
+  - `reprogramacoes`
 
 ## Risco residual
-- `data de emissao` ainda nao esta ligada ao runtime de sweep
+- `data de emissao` ainda nao fecha para todos os `report_kind`
+- `aprovacao_emissao` segue com semantica fraca no export
+- `derivadas_relacionadas` segue instavel no export
 - `demais_*` existe como preset, mas o grupo `demais` segue vazio
 - faltam telas adicionais do menu `Relatorios`
 - smoke Debian13 real continua dependente de conectividade externa estavel
@@ -116,6 +156,7 @@ Resultado:
 ## Pendente real
 1. rodada real de sweep com preset e report kind verde
 2. decisao sobre proxima prioridade:
+   - completar `data de emissao` nos `report_kind` ainda bloqueados
    - `data de emissao` no sweep
    - novas telas do menu `Relatorios`
 3. preenchimento do grupo `demais`
