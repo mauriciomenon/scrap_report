@@ -125,6 +125,17 @@ def test_normalize_ssa_record_merges_base_and_detail():
     assert record["detail_present"] is True
 
 
+def test_normalize_ssa_record_derives_year_week_from_issue_datetime():
+    record = normalize_ssa_record(
+        base_record={
+            "SSANumber": "202600001",
+            "IssueDateTime": "2026-01-01T06:00:00Z",
+        }
+    )
+
+    assert record["year_week"] == 202601
+
+
 def test_filter_normalized_ssa_records_supports_emitter_executor_and_limit():
     records = [
         {"ssa_number": "1", "emitter_sector": "IEE3", "executor_sector": "MEL4", "localization": "A", "year_week": 202609, "emission_datetime": "23/02/2026 10:52:02"},
@@ -363,6 +374,62 @@ def test_search_pending_ssas_applies_detail_only_filters(monkeypatch: pytest.Mon
 
     assert len(items) == 1
     assert items[0]["ssa_number"] == "202600002"
+
+
+def test_search_pending_ssas_prefilters_by_derived_year_week_before_detail(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    client = SAMApiClient()
+    seen = {}
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_pending_ssas_by_localization_range",
+        lambda self, **_kwargs: [
+            {
+                "SSANumber": "202600001",
+                "ExecutorSector": "MEL4",
+                "EmitterSector": "IEE3",
+                "Localization": "A001",
+                "IssueDateTime": "2026-01-01T06:00:00Z",
+            },
+            {
+                "SSANumber": "202602521",
+                "ExecutorSector": "MEL4",
+                "EmitterSector": "IEE3",
+                "Localization": "A002",
+                "IssueDateTime": "23/02/2026 10:49:00",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_ssas_by_numbers",
+        lambda self, ssa_numbers: (
+            seen.update({"ssa_numbers": tuple(ssa_numbers)})
+            or [
+                {
+                    "SSANumber": number,
+                    "ExecutorSector": "MEL4",
+                    "EmmiterSector": "IEE3",
+                    "LocalizationCode": "A002",
+                    "EmissionDateTime": "23/02/2026 10:52:02",
+                    "YearWeek": 202609,
+                }
+                for number in ssa_numbers
+            ]
+        ),
+    )
+
+    items = search_pending_ssas_by_localization_range(
+        client,
+        include_details=True,
+        year_week_start="202609",
+        year_week_end="202609",
+    )
+
+    assert len(items) == 1
+    assert items[0]["ssa_number"] == "202602521"
+    assert seen["ssa_numbers"] == ("202602521",)
 
 
 def test_search_pending_ssas_applies_limit_before_detail_when_only_include_details(

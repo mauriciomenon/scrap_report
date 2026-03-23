@@ -29,6 +29,7 @@ O projeto agora tem duas frentes operacionais distintas:
   - um setor
   - varios setores
   - geral sem detalhamento
+  - geral com detalhamento por `year_week`
 - no runtime REST do sweep, credencial nao e obrigatoria
 
 4. trilha TLS operacional
@@ -96,12 +97,13 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sweep_rest_one_ca_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_one_ca_v3.json)
   - [sweep_rest_multi_ca_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_multi_ca_v3.json)
   - [sweep_rest_all_ca_relative_v2.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_ca_relative_v2.json)
+  - [sweep_rest_all_yearweek_ca_v4.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_yearweek_ca_v4.json)
 
 ## Riscos residuais reais
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
 - o chunking removeu a falha seca e o dedupe removeu repeticao inutil, mas o custo do detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
-- o modo geral com detalhamento temporal amplo ainda nao esta verde como fluxo operacional
+- o modo geral com detalhamento amplo por `emission_date` ainda nao esta verde como fluxo operacional
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 

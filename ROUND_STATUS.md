@@ -71,7 +71,7 @@ Resultados:
 - `py_compile`: ok
 - `ruff`: ok
 - `ty`: ok
-- `pytest`: `109 passed`
+- `pytest`: `111 passed`
 
 ### Exportacao real da CA raiz REST
 Comando:
@@ -151,6 +151,24 @@ Resultado:
   - `record_count=6262`
   - `detail_count=0`
   - `without_detail_count=6262`
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `year_week`
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_yearweek_ca_v4.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_yearweek_ca_v4.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_yearweek_ca_v4.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=1193`
+  - `detail_count=1193`
+  - `without_detail_count=0`
+- observacao:
+  - o wrapper do terminal marcou timeout, mas o processo concluiu e gravou manifest e artefatos validos
 
 ### Exploracao de endpoint REST para outros `report_kind`
 Comandos tentados:
@@ -359,7 +377,7 @@ Resultado:
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
 - o chunking removeu a falha seca, o dedupe removeu repeticao inutil e o cache por execucao evita reconsulta da mesma SSA, mas o custo de detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
-- o modo geral com detalhamento temporal amplo ainda nao esta verde como fluxo operacional
+- o modo geral com detalhamento amplo por `emission_date` ainda nao esta verde como fluxo operacional
 
 ## Proximo passo natural
 1. decidir se vale:

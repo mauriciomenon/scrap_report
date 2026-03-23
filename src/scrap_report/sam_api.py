@@ -287,6 +287,14 @@ def _coerce_year_week(value: object) -> int | None:
     return int(digits)
 
 
+def _derive_year_week_from_datetime_text(value: object) -> int | None:
+    parsed = _parse_datetime_value(value)
+    if parsed is None:
+        return None
+    iso_year, iso_week, _ = parsed.isocalendar()
+    return (iso_year * 100) + iso_week
+
+
 def normalize_ssa_record(
     base_record: dict[str, Any] | None = None,
     detail_record: dict[str, Any] | None = None,
@@ -300,6 +308,11 @@ def normalize_ssa_record(
         detail.get("IssueDateTime") or base.get("IssueDateTime") or base.get("issue_datetime")
     )
     emission_datetime = _normalize_text(detail.get("EmissionDateTime"))
+    year_week = _coerce_year_week(detail.get("YearWeek") or base.get("year_week"))
+    if year_week is None:
+        year_week = _derive_year_week_from_datetime_text(
+            detail.get("IssueDateTime") or base.get("IssueDateTime") or base.get("issue_datetime")
+        )
     record = {
         "ssa_number": ssa_number,
         "localization": _normalize_text(
@@ -319,7 +332,7 @@ def normalize_ssa_record(
         "executor_sector": _normalize_text(
             detail.get("ExecutorSector") or base.get("ExecutorSector") or base.get("executor_sector")
         ),
-        "year_week": _coerce_year_week(detail.get("YearWeek") or base.get("year_week")),
+        "year_week": year_week,
         "situation_desc": _normalize_text(detail.get("SituationDesc") or base.get("situation_desc")),
         "process_status": _normalize_text(detail.get("ProcessStatus") or base.get("process_status")),
         "detail_present": bool(detail_record),
@@ -394,6 +407,30 @@ def filter_normalized_ssa_records(
         filtered.append(record)
         if limit is not None and len(filtered) >= limit:
             break
+    return filtered
+
+
+def _prefilter_base_records_by_year_week(
+    records: Sequence[dict[str, Any]],
+    year_week_start: str | None = None,
+    year_week_end: str | None = None,
+) -> list[dict[str, Any]]:
+    if not year_week_start and not year_week_end:
+        return list(records)
+    start_year_week = int(year_week_start) if year_week_start else None
+    end_year_week = int(year_week_end) if year_week_end else None
+    filtered: list[dict[str, Any]] = []
+    for record in records:
+        year_week_value = record.get("year_week")
+        if year_week_value is None:
+            filtered.append(record)
+            continue
+        numeric_year_week = int(year_week_value)
+        if start_year_week is not None and numeric_year_week < start_year_week:
+            continue
+        if end_year_week is not None and numeric_year_week > end_year_week:
+            continue
+        filtered.append(record)
     return filtered
 
 
@@ -539,6 +576,12 @@ def search_pending_ssas_by_localization_range(
         ssa_numbers=ssa_numbers,
         limit=None if detail_filter_requested else limit,
     )
+    if detail_filter_requested:
+        base_filtered = _prefilter_base_records_by_year_week(
+            base_filtered,
+            year_week_start=year_week_start,
+            year_week_end=year_week_end,
+        )
     if not needs_details:
         return base_filtered
 

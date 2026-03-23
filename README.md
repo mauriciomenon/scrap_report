@@ -28,6 +28,7 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
     - um setor
     - varios setores
     - geral sem detalhamento
+    - geral com detalhamento por `year_week`
   - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
 - caminho TLS operacional sem `--ignore-https-errors`:
   - `sam-api-cert` exporta a CA raiz apresentada pelo host REST
@@ -152,7 +153,7 @@ Os tres niveis hoje sao:
   - `username` e `password` nao sao obrigatorios
   - `--rest-ca-file` e o caminho recomendado para TLS estrito
 - limite ainda aberto:
-  - geral com detalhamento temporal continua caro e ainda nao esta verde como fluxo operacional
+  - geral com detalhamento amplo por `emission_date` continua caro e ainda nao esta verde como fluxo operacional
 - artefatos gerados nesse modo:
   - `csv`
   - `xlsx`
@@ -378,6 +379,10 @@ uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes 
 ### sweep-run REST geral sem detalhamento
 ```powershell
 uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_sem_detalhe.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_year_week.json
 ```
 
 ### sweep-run multi-setor em um pedido

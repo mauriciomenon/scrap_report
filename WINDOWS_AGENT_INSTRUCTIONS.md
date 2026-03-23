@@ -14,6 +14,7 @@
   - um setor
   - varios setores
   - geral sem detalhamento
+  - geral com detalhamento por `year_week`
 - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
 - existe um comando dedicado para exportar a CA raiz do host REST:
   - `sam-api-cert`
@@ -318,7 +319,7 @@ uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_r
 - o payload publica `ssa_numbers_deduped` quando a entrada repetida e reduzida
 - a saida JSON segue registrando `warnings`, `verify_tls` e `timeout_seconds`
 - o custo de detalhe continua linear por SSA unica, entao lote grande ainda exige criterio operacional
-- o gargalo que continua aberto hoje e o modo geral com detalhamento temporal amplo
+- o gargalo que continua aberto hoje e o modo geral com detalhamento amplo por `emission_date`
 
 ### Certificado REST
 - com verificacao TLS ligada, a falha real observada foi:
