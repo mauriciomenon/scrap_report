@@ -304,7 +304,10 @@ def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Pa
 
     assert manifest.status == "error"
     assert manifest.failure_count == 1
-    assert "nao suporta filtro por data de emissao validado" in (manifest.items[0].error or "")
+    assert (
+        "nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel"
+        in (manifest.items[0].error or "")
+    )
 
 
 def test_preset_names_include_priority_groups_and_scope_modes():

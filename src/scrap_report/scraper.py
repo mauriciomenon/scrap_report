@@ -477,8 +477,11 @@ class SAMScraper:
 
     def _resolve_emission_date_filter_selector(self, page: Page) -> str:
         if self.config.report_kind not in EMISSION_DATE_SUPPORTED_REPORT_KINDS:
+            suffix = ""
+            if self.config.report_kind == "aprovacao_emissao":
+                suffix = "; export atual nao entrega Emitida Em confiavel"
             raise RuntimeError(
-                f"report_kind={self.config.report_kind} nao suporta filtro por data de emissao validado"
+                f"report_kind={self.config.report_kind} nao suporta filtro por data de emissao validado{suffix}"
             )
         try:
             return self._resolve_selector(

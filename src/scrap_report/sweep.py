@@ -391,6 +391,11 @@ class SweepRunner:
         if (spec.emission_date_start or spec.emission_date_end) and (
             report_kind not in EMISSION_DATE_SUPPORTED_REPORT_KINDS
         ):
+            error = f"report_kind={report_kind} nao suporta filtro por data de emissao validado"
+            if report_kind == "aprovacao_emissao":
+                error += "; export atual nao entrega Emitida Em confiavel"
+            else:
+                error += " neste runtime"
             return SweepItemResult(
                 index=item.index,
                 scope_mode=spec.scope_mode,
@@ -402,10 +407,7 @@ class SweepRunner:
                 emission_date_start=spec.emission_date_start,
                 emission_date_end=spec.emission_date_end,
                 status="error",
-                error=(
-                    f"report_kind={report_kind} nao suporta filtro por data de emissao "
-                    "validado neste runtime"
-                ),
+                error=error,
             )
         config = ScrapeConfig(
             username=runtime.username,

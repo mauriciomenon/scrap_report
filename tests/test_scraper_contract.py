@@ -263,7 +263,10 @@ def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
         emission_date_end="25/12/2025",
     )
 
-    with pytest.raises(RuntimeError, match="nao suporta filtro por data de emissao validado"):
+    with pytest.raises(
+        RuntimeError,
+        match="nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel",
+    ):
         SAMScraper(cfg)._resolve_emission_date_filter_selector(page=None)  # type: ignore[arg-type]
 
 
