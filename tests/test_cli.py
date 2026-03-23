@@ -195,6 +195,87 @@ def test_scan_secrets_command_clean(tmp_path: Path):
     assert code == 0
 
 
+def test_sam_api_search_command_writes_output_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    seen = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls):
+            seen["base_url"] = base_url
+            seen["timeout_seconds"] = timeout_seconds
+            seen["verify_tls"] = verify_tls
+
+    def fake_search(**kwargs):
+        seen["search_kwargs"] = kwargs
+        return [{"SSANumber": "202600001", "ExecutorSector": "MEL4"}]
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr("scrap_report.cli.search_pending_ssas_by_localization_range", fake_search)
+
+    out_json = tmp_path / "out" / "sam_api_search.json"
+    code = main(
+        [
+            "sam-api",
+            "--start-localization-code",
+            "A000A000",
+            "--end-localization-code",
+            "Z999Z999",
+            "--number-of-years",
+            "7",
+            "--executor-sector",
+            "MEL4",
+            "--executor-sector",
+            "MEL3",
+            "--include-details",
+            "--ignore-https-errors",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 0
+    assert seen["base_url"].endswith("/SSA_API")
+    assert seen["timeout_seconds"] == 30.0
+    assert seen["verify_tls"] is False
+    assert seen["search_kwargs"]["executor_sectors"] == ("MEL4", "MEL3")
+    assert seen["search_kwargs"]["include_details"] is True
+    content = out_json.read_text(encoding="utf-8")
+    assert '"status": "ok"' in content
+    assert '"count": 1' in content
+
+
+def test_sam_api_detail_command_writes_output_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls):
+            self.base_url = base_url
+            self.timeout_seconds = timeout_seconds
+            self.verify_tls = verify_tls
+
+        def get_ssa_by_number(self, ssa_number):
+            return {"SSANumber": ssa_number, "SituationDesc": "AGUARDANDO PROGRAMACAO"}
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+
+    out_json = tmp_path / "out" / "sam_api_detail.json"
+    code = main(
+        [
+            "sam-api",
+            "--ssa-number",
+            "202602521",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 0
+    content = out_json.read_text(encoding="utf-8")
+    assert '"mode": "detail"' in content
+    assert '"SSANumber": "202602521"' in content
+
+
 def test_auth_flow_emits_security_notice_and_preserves_json_streams(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ):

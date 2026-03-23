@@ -34,6 +34,7 @@ from .redaction import assert_no_sensitive_fields
 from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
+from .sam_api import DEFAULT_SAM_API_BASE_URL, SAMApiClient, SAMApiError, search_pending_ssas_by_localization_range
 from .sweep import (
     SWEEP_PRESET_NAMES,
     SWEEP_SCOPE_MODES,
@@ -355,6 +356,53 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     scan.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
 
+    sam_api = sub.add_parser("sam-api", help="consulta a SAM_SMA_API sem Playwright")
+    sam_api.add_argument("--base-url", default=DEFAULT_SAM_API_BASE_URL)
+    sam_api.add_argument(
+        "--start-localization-code",
+        default="A000A000",
+        help="inicio da faixa de localizacao para consulta geral",
+    )
+    sam_api.add_argument(
+        "--end-localization-code",
+        default="Z999Z999",
+        help="fim da faixa de localizacao para consulta geral",
+    )
+    sam_api.add_argument(
+        "--number-of-years",
+        default=100000,
+        type=int,
+        help="janela de anos para consulta geral",
+    )
+    sam_api.add_argument(
+        "--executor-sector",
+        action="append",
+        default=[],
+        help="filtro opcional de executor; repetir para varios setores",
+    )
+    sam_api.add_argument(
+        "--include-details",
+        action="store_true",
+        help="enriquece cada SSA com GetSSABySSANumber",
+    )
+    sam_api.add_argument(
+        "--ssa-number",
+        default=None,
+        help="consulta detalhada direta por numero de SSA",
+    )
+    sam_api.add_argument(
+        "--timeout-seconds",
+        default=30.0,
+        type=float,
+        help="timeout HTTP para a API REST",
+    )
+    sam_api.add_argument(
+        "--ignore-https-errors",
+        action="store_true",
+        help="ignora validacao TLS para a API REST",
+    )
+    sam_api.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
+
     return parser
 
 
@@ -557,6 +605,47 @@ def main(argv: list[str] | None = None) -> int:
         }
         _emit_json(payload, args.output_json, "scan_result")
         return 0 if not findings else 1
+
+    if args.command == "sam-api":
+        client = SAMApiClient(
+            base_url=args.base_url,
+            timeout_seconds=args.timeout_seconds,
+            verify_tls=not args.ignore_https_errors,
+        )
+        try:
+            if args.ssa_number:
+                detail = client.get_ssa_by_number(args.ssa_number)
+                payload = {
+                    "status": "ok",
+                    "mode": "detail",
+                    "ssa_number": args.ssa_number,
+                    "item": detail,
+                }
+            else:
+                items = search_pending_ssas_by_localization_range(
+                    client=client,
+                    executor_sectors=tuple(args.executor_sector),
+                    start_localization_code=args.start_localization_code,
+                    end_localization_code=args.end_localization_code,
+                    number_of_years=args.number_of_years,
+                    include_details=args.include_details,
+                )
+                payload = {
+                    "status": "ok",
+                    "mode": "search",
+                    "count": len(items),
+                    "executor_sectors": args.executor_sector,
+                    "include_details": args.include_details,
+                    "start_localization_code": args.start_localization_code,
+                    "end_localization_code": args.end_localization_code,
+                    "number_of_years": args.number_of_years,
+                    "items": items,
+                }
+        except (ValueError, SAMApiError) as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+        _emit_unvalidated_json(payload, args.output_json)
+        return 0
 
     if args.command == "windows-flow":
         _print_secret_policy_notice(args.command, args.output_json)
