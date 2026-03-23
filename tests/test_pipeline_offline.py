@@ -146,7 +146,9 @@ def test_run_pipeline_from_local_download_pdf_skips_reports(tmp_path: Path):
     assert "report_ms" not in result.telemetry
 
 
-def test_run_pipeline_offline_derivadas_relacionadas_skips_reports(monkeypatch, tmp_path: Path):
+def test_run_pipeline_offline_derivadas_relacionadas_uses_custom_parser_reports(
+    monkeypatch, tmp_path: Path
+):
     download_dir = tmp_path / "downloads"
     stage_dir = tmp_path / "staging"
     download_dir.mkdir()

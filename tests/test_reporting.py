@@ -7,6 +7,7 @@ from scrap_report.reporting import (
     artifacts_to_dict,
     load_excel,
     load_derivadas_relacionadas_excel,
+    load_excel_for_report,
     export_data_excel,
     export_summary_statistics,
     generate_ssa_report_from_excel,
@@ -167,6 +168,15 @@ def test_generate_ssa_report_from_excel_derivadas_relacionadas(tmp_path: Path):
     assert len(data) == 2
     assert "ssa_referencia_numero" in data.columns
     assert "observacao" in data.columns
+
+
+def test_load_excel_for_report_uses_custom_parser_for_derivadas_relacionadas(tmp_path: Path):
+    excel = _derivadas_relacionadas_excel(tmp_path / "derivadas_custom_parser.xlsx")
+
+    df = load_excel_for_report(excel, "derivadas_relacionadas")
+
+    assert "ssa_referencia_numero" in df.columns
+    assert "observacao" in df.columns
 
 
 def test_load_excel_detects_real_header_and_filters_scope(tmp_path: Path):

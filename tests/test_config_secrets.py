@@ -4,6 +4,7 @@ from datetime import date
 
 from scrap_report.config import (
     CliConfigInput,
+    CUSTOM_REPORT_PARSER_KINDS,
     FILTER_RUNTIME_ALIASES,
     ScrapeConfig,
     VALIDATED_FILTER_CAPABILITIES,
@@ -12,6 +13,7 @@ from scrap_report.config import (
     normalize_emission_date,
     normalize_setor_filter,
     report_kind_runtime_filter_name,
+    report_kind_uses_custom_parser,
 )
 from scrap_report.secret_provider import MemorySecretProvider
 
@@ -57,6 +59,12 @@ def test_runtime_filter_aliases_make_aprovacao_emissao_exception_explicit():
     assert FILTER_RUNTIME_ALIASES["aprovacao_emissao"]["setor_executor"] == "divisao_emissora"
     assert report_kind_runtime_filter_name("aprovacao_emissao", "setor_executor") == "divisao_emissora"
     assert report_kind_runtime_filter_name("pendentes", "setor_executor") == "setor_executor"
+
+
+def test_custom_report_parser_kinds_make_derivadas_exception_explicit():
+    assert CUSTOM_REPORT_PARSER_KINDS == ("derivadas_relacionadas",)
+    assert report_kind_uses_custom_parser("derivadas_relacionadas") is True
+    assert report_kind_uses_custom_parser("pendentes") is False
 
 
 def test_cli_config_uses_provider_secret():

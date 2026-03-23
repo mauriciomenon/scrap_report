@@ -66,6 +66,7 @@ EMISSION_DATE_SUPPORTED_REPORT_KINDS = tuple(
 )
 NON_REPORT_GENERATION_KINDS = ("consulta_ssa_print",)
 NON_XLSX_DOWNLOAD_KINDS = ("consulta_ssa_print",)
+CUSTOM_REPORT_PARSER_KINDS = ("derivadas_relacionadas",)
 SECRET_SETUP_HINT = (
     "configure secret seguro com: "
     "uv run python -m scrap_report.cli secret setup "
@@ -155,6 +156,10 @@ def report_kind_download_suffixes(report_kind: str) -> tuple[str, ...]:
     if report_kind in NON_XLSX_DOWNLOAD_KINDS:
         return (".pdf",)
     return (".xlsx",)
+
+
+def report_kind_uses_custom_parser(report_kind: str) -> bool:
+    return report_kind in CUSTOM_REPORT_PARSER_KINDS
 
 
 @dataclass(slots=True)

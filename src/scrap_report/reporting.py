@@ -10,7 +10,7 @@ import unicodedata
 
 import pandas as pd
 
-from .config import normalize_setor_filter
+from .config import normalize_setor_filter, report_kind_uses_custom_parser
 DERIVADAS_RELACIONADAS_COLUMNS = (
     "ssa_referencia_numero",
     "ssa_referencia_localizacao",
@@ -239,7 +239,7 @@ def load_excel_for_report(
     setor_emissor: str | None = None,
     setor_executor: str | None = None,
 ) -> pd.DataFrame:
-    if report_kind == "derivadas_relacionadas":
+    if report_kind_uses_custom_parser(report_kind):
         return load_derivadas_relacionadas_excel(
             excel_path,
             setor_emissor=setor_emissor,
