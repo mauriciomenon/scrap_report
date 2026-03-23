@@ -30,7 +30,7 @@ O projeto agora tem duas frentes operacionais distintas:
   - varios setores
   - geral sem detalhamento
   - geral com detalhamento por `year_week`
-  - geral com detalhamento por `emission_date` em janelas de 1, 3, 7, 14, 21 e 28 dias
+  - geral com detalhamento por `emission_date` validado ate `42 dias`
 - no runtime REST do sweep, credencial nao e obrigatoria
 
 4. trilha TLS operacional
@@ -105,13 +105,18 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sweep_rest_all_emission_date_14d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_14d_v1.json)
   - [sweep_rest_all_emission_date_21d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_21d_v1.json)
   - [sweep_rest_all_emission_date_28d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_28d_v1.json)
+  - [sweep_rest_all_emission_date_35d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_35d_v1.json)
+  - [sweep_rest_all_emission_date_42d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_42d_v1.json)
+  - [sam_api_iee3_pendentes_demo.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo.json)
+  - [sam_api_iee3_detail_demo.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_detail_demo.json)
 
 ## Riscos residuais reais
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
 - o chunking removeu a falha seca e o dedupe removeu repeticao inutil, mas o custo do detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
-- `emission_date` geral agora esta verde para 1, 3, 7, 14, 21 e 28 dias
-- acima de 28 dias, o modo geral com detalhamento amplo por `emission_date` continua caro e ainda sem teto operacional provado
+- `emission_date` geral agora esta verde ate 42 dias
+- acima de 42 dias, o modo geral com detalhamento amplo por `emission_date` continua caro e ainda sem teto operacional provado
+- a camada REST ja demonstrou panorama e detalhe em lote usando a lista real de pendentes da `IEE3`
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 

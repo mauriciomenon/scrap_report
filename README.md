@@ -29,7 +29,7 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
     - varios setores
     - geral sem detalhamento
     - geral com detalhamento por `year_week`
-    - geral com detalhamento por `emission_date` em janelas de 1, 3, 7, 14, 21 e 28 dias
+    - geral com detalhamento por `emission_date` validado ate `42 dias`
   - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
 - caminho TLS operacional sem `--ignore-https-errors`:
   - `sam-api-cert` exporta a CA raiz apresentada pelo host REST
@@ -155,8 +155,8 @@ Os tres niveis hoje sao:
   - `--rest-ca-file` e o caminho recomendado para TLS estrito
 - limite ainda aberto:
   - geral com detalhamento amplo por `emission_date` continua caro
-  - janelas de 14, 21 e 28 dias tambem ficaram verdes com timeout de shell maior
-  - o gargalo remanescente agora e custo e latencia para janelas ainda maiores
+  - janelas ate `42 dias` ficaram verdes com timeout de shell maior
+  - o gargalo remanescente agora e custo e latencia para janelas acima de `42 dias`
 - artefatos gerados nesse modo:
   - `csv`
   - `xlsx`
@@ -398,6 +398,10 @@ uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes 
 
 ```powershell
 uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-22 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_28d.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-04-05 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_42d.json
 ```
 
 ### sweep-run multi-setor em um pedido

@@ -15,7 +15,7 @@
   - varios setores
   - geral sem detalhamento
   - geral com detalhamento por `year_week`
-  - geral com detalhamento por `emission_date` em janelas de 1, 3, 7, 14, 21 e 28 dias
+  - geral com detalhamento por `emission_date` validado ate `42 dias`
 - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
 - existe um comando dedicado para exportar a CA raiz do host REST:
   - `sam-api-cert`
@@ -321,7 +321,7 @@ uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_r
 - a saida JSON segue registrando `warnings`, `verify_tls` e `timeout_seconds`
 - o custo de detalhe continua linear por SSA unica, entao lote grande ainda exige criterio operacional
 - o gargalo que continua aberto hoje e o modo geral com detalhamento amplo por `emission_date`
-- janelas de 1, 3, 7, 14, 21 e 28 dias agora estao validadas no `sweep-run --runtime rest`
+- janelas ate `42 dias` agora estao validadas no `sweep-run --runtime rest`
 - acima disso, o risco remanescente passa a ser custo e latencia, nao falha funcional ja provada
 
 ### Certificado REST
