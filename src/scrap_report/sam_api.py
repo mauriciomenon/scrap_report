@@ -13,6 +13,7 @@ import urllib.request
 from .config import normalize_emission_date
 
 DEFAULT_SAM_API_BASE_URL = "https://apps.itaipu.gov.br/SAM_SMA_API/rest/SSA_API"
+MAX_SAM_API_DETAIL_BATCH_SIZE = 500
 SAM_API_EXPORT_COLUMNS = (
     "ssa_number",
     "localization",
@@ -30,6 +31,14 @@ SAM_API_EXPORT_COLUMNS = (
 
 class SAMApiError(RuntimeError):
     """Erro funcional ao consultar a SAM_SMA_API."""
+
+
+def _validate_detail_batch_size(count: int, context: str) -> None:
+    if count > MAX_SAM_API_DETAIL_BATCH_SIZE:
+        raise SAMApiError(
+            f"{context} excede limite operacional de detalhe em lote "
+            f"({count} > {MAX_SAM_API_DETAIL_BATCH_SIZE}); refine filtros ou reduza a lista"
+        )
 
 
 @dataclass(slots=True)
@@ -267,6 +276,7 @@ def fetch_ssa_details_by_numbers(
     emission_date_end: str | None = None,
     limit: int | None = None,
 ) -> list[dict[str, Any]]:
+    _validate_detail_batch_size(len(ssa_numbers), "consulta detalhada")
     raw_details = client.get_ssas_by_numbers(ssa_numbers)
     records = [normalize_ssa_record(detail_record=item) for item in raw_details]
     return filter_normalized_ssa_records(
@@ -397,6 +407,7 @@ def search_pending_ssas_by_localization_range(
     ssa_numbers_for_detail = [str(item.get("ssa_number") or "").strip() for item in base_filtered]
     if any(not value for value in ssa_numbers_for_detail):
         raise SAMApiError("item retornado sem ssa_number, impossivel enriquecer com detalhe")
+    _validate_detail_batch_size(len(ssa_numbers_for_detail), "enriquecimento por detalhe")
     detail_records = client.get_ssas_by_numbers(ssa_numbers_for_detail)
     detail_by_number = {
         str(item.get("SSANumber") or "").strip(): item for item in detail_records if item.get("SSANumber")

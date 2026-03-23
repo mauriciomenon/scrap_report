@@ -267,6 +267,9 @@ def test_sam_api_search_command_writes_output_json(
     content = out_json.read_text(encoding="utf-8")
     assert '"status": "ok"' in content
     assert '"count": 1' in content
+    assert '"verify_tls": false' in content
+    assert '"warnings": ["tls_verification_disabled"]' in content
+    assert '"filters"' in content
 
 
 def test_sam_api_detail_command_writes_output_json(
@@ -304,6 +307,7 @@ def test_sam_api_detail_command_writes_output_json(
     content = out_json.read_text(encoding="utf-8")
     assert '"mode": "detail"' in content
     assert '"ssa_number": "202602521"' in content
+    assert '"verify_tls": true' in content
 
 
 def test_sam_api_detail_command_accepts_file_and_exports(
@@ -360,6 +364,7 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     assert '"count": 2' in content
     assert '"csv": ' in content
     assert '"xlsx": ' in content
+    assert '"filters"' in content
 
 
 def test_sam_api_flow_panorama_writes_summary(
@@ -398,6 +403,7 @@ def test_sam_api_flow_panorama_writes_summary(
     assert '"profile": "panorama"' in content
     assert '"summary"' in content
     assert '"total": 1' in content
+    assert '"verify_tls": true' in content
 
 
 def test_sam_api_standalone_generates_manifest_and_exports(
@@ -440,6 +446,29 @@ def test_sam_api_standalone_generates_manifest_and_exports(
     assert '"output_dir": ' in content
     assert '"summary_xlsx": ' in content
     assert '"manifest_json": ' in content
+    assert '"verify_tls": true' in content
+    assert '"filters"' in content
+
+
+def test_sam_api_standalone_rejects_invalid_limit(tmp_path: Path):
+    manifest = tmp_path / "standalone_manifest.json"
+
+    code = main(
+        [
+            "sam-api-standalone",
+            "--profile",
+            "detail-lote",
+            "--ssa-number",
+            "202602521",
+            "--limit",
+            "0",
+            "--output-json",
+            str(manifest),
+        ]
+    )
+
+    assert code == 1
+    assert not manifest.exists()
 
 
 def test_auth_flow_emits_security_notice_and_preserves_json_streams(

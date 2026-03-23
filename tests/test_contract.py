@@ -30,6 +30,10 @@ def test_contract_constants_present():
     assert "contract_info" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_result" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_flow_result" in SCHEMA_REQUIRED_FIELDS
+    assert "filters" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "warnings" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "verify_tls" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "timeout_seconds" in SCHEMA_REQUIRED_FIELDS["sam_api_flow_result"]
 
 
 def test_utc_now_iso_format():

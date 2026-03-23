@@ -589,6 +589,38 @@ def _validate_sam_api_limit(limit: int | None) -> None:
         raise ValueError("limit deve ser maior que zero")
 
 
+def _build_sam_api_filters(args: Any, mode: str) -> dict[str, Any]:
+    normalized_emission_start, normalized_emission_end = _normalize_optional_emission_date_window(
+        args.emission_date_start,
+        args.emission_date_end,
+    )
+    filters: dict[str, Any] = {
+        "executor_sectors": list(args.executor_sector),
+        "emitter_sectors": list(args.emitter_sector),
+        "localization_contains": args.localization_contains,
+        "year_week_start": args.year_week_start,
+        "year_week_end": args.year_week_end,
+        "emission_date_start": normalized_emission_start,
+        "emission_date_end": normalized_emission_end,
+        "limit": args.limit,
+    }
+    if mode == "detail":
+        filters["ssa_numbers"] = _resolve_sam_api_ssa_numbers(args)
+    else:
+        filters["start_localization_code"] = args.start_localization_code
+        filters["end_localization_code"] = args.end_localization_code
+        filters["number_of_years"] = args.number_of_years
+        filters["include_details"] = bool(getattr(args, "include_details", False))
+    return filters
+
+
+def _build_sam_api_warnings(args: Any) -> list[str]:
+    warnings: list[str] = []
+    if args.ignore_https_errors:
+        warnings.append("tls_verification_disabled")
+    return warnings
+
+
 def _run_sam_api_query(args: Any, client: SAMApiClient) -> tuple[str, list[dict[str, Any]]]:
     normalized_emission_start, normalized_emission_end = _normalize_optional_emission_date_window(
         args.emission_date_start,
@@ -628,6 +660,10 @@ def _build_sam_api_payload(mode: str, items: list[dict[str, Any]], args: Any) ->
         "count": len(items),
         "items": items,
         "exports": {},
+        "filters": _build_sam_api_filters(args, mode),
+        "warnings": _build_sam_api_warnings(args),
+        "verify_tls": not args.ignore_https_errors,
+        "timeout_seconds": args.timeout_seconds,
     }
     if mode == "detail":
         payload["ssa_numbers"] = _resolve_sam_api_ssa_numbers(args)
@@ -654,6 +690,8 @@ def _build_default_sam_api_manifest_path(output_dir: Path, profile: str) -> Path
 
 def _build_sam_api_flow_payload(
     profile: str,
+    mode: str,
+    args: Any,
     output_dir: Path,
     items: list[dict[str, Any]],
     exports: dict[str, str],
@@ -661,10 +699,15 @@ def _build_sam_api_flow_payload(
     return {
         "status": "ok",
         "profile": profile,
+        "mode": mode,
         "count": len(items),
         "output_dir": str(output_dir),
         "exports": exports,
         "summary": build_sam_api_summary(items),
+        "filters": _build_sam_api_filters(args, mode),
+        "warnings": _build_sam_api_warnings(args),
+        "verify_tls": not args.ignore_https_errors,
+        "timeout_seconds": args.timeout_seconds,
     }
 
 
@@ -888,6 +931,8 @@ def main(argv: list[str] | None = None) -> int:
             artifacts = export_sam_api_artifacts(items, output_dir, f"sam_api_{args.profile}")
             payload = _build_sam_api_flow_payload(
                 profile=args.profile,
+                mode=mode,
+                args=args,
                 output_dir=output_dir,
                 items=items,
                 exports=sam_api_artifacts_to_dict(artifacts),
@@ -897,7 +942,6 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         manifest_path = args.output_json or str(_build_default_sam_api_manifest_path(output_dir, args.profile))
         payload["exports"]["manifest_json"] = manifest_path
-        payload["mode"] = mode
         _emit_json(payload, manifest_path, "sam_api_flow_result")
         return 0
 

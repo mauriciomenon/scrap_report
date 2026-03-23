@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 from scrap_report.sam_api import (
+    MAX_SAM_API_DETAIL_BATCH_SIZE,
     SAMApiClient,
     SAMApiError,
     build_sam_api_summary,
@@ -154,6 +155,16 @@ def test_fetch_ssa_details_by_numbers_filters_and_limits(monkeypatch: pytest.Mon
     assert records[0]["ssa_number"] == "202600001"
 
 
+def test_fetch_ssa_details_by_numbers_rejects_large_batch():
+    client = SAMApiClient()
+
+    with pytest.raises(SAMApiError, match="limite operacional de detalhe em lote"):
+        fetch_ssa_details_by_numbers(
+            client,
+            ssa_numbers=tuple(str(index) for index in range(MAX_SAM_API_DETAIL_BATCH_SIZE + 1)),
+        )
+
+
 def test_query_sam_api_records_uses_detail_path(monkeypatch: pytest.MonkeyPatch):
     client = SAMApiClient()
     monkeypatch.setattr(
@@ -275,6 +286,21 @@ def test_search_pending_ssas_applies_detail_only_filters(monkeypatch: pytest.Mon
 
     assert len(items) == 1
     assert items[0]["ssa_number"] == "202600002"
+
+
+def test_search_pending_ssas_rejects_large_enrichment_batch(monkeypatch: pytest.MonkeyPatch):
+    client = SAMApiClient()
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_pending_ssas_by_localization_range",
+        lambda self, **_kwargs: [
+            {"SSANumber": str(index), "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A001"}
+            for index in range(MAX_SAM_API_DETAIL_BATCH_SIZE + 1)
+        ],
+    )
+
+    with pytest.raises(SAMApiError, match="limite operacional de detalhe em lote"):
+        search_pending_ssas_by_localization_range(client, include_details=True)
 
 
 def test_get_pending_ssas_by_localization_range_rejects_non_list(monkeypatch: pytest.MonkeyPatch):

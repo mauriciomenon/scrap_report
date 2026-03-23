@@ -52,6 +52,10 @@ SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
         "count",
         "items",
         "exports",
+        "filters",
+        "warnings",
+        "verify_tls",
+        "timeout_seconds",
     },
     "sam_api_flow_result": {
         "status",
@@ -60,6 +64,11 @@ SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
         "output_dir",
         "exports",
         "summary",
+        "mode",
+        "filters",
+        "warnings",
+        "verify_tls",
+        "timeout_seconds",
     },
 }
 
