@@ -14,6 +14,9 @@
   - um setor
   - varios setores
   - geral sem detalhamento
+- no runtime REST do sweep, `username` e `password` nao sao obrigatorios
+- existe um comando dedicado para exportar a CA raiz do host REST:
+  - `sam-api-cert`
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -261,17 +264,17 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 
 ### sweep-run com runtime REST
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_pendentes.json
 ```
 
 ### sweep-run REST com varios setores
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_varios_setores.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_varios_setores.json
 ```
 
 ### sweep-run REST geral sem detalhamento
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode nenhum --runtime rest --ignore-https-errors --output-json staging/sweep_rest_geral_sem_detalhe.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_sem_detalhe.json
 ```
 
 ## Fluxos REST sem Playwright
@@ -284,17 +287,22 @@ Estes comandos sao independentes do launcher Windows principal:
 
 ### 1. Comando tecnico
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_search.json
+uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 20 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_search.json
 ```
 
 ### 2. Comando opinativo
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
+uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
 ```
 
 ### 3. Fluxo totalmente independente
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### 4. Exportar a CA raiz do host REST
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_cert_v2.json
 ```
 
 ### O que sai no fluxo independente
@@ -316,13 +324,16 @@ uv run --project . python -m scrap_report.cli sam-api-standalone --profile detai
 - com verificacao TLS ligada, a falha real observada foi:
   - `CERTIFICATE_VERIFY_FAILED`
   - `self-signed certificate in certificate chain`
-- o comando agora aceita `--ca-file`, mas essa trilha ainda depende de uma cadeia confiavel real
-- no ambiente atual, a REST API ainda exige `--ignore-https-errors` para uso estavel
+- o caminho recomendado agora e:
+  1. exportar a CA raiz com `sam-api-cert`
+  2. usar o PEM resultante em `--ca-file` ou `--rest-ca-file`
+- isso ja foi validado em chamadas reais
+- `--ignore-https-errors` continua existindo como fallback
 - a mensagem operacional agora indica:
   - `forneca --ca-file ou use --ignore-https-errors quando permitido`
-- isso fica explicito no payload via:
-  - `warnings=["tls_verification_disabled"]`
-  - `verify_tls=false`
+- com `--ca-file` ou `--rest-ca-file`, o payload passa a indicar:
+  - `warnings=["custom_ca_file_configured"]`
+  - `verify_tls=true`
 
 ## Observacoes operacionais
 - o alias `scripts/main_windows.ps1` existe apenas para compatibilidade

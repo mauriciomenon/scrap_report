@@ -1,7 +1,7 @@
 # RECOVERY_BACKLOG
 
 ## NAO_BLOQUEANTE_DEFERIDO
-- avaliar configuracao de certificado confiavel para a REST API e reduzir dependencia de `--ignore-https-errors`
+- operacionalizar rotacao e distribuicao do PEM exportado por `sam-api-cert`
 - avaliar reducao de custo linear no detalhe em lote REST para SSAs unicas em volume alto
 - avaliar paralelismo ou cache controlado na REST sem quebrar rastreabilidade nem ordem
 - ampliar o `sweep-run --runtime rest` para outros `report_kind` alem de `pendentes`

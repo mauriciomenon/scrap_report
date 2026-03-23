@@ -4,8 +4,8 @@
 - data: `2026-03-23`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- baseline runtime no inicio desta rodada: `ebf83b3`
-- runtime REST otimizado nesta rodada: `a3bddb9`
+- baseline runtime no inicio desta rodada: `c2cc0e3`
+- runtime REST em edicao nesta rodada: concluido
 - doc sync pendente nesta rodada: nao
 
 ## Snapshot executivo
@@ -13,7 +13,7 @@
 - branch operacional: `master`
 - runtime Playwright principal: estavel no baseline anterior
 - camada REST sem Playwright: entregue em tres niveis
-- release mais recente conhecida antes desta rodada: `v0.1.4`
+- release mais recente conhecida antes desta rodada: `v0.1.5`
 
 ## Current truth do runtime
 ### Fluxo Playwright
@@ -39,6 +39,10 @@
   - comando opinativo `sam-api-flow`
 - nivel 3:
   - fluxo totalmente independente `sam-api-standalone`
+- trilha TLS operacional:
+  - `sam-api-cert`
+  - `--ca-file`
+  - `--rest-ca-file`
 - filtros REST atuais:
   - executor
   - emissor
@@ -51,9 +55,10 @@
   - `csv`
   - `xlsx`
   - resumo `xlsx`
+- o `sweep-run --runtime rest` para `pendentes` nao exige credencial
 
 ## Evidencia operacional rodada 2026-03-23
-### Quality gates do slice REST otimizado
+### Quality gates do slice REST atual
 Comandos:
 ```powershell
 uv run python -m py_compile src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\sweep.py tests\test_sam_api.py tests\test_cli.py tests\test_sweep.py
@@ -66,7 +71,100 @@ Resultados:
 - `py_compile`: ok
 - `ruff`: ok
 - `ty`: ok
-- `pytest`: `104 passed`
+- `pytest`: `109 passed`
+
+### Exportacao real da CA raiz REST
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-cert --output tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_cert_v2.json
+```
+
+Resultado:
+- manifest: [tmp\sam_api_cert_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_cert_v2.json)
+- `status=ok`
+- `subject=CN=Itaipu Binacional Root CA 3`
+- `issuer=CN=Itaipu Binacional Root CA 3`
+- `certificate_count=2`
+
+### TLS estrito validado com `--ca-file`
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_ca_detail_relative_v2.json
+```
+
+Resultado:
+- manifest: [tmp\sam_api_ca_detail_relative_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_ca_detail_relative_v2.json)
+- `status=ok`
+- `verify_tls=true`
+- `warnings=["custom_ca_file_configured"]`
+- `count=1`
+
+### Fluxo independente detalhado com `--ca-file`
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ssa-number 202600001 --ca-file C:/Users/mauri/git/scrap_report/tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_detail_ca_v3 --output-json tmp/sam_api_detail_ca_v3.json
+```
+
+Resultado:
+- manifest: [tmp\sam_api_detail_ca_v3.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_detail_ca_v3.json)
+- `status=ok`
+- `verify_tls=true`
+- `count=2`
+
+### `sweep-run` REST sem credencial, um setor
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file C:/Users/mauri/git/scrap_report/tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_one_ca_v3.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_one_ca_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_one_ca_v3.json)
+- `status=ok`
+- `runtime_mode=rest`
+- `item_count=1`
+- `success_count=1`
+
+### `sweep-run` REST sem credencial, varios setores
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file C:/Users/mauri/git/scrap_report/tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_multi_ca_v3.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_multi_ca_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_multi_ca_v3.json)
+- `status=ok`
+- `item_count=2`
+- `success_count=2`
+
+### `sweep-run` REST sem credencial, geral sem detalhamento
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_ca_relative_v2.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_ca_relative_v2.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_ca_relative_v2.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=6262`
+  - `detail_count=0`
+  - `without_detail_count=6262`
+
+### Exploracao de endpoint REST para outros `report_kind`
+Comandos tentados:
+- `GetExecutedSSAsByLocalizationRange`
+- `GetExecutedSSAs`
+- `GetPendingExecutionSSAsByLocalizationRange`
+- `GetSSAsPendingExecutionByLocalizationRange`
+
+Resultado:
+- todos retornaram `HTTP 404`
+- conclusao operacional:
+  - a API REST atualmente comprovada continua sendo:
+    - consulta geral de pendentes
+    - detalhe por numero de SSA
 
 ### Nivel 1, API interna
 Comando:
@@ -258,8 +356,8 @@ Resultado:
 | REST nivel 3 | verde | `sam-api-standalone` com manifest proprio |
 
 ## Risco residual
-- a REST API ainda depende de `--ignore-https-errors` no ambiente atual
-- o chunking removeu a falha seca e o dedupe removeu repeticao inutil, mas o custo de detalhe continua linear por SSA unica em lotes grandes
+- a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
+- o chunking removeu a falha seca, o dedupe removeu repeticao inutil e o cache por execucao evita reconsulta da mesma SSA, mas o custo de detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
 - o modo geral com detalhamento temporal amplo ainda nao esta verde como fluxo operacional
 

@@ -28,6 +28,10 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
     - um setor
     - varios setores
     - geral sem detalhamento
+  - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
+- caminho TLS operacional sem `--ignore-https-errors`:
+  - `sam-api-cert` exporta a CA raiz apresentada pelo host REST
+  - `--ca-file` validado em chamadas reais
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -126,8 +130,12 @@ Os tres niveis hoje sao:
 - com `verify_tls=true`, a API hoje falha com:
   - `CERTIFICATE_VERIFY_FAILED`
   - `self-signed certificate in certificate chain`
-- o repo agora suporta `--ca-file` para cadeia customizada, mas essa trilha ainda nao foi validada com um certificado confiavel real
-- no ambiente atual, `--ignore-https-errors` continua sendo o caminho operacional estavel
+- o repo agora suporta `--ca-file` para cadeia customizada
+- a trilha operacional validada neste ciclo foi:
+  1. exportar a CA raiz do host com `sam-api-cert`
+  2. reutilizar o PEM exportado em `--ca-file`
+- no ambiente atual, `--ignore-https-errors` deixou de ser a unica opcao operacional
+- ele permanece como fallback, nao como caminho obrigatorio
 - isso aparece explicitamente em `warnings` e em `verify_tls=false` no payload/manifests
 - a mensagem de erro agora aponta a saida operacional correta:
   - `forneca --ca-file ou use --ignore-https-errors quando permitido`
@@ -140,6 +148,9 @@ Os tres niveis hoje sao:
   - um setor com detalhamento
   - varios setores com detalhamento
   - geral sem detalhamento
+- no runtime REST do sweep:
+  - `username` e `password` nao sao obrigatorios
+  - `--rest-ca-file` e o caminho recomendado para TLS estrito
 - limite ainda aberto:
   - geral com detalhamento temporal continua caro e ainda nao esta verde como fluxo operacional
 - artefatos gerados nesse modo:
@@ -356,17 +367,17 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 
 ### sweep-run com runtime REST
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_pendentes.json
 ```
 
 ### sweep-run REST com varios setores
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_varios_setores.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_varios_setores.json
 ```
 
 ### sweep-run REST geral sem detalhamento
 ```powershell
-uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode nenhum --runtime rest --ignore-https-errors --output-json staging/sweep_rest_geral_sem_detalhe.json
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_sem_detalhe.json
 ```
 
 ### sweep-run multi-setor em um pedido
@@ -386,22 +397,27 @@ uv run --project . python -m scrap_report.cli pipeline --report-only --source-ex
 
 ### sam-api tecnico
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 3 --ignore-https-errors --output-json tmp/sam_api_search.json
+uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 3 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_search.json
 ```
 
 ### sam-api-flow opinativo
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
+uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
 ```
 
 ### sam-api-standalone independente
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### sam-api-cert para gerar o PEM da CA raiz
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_cert_v2.json
 ```
 
 ### sam-api-standalone com dedupe automatico
 ```powershell
-uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone_dedupe --output-json tmp/sam_api_standalone_dedupe.json
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_standalone_dedupe --output-json tmp/sam_api_standalone_dedupe.json
 ```
 
 ### Resultado esperado no fluxo independente
