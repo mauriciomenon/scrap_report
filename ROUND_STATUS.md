@@ -5,7 +5,7 @@
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
 - baseline runtime no inicio da sessao: `81fb0c6`
-- runtime REST endurecido neste ciclo: `f1c846a`
+- runtime REST integrado ao sweep neste ciclo: `e9460c9`
 - doc sync pendente neste ciclo: nao
 
 ## Snapshot executivo
@@ -56,17 +56,17 @@
 ### Quality gates do slice REST final
 Comandos:
 ```powershell
-uv run python -m py_compile src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\reporting.py src\scrap_report\contract.py tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
-uv run ruff check src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\reporting.py src\scrap_report\contract.py tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
+uv run python -m py_compile src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\sweep.py tests\test_sam_api.py tests\test_cli.py tests\test_sweep.py
+uv run ruff check src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\sweep.py tests\test_sam_api.py tests\test_cli.py tests\test_sweep.py
 uv run ty check src
-uv run pytest -q tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
+uv run pytest -q tests\test_sam_api.py tests\test_cli.py tests\test_sweep.py tests\test_reporting.py tests\test_contract.py
 ```
 
 Resultados:
 - `py_compile`: ok
 - `ruff`: ok
 - `ty`: ok
-- `pytest`: `74 passed`
+- `pytest`: `96 passed`
 
 ### Nivel 1, API interna
 Comando:
@@ -126,7 +126,11 @@ Resultado:
   - [sam_api_detail-lote_resumo_20260323_123504_358529.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_real_v2\sam_api_detail-lote_resumo_20260323_123504_358529.xlsx)
 
 ### Mitigacoes novas nesta rodada
-- detalhe em lote agora tem limite operacional explicito
+- detalhe em lote agora usa chunking controlado acima do limite por bloco
+- o payload publica `detail_batch_chunked` quando a consulta passa desse limite
+- o `sweep-run` agora aceita `--runtime rest` para `report_kind=pendentes`
+- o runtime REST do sweep escreve artefatos em `staging/rest_sweep/...`
+- o diagnostico de TLS ficou classificado por erro real de cadeia self-signed
 - o payload REST agora inclui:
   - `filters`
   - `warnings`
@@ -134,11 +138,56 @@ Resultado:
   - `timeout_seconds`
 - o schema JSON da REST foi endurecido para exigir esse contexto minimo
 
+### Diagnostico TLS real
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api --ssa-number 202602521 --output-json tmp/sam_api_tls_diag.json
+```
+
+Resultado:
+- falha real com `verify_tls=true`
+- erro:
+  - `CERTIFICATE_VERIFY_FAILED`
+  - `self-signed certificate in certificate chain`
+
+### Chunking real em lote REST
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number-file tmp/sam_api_chunk_input.txt --ignore-https-errors --output-dir tmp/sam_api_chunking_real --output-json tmp/sam_api_chunking_manifest.json
+```
+
+Resultado:
+- manifest: [tmp\sam_api_chunking_manifest.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_manifest.json)
+- `status=ok`
+- `warnings=["tls_verification_disabled", "detail_batch_chunked"]`
+- artefatos:
+  - [sam_api_detail-lote_dados_20260323_125657_039283.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_real\sam_api_detail-lote_dados_20260323_125657_039283.csv)
+  - [sam_api_detail-lote_dados_20260323_125657_039283.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_real\sam_api_detail-lote_dados_20260323_125657_039283.xlsx)
+  - [sam_api_detail-lote_resumo_20260323_125657_039283.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_real\sam_api_detail-lote_resumo_20260323_125657_039283.xlsx)
+
+### `sweep-run` com runtime REST
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --username menon --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json tmp/sweep_rest_pendentes.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_pendentes.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_pendentes.json)
+- `status=ok`
+- `runtime_mode=rest`
+- `item_count=1`
+- `success_count=1`
+- artefatos:
+  - [pendentes_001_dados_20260323_125722_571938.csv](C:\Users\mauri\git\scrap_report\staging\rest_sweep\pendentes\item_001\pendentes_001_dados_20260323_125722_571938.csv)
+  - [pendentes_001_dados_20260323_125722_571938.xlsx](C:\Users\mauri\git\scrap_report\staging\rest_sweep\pendentes\item_001\pendentes_001_dados_20260323_125722_571938.xlsx)
+  - [pendentes_001_resumo_20260323_125722_571938.xlsx](C:\Users\mauri\git\scrap_report\staging\rest_sweep\pendentes\item_001\pendentes_001_resumo_20260323_125722_571938.xlsx)
+
 ## Commits relevantes da frente REST
 - `6129535` `STABILITY_PATCH: adicionar cliente sam api`
 - `5511d49` `STABILITY_PATCH: ampliar integracao sam api`
 - `81fb0c6` `STABILITY_PATCH: fechar niveis rest api`
 - `f1c846a` `STABILITY_PATCH: endurecer operacao rest`
+- `e9460c9` `STABILITY_PATCH: integrar rest ao sweep`
 
 ## Estado por camada
 | camada | status | observacao |
@@ -151,11 +200,11 @@ Resultado:
 
 ## Risco residual
 - a REST API ainda depende de `--ignore-https-errors` no ambiente atual
-- detalhe em lote acima do limite operacional agora falha cedo; ainda nao existe chunking controlado
-- a documentacao e o handoff precisam refletir integralmente a trilha REST deste ciclo
+- o chunking removeu o fail-fast, mas o custo de detalhe continua linear por SSA em lotes grandes
+- o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
 
 ## Proximo passo natural
 1. decidir se vale:
    - resolver confianca de certificado para a REST
-   - adicionar chunking controlado para lotes muito grandes
+   - reduzir custo linear do detalhe em lote
 2. ou voltar para as pendencias do fluxo Playwright

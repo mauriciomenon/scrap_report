@@ -7,6 +7,7 @@
 - baseline Playwright antes da trilha REST: `b893356`
 - baseline REST em tres niveis: `81fb0c6`
 - endurecimento operacional REST: `f1c846a`
+- integracao REST no `sweep-run`: `e9460c9`
 
 ## Current truth
 O projeto agora tem duas frentes operacionais distintas:
@@ -19,6 +20,10 @@ O projeto agora tem duas frentes operacionais distintas:
 - API interna reutilizavel
 - `sam-api-flow`
 - `sam-api-standalone`
+
+3. fluxo de produto com REST optativo
+- `sweep-run --runtime rest`
+- suportado neste ciclo para `report_kind=pendentes`
 
 ## REST, resumo curto
 ### Nivel 1
@@ -38,8 +43,9 @@ O projeto agora tem duas frentes operacionais distintas:
 - sem staging do pipeline antigo
 
 ## Mitigacoes novas ja aplicadas
-- limite operacional explicito para detalhe em lote
-- falha cedo quando a consulta tenta detalhar acima do limite
+- chunking controlado no detalhe em lote
+- `detail_batch_chunked` exposto no payload quando aplicavel
+- integracao optativa da REST no `sweep-run`
 - payload e manifest REST agora incluem:
   - `filters`
   - `warnings`
@@ -62,15 +68,21 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sam_api_flow_real_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_flow_real_v2.json)
 - fluxo independente:
   - [sam_api_standalone_manifest_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_manifest_v2.json)
+- chunking real:
+  - [sam_api_chunking_manifest.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_manifest.json)
+- `sweep-run` REST:
+  - [sweep_rest_pendentes.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_pendentes.json)
 
 ## Riscos residuais reais
 - a REST API ainda depende de `--ignore-https-errors` no ambiente atual
-- ainda nao existe chunking controlado para detalhamento acima do limite operacional
+- o chunking removeu a falha seca, mas o custo do detalhe continua linear por SSA em lotes grandes
+- o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 
 ## Proximos passos naturais
 1. decidir se o proximo alvo tecnico sera:
    - confianca TLS para a REST
-   - chunking controlado para lote grande
+   - reducao de custo do detalhe em lote REST
+   - ampliacao do `sweep-run` REST para outros `report_kind`
    - ou voltar para as pendencias do fluxo Playwright

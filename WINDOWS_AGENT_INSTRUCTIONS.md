@@ -9,6 +9,7 @@
 - branch alvo: `master`
 - para recorte multi-setor do mesmo relatorio, o modo recomendado e um pedido unico com expansao automatica por setor
 - existe uma camada REST sem Playwright para consultas diretas a `SAM_SMA_API`
+- o `sweep-run` agora aceita `--runtime rest` para `pendentes`
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -254,12 +255,18 @@ uv run --project . python -m scrap_report.cli windows-flow --username "menon" --
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --preset principal_executor --output-json staging/sweep_principal_executor.json
 ```
 
+### sweep-run com runtime REST
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
+```
+
 ## Fluxos REST sem Playwright
 Estes comandos sao independentes do launcher Windows principal:
 - nao usam navegador
 - nao fazem login
 - nao usam `windows-flow`
-- nao usam `sweep-run`
+- `sam-api` e `sam-api-flow` nao usam `sweep-run`
+- `sweep-run --runtime rest` ja usa a mesma camada REST em um caso operacional concreto
 
 ### 1. Comando tecnico
 ```powershell
@@ -283,11 +290,16 @@ uv run --project . python -m scrap_report.cli sam-api-standalone --profile detai
 - `xlsx` de resumo
 
 ### Limites operacionais REST
-- detalhe em lote tem limite operacional explicito
-- se a consulta exceder esse limite, o comando falha cedo
-- a saida JSON registra `warnings`, `verify_tls` e `timeout_seconds`
+- detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
+- o payload publica `detail_batch_chunked` quando esse caminho for usado
+- a saida JSON segue registrando `warnings`, `verify_tls` e `timeout_seconds`
+- o custo de detalhe continua linear por SSA, entao lote grande ainda exige criterio operacional
 
 ### Certificado REST
+- com verificacao TLS ligada, a falha real observada foi:
+  - `CERTIFICATE_VERIFY_FAILED`
+  - `self-signed certificate in certificate chain`
+- o comando agora aceita `--ca-file`, mas essa trilha ainda depende de uma cadeia confiavel real
 - no ambiente atual, a REST API ainda exige `--ignore-https-errors` para uso estavel
 - isso fica explicito no payload via:
   - `warnings=["tls_verification_disabled"]`

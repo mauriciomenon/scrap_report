@@ -21,6 +21,9 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
   - API interna reutilizavel
   - comando opinativo `sam-api-flow`
   - fluxo totalmente independente `sam-api-standalone`
+- integracao concreta no fluxo do produto:
+  - `sweep-run --runtime rest`
+  - suportado neste ciclo apenas para `report_kind=pendentes`
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -107,15 +110,30 @@ Os tres niveis hoje sao:
 - resumo `xlsx` no modo independente
 
 ### Regra operacional de lote REST
-- detalhamento em lote agora tem limite operacional explicito
-- o objetivo e bloquear consultas caras por acidente
-- se o operador exceder o limite, o comando falha cedo com erro claro
-- a saida publica nao esconde esse bloqueio
+- detalhamento em lote agora usa chunking controlado acima de `500` SSAs por bloco
+- o payload continua expondo `detail_batch_chunked` quando a consulta passa desse limite
+- isso evita falha seca do comando, mas nao muda o custo linear do enriquecimento detalhado
+- consultas grandes seguem exigindo criterio operacional
 
 ### TLS e certificados na REST
-- no ambiente atual, a API interna ainda exige `--ignore-https-errors` para uso estavel
+- com `verify_tls=true`, a API hoje falha com:
+  - `CERTIFICATE_VERIFY_FAILED`
+  - `self-signed certificate in certificate chain`
+- o repo agora suporta `--ca-file` para cadeia customizada, mas essa trilha ainda nao foi validada com um certificado confiavel real
+- no ambiente atual, `--ignore-https-errors` continua sendo o caminho operacional estavel
 - isso aparece explicitamente em `warnings` e em `verify_tls=false` no payload/manifests
-- nao existe fallback silencioso
+
+### Integracao REST no `sweep-run`
+- o `sweep-run` agora aceita `--runtime rest`
+- escopo validado neste ciclo:
+  - `report_kind=pendentes`
+- artefatos gerados nesse modo:
+  - `csv`
+  - `xlsx`
+  - resumo `xlsx`
+- caminho base atual:
+  - `staging/rest_sweep/<report_kind>/item_<nnn>/`
+- o modo Playwright continua sendo o padrao para os demais `report_kind`
 
 ### Manifest REST
 Os payloads REST agora carregam contexto operacional minimo obrigatorio:
@@ -319,6 +337,11 @@ uv run --project . python -m scrap_report.cli windows-flow --username "menon" --
 ### sweep-run manual
 ```powershell
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode executor --setores-executor MEL4 MEL3 --year-week-start 202608 --year-week-end 202612 --output-json staging/sweep_manual.json
+```
+
+### sweep-run com runtime REST
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
 ```
 
 ### sweep-run multi-setor em um pedido
