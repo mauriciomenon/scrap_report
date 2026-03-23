@@ -4,16 +4,16 @@
 - data: `2026-03-23`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- baseline runtime no inicio desta rodada: `c2cc0e3`
+- baseline runtime no inicio desta rodada: `f5c41d7`
 - runtime REST em edicao nesta rodada: concluido
-- doc sync pendente nesta rodada: nao
+- doc sync pendente nesta rodada: sim
 
 ## Snapshot executivo
 - repo publico existente: sim
 - branch operacional: `master`
 - runtime Playwright principal: estavel no baseline anterior
 - camada REST sem Playwright: entregue em tres niveis
-- release mais recente conhecida antes desta rodada: `v0.1.5`
+- release mais recente conhecida antes desta rodada: `v0.1.7`
 
 ## Current truth do runtime
 ### Fluxo Playwright
@@ -71,7 +71,7 @@ Resultados:
 - `py_compile`: ok
 - `ruff`: ok
 - `ty`: ok
-- `pytest`: `111 passed`
+- `pytest`: `113 passed`
 
 ### Exportacao real da CA raiz REST
 Comando:
@@ -169,6 +169,80 @@ Resultado:
   - `without_detail_count=0`
 - observacao:
   - o wrapper do terminal marcou timeout, mas o processo concluiu e gravou manifest e artefatos validos
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 1 dia
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-02-23 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_day_v3.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_day_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_day_v3.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=41`
+  - `detail_count=41`
+  - `without_detail_count=0`
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 3 dias
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-02-25 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_range_v3.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_range_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_range_v3.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=109`
+  - `detail_count=109`
+  - `without_detail_count=0`
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 7 dias
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-01 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_week_v1.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_week_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_week_v1.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=240`
+  - `detail_count=240`
+  - `without_detail_count=0`
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 14 dias
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-08 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_14d_v1.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_14d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_14d_v1.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=494`
+  - `detail_count=494`
+  - `without_detail_count=0`
+- observacao:
+  - o wrapper do terminal marcou timeout, mas o processo concluiu e gravou manifest e artefatos validos
+
+### Correcao de bug no `emission_date` do sweep REST
+- o `sweep-run --runtime rest` falhava cedo ao inferir `number_of_years` quando `emission_date` vinha em `YYYY-MM-DD`
+- causa real:
+  - extracao de ano com `[-4:]` em string ISO
+- status:
+  - corrigido nesta rodada
+  - coberto por teste focado
 
 ### Exploracao de endpoint REST para outros `report_kind`
 Comandos tentados:
@@ -363,6 +437,8 @@ Resultado:
 - `f1c846a` `STABILITY_PATCH: endurecer operacao rest`
 - `e9460c9` `STABILITY_PATCH: integrar rest ao sweep`
 - `a3bddb9` `STABILITY_PATCH: otimizar rest detalhado`
+- `f5c41d7` `STABILITY_PATCH: otimizar prefilter rest year week`
+- `2f61345` `STABILITY_PATCH: ampliar emission date rest`
 
 ## Estado por camada
 | camada | status | observacao |
@@ -377,7 +453,8 @@ Resultado:
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
 - o chunking removeu a falha seca, o dedupe removeu repeticao inutil e o cache por execucao evita reconsulta da mesma SSA, mas o custo de detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
-- o modo geral com detalhamento amplo por `emission_date` ainda nao esta verde como fluxo operacional
+- `emission_date` geral agora esta verde em janelas curtas e semanais
+- o modo geral com detalhamento amplo por `emission_date` continua caro para janelas maiores
 
 ## Proximo passo natural
 1. decidir se vale:
