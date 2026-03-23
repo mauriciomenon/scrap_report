@@ -47,7 +47,9 @@ VALIDATED_FILTER_CAPABILITIES = {
     "consulta_ssa_print": frozenset(
         {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
-    "aprovacao_emissao": frozenset({"setor_emissor", "setor_executor", "emission_year_week"}),
+    "aprovacao_emissao": frozenset(
+        {"numero_ssa", "setor_emissor", "setor_executor", "emission_year_week"}
+    ),
     "aprovacao_cancelamento": frozenset(
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
