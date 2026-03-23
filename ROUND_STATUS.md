@@ -1,142 +1,30 @@
 # ROUND_STATUS
 
 ## Sessao atual
-- data: `2026-03-19`
+- data: `2026-03-22`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- commit atual: `25f46e1`
+- baseline runtime atual: `b893356`
+- doc sync pendente neste ciclo: sim
 
 ## Snapshot executivo
 - repo publico existente: sim
 - branch operacional: `master`
-- runtime atual: estavel para os fluxos principais do SAM
-- launcher Windows: unitario e preset ligados ao mesmo entrypoint
-- sweep: base, runner e presets entregues
+- runtime geral: estavel para os `report_kind` principais
+- release publicada mais recente antes deste ciclo: `v0.1.1`
+- commits reais apos `v0.1.1`:
+  - `5436620` `STABILITY_PATCH: explicitar alias aprovacao emissao`
+  - `0e109f4` `STABILITY_PATCH: explicitar parser derivadas`
+  - `a2ef27c` `STABILITY_PATCH: liberar numero ssa aprovacao`
+  - `55ccbe6` `STABILITY_PATCH: explicitar export derivadas`
+  - `b893356` `STABILITY_PATCH: explicitar bloqueio emissao`
 
-## Estado consolidado por fase
-### Fase 1 - launcher e fluxo Windows
-- `7ccc6a9`: `windows-flow` sequencial com secret seguro
-- `6020e37`: fallback real de shell e setup simplificado
-- `fa6d07a`: backend Windows sem instalacao manual extra
-- `ceaf855`: wrapper one-command e docs iniciais
-- `926d512`: correcao de parse PS1 e `both`
-- `0d188f7`: launcher no-args e desktop flow
-- `2b669e6`: launcher com args opcionais e cert handling
-
-Resultado:
-- usuario final pode rodar sem conhecer CLI interna
-- secret e resolvido de forma segura
-- `both` ficou suportado no wrapper
-
-### Fase 2 - navegacao real do SAM e cobertura de telas
-- `60f59ca`: uso das rotas nativas de relatorio
-- `a05a444`: filtro de emissao limitado a 4 semanas
-- `41c603e`: estabilizacao de filtros e exportacao real
-- `f9a3bb5`: `pendentes_execucao`
-- `1e58f11`: `consulta_ssa`
-- `4885b47`: `reprogramacoes`
-- `49f1b6f`: `aprovacao_emissao`
-- `d915407`: `aprovacao_cancelamento`
-- `7cd1cb7`: `derivadas_relacionadas`
-- `409ed33`: parser normalizado para `derivadas_relacionadas`
-
-Resultado:
-- telas principais do SAM foram mapeadas e operadas via Playwright
-- export por lupa + dropdown + `ExportToExcel` ficou estabilizado
-- `consulta_ssa_print` passou a gerar pdf staged
-
-### Fase 3 - escopo de setores
-- `03f36aa`: suporte a emissor, executor, ambos e nenhum
-
-Resultado:
-- filtros `ALL`, `*` e vazio passam a significar sem filtro
-- runtime e reporting deixaram de depender de hardcode unico
-
-### Fase 4 - sweep e presets
-- `ffe2807`: base de planejamento (`FilterSpec`, `SweepPlan`)
-- `eb924f3`: `SweepRunner` e manifest consolidado
-- `571937e`: presets operacionais
-- `3a8da8e`: preset ligado ao launcher Windows
-- `bafbdf9`: gate seguro de `data de emissao`
-- `52ef379`: base geral de filtros e `numero_ssa`
-- `27fbba3`: `data de emissao` em `pendentes`
-- `904d865`: `data de emissao` em `pendentes_execucao`
-- `44d846d`: `data de emissao` em `consulta_ssa`
-
-Resultado:
-- lote e planejado por grupos de setores
-- falha por item nao mata o lote inteiro
-- o entrypoint Windows aceita `-Preset` sem script novo
-- `data de emissao` agora esta validada de forma parcial e controlada por `report_kind`
-
-### Fase 5 - expansao final de `data de emissao`
-- `44d846d`: `consulta_ssa`
-- `25f46e1`: `consulta_ssa_print`, `aprovacao_cancelamento` e `reprogramacoes`
-
-## Report kinds atuais
-- `pendentes`
-- `executadas`
-- `pendentes_execucao`
-- `consulta_ssa`
-- `consulta_ssa_print`
-- `aprovacao_emissao`
-- `aprovacao_cancelamento`
-- `derivadas_relacionadas`
-- `reprogramacoes`
-
-## Validacao recente por slice documental e operacional
-### `ffe2807` - base de sweep
-- `py_compile`: ok
-- `ruff`: ok
-- `ty`: ok
-- `pytest -q tests/test_sweep.py tests/test_config_secrets.py`: `25 passed`
-
-### `eb924f3` - runner de lote
-- `py_compile`: ok
-- `ruff`: ok
-- `ty`: ok
-- `pytest -q tests/test_sweep.py tests/test_cli.py tests/test_config_secrets.py`: `57 passed`
-
-### `571937e` - presets operacionais
-- `py_compile`: ok
-- `ruff`: ok
-- `ty`: ok
-- `pytest -q tests/test_sweep.py tests/test_cli.py tests/test_config_secrets.py`: `63 passed`
-
-### `3a8da8e` - preset no launcher Windows
-- parser PowerShell dos 3 wrappers: ok
-- smoke com `uv` stub no launcher oficial: ok
-- smoke com `uv` stub no alias legado: ok
-- smoke com `uv` stub para `both`: ok
-
-### `44d846d` - `consulta_ssa` com `data de emissao`
-- `py_compile`: ok
-- `ruff`: ok
-- `ty`: ok
-- `pytest -q tests/test_config_secrets.py tests/test_scraper_contract.py tests/test_sweep.py`: `62 passed`
-- prova real oficial:
-  - `consulta_ssa` com `numero_ssa=202602521` e `2026-02-23`: `ok`
-  - `consulta_ssa` com `02/23/2026`: erro cedo por formato US
-
-### `25f46e1` - expansao final de `data de emissao`
-- `py_compile`: ok
-- `ruff`: ok
-- `ty`: ok
-- `pytest -q tests/test_config_secrets.py tests/test_scraper_contract.py tests/test_sweep.py`: `62 passed`
-- prova real oficial:
-  - `consulta_ssa_print` com `numero_ssa=202602521` e `2026-02-23`: `ok`
-  - `aprovacao_cancelamento` com `2026-02-24`: `ok`
-  - `reprogramacoes` com `2026-02-23`: `ok`
-  - `aprovacao_emissao` com `2026-03-02`: continua bloqueado
-
-## Comportamento validado hoje
-- `EXECUTAR_SCRAP_WINDOWS.ps1` suporta:
-  - modo unitario
-  - modo `both`
-  - modo preset
-- `-Preset` nao combina com `-Setor` nem `-SetorEmissor`
-- `both` com preset gera um JSON por report kind alvo
-- `data de emissao` validada hoje para:
+## Current truth do runtime
+- `numero_ssa` validado para:
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_emissao`
+- `data de emissao` validada para:
   - `executadas`
   - `pendentes`
   - `pendentes_execucao`
@@ -144,19 +32,103 @@ Resultado:
   - `consulta_ssa_print`
   - `aprovacao_cancelamento`
   - `reprogramacoes`
+- `aprovacao_emissao` continua bloqueado para `data de emissao`
+- `derivadas_relacionadas` continua bloqueado para `data de emissao`
+
+## Evidencia operacional rodada 2026-03-22
+### Diagnostico de ambiente
+- DNS `osprd.itaipu`: `172.17.7.165`
+- `uv run python -m scrap_report.cli secret get --username menon`: `status=ok`
+
+### `derivadas_relacionadas`
+Comando:
+```powershell
+uv run python -m scrap_report.cli sweep-run --username menon --report-kind derivadas_relacionadas --scope-mode nenhum --ignore-https-errors --output-json staging/sweep_derivadas_relacionadas_baseline.json
+```
+
+Resultado:
+- manifest: [staging\sweep_derivadas_relacionadas_baseline.json](C:\Users\mauri\git\scrap_report\staging\sweep_derivadas_relacionadas_baseline.json)
+- status: `error`
+- erro validado:
+  - `report_kind=derivadas_relacionadas nao entregou download no fluxo oficial; tela segue especial por export instavel`
+
+Conclusao:
+- o parser especial continua valido
+- o gargalo real no fluxo oficial segue sendo export/download, nao parser
+
+### `aprovacao_emissao` baseline
+Comando:
+```powershell
+uv run python -m scrap_report.cli sweep-run --username menon --report-kind aprovacao_emissao --scope-mode nenhum --ignore-https-errors --output-json staging/sweep_aprovacao_emissao_baseline_none.json
+```
+
+Resultado:
+- manifest: [staging\sweep_aprovacao_emissao_baseline_none.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_baseline_none.json)
+- status: `ok`
+- staged: [aprovacao_emissao_SSAs Pendentes de Aprovação na Emissão_22-03-2026_1114PM_20260322_231441_7571f94e.xlsx](C:\Users\mauri\git\scrap_report\staging\aprovacao_emissao_SSAs%20Pendentes%20de%20Aprova%C3%A7%C3%A3o%20na%20Emiss%C3%A3o_22-03-2026_1114PM_20260322_231441_7571f94e.xlsx)
+- derivado: [ssas_dados_20260322_231441_748743.xlsx](C:\Users\mauri\git\scrap_report\staging\reports\ssas_dados_20260322_231441_748743.xlsx)
+- linhas no derivado: `87`
+- coluna `Emitida Em`:
+  - presente
+  - `emitida_em_nonnull=1`
+  - maioria das linhas inspecionadas veio nula
+
+Conclusao:
+- baseline da tela exporta
+- `numero_ssa` continua util nesta tela
+- `Emitida Em` continua pouco confiavel para liberar `data de emissao`
+
+### `aprovacao_emissao` com `data de emissao`
+Comando:
+```powershell
+uv run python -m scrap_report.cli sweep-run --username menon --report-kind aprovacao_emissao --scope-mode nenhum --emission-date-start 2026-03-22 --emission-date-end 2026-03-22 --ignore-https-errors --output-json staging/sweep_aprovacao_emissao_emission_date_blocked.json
+```
+
+Resultado:
+- manifest: [staging\sweep_aprovacao_emissao_emission_date_blocked.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_emission_date_blocked.json)
+- status: `error`
+- erro validado:
+  - `report_kind=aprovacao_emissao nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel`
+
+Conclusao:
+- bloqueio continua correto
+- mensagem operacional agora reflete o motivo real
+
+## Quality gates deste ciclo
+Comandos:
+```powershell
+uv run python -m py_compile src\scrap_report\scraper.py src\scrap_report\sweep.py tests\test_scraper_contract.py tests\test_sweep.py
+uv run ruff check src\scrap_report\scraper.py src\scrap_report\sweep.py tests\test_scraper_contract.py tests\test_sweep.py
+uv run ty check src
+uv run pytest -q tests\test_scraper_contract.py tests\test_sweep.py tests\test_config_secrets.py tests\test_reporting.py tests\test_pipeline_offline.py
+```
+
+Resultados:
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest`: `86 passed`
+
+## Estado por report kind
+| report_kind | runtime geral | `numero_ssa` | `emission_year_week` | `emission_date` | observacao |
+| --- | --- | --- | --- | --- | --- |
+| `pendentes` | sim | nao | sim | sim | verde |
+| `executadas` | sim | nao | sim | sim | verde |
+| `pendentes_execucao` | sim | nao | sim | sim | verde |
+| `consulta_ssa` | sim | sim | sim | sim | verde |
+| `consulta_ssa_print` | parcial | sim | sim | sim | PDF proprio |
+| `aprovacao_emissao` | parcial | sim | sim | nao | alias de executor e export com `Emitida Em` pouco confiavel |
+| `aprovacao_cancelamento` | sim | nao | sim | sim | verde |
+| `derivadas_relacionadas` | parcial | nao | sim | nao | parser especial e export oficial instavel |
+| `reprogramacoes` | sim | nao | sim | sim | verde |
 
 ## Risco residual
-- `data de emissao` ainda nao fecha para todos os `report_kind`
-- `aprovacao_emissao` segue com semantica fraca no export
-- `derivadas_relacionadas` segue instavel no export
-- `demais_*` existe como preset, mas o grupo `demais` segue vazio
+- `derivadas_relacionadas` continua sendo o ultimo gargalo real de export oficial
+- `aprovacao_emissao` continua sem base para liberar `data de emissao`
+- `demais_*` continua dependente de preencher o grupo `demais`
 - faltam telas adicionais do menu `Relatorios`
-- smoke Debian13 real continua dependente de conectividade externa estavel
 
-## Pendente real
-1. rodada real de sweep com preset e report kind verde
-2. decisao sobre proxima prioridade:
-   - completar `data de emissao` nos `report_kind` ainda bloqueados
-   - `data de emissao` no sweep
-   - novas telas do menu `Relatorios`
-3. preenchimento do grupo `demais`
+## Proximo passo natural
+1. sincronizar docs ativos
+2. criar release nova com os commits apos `v0.1.1`
+3. decidir se a proxima frente de codigo sera export de `derivadas_relacionadas` ou fonte confiavel de `Emitida Em` em `aprovacao_emissao`

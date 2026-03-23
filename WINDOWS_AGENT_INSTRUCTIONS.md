@@ -124,12 +124,18 @@ Saidas no caso `both` com preset:
 - `pendentes_execucao`
 - `consulta_ssa`
 - `consulta_ssa_print`
-- `derivadas_relacionadas`
+- `aprovacao_emissao` baseline com `numero_ssa`
 - `aprovacao_cancelamento`
 - `reprogramacoes`
 
-### Estaveis com ausencia real de linhas na rodada validada
+### Casos especiais explicitados
 - `aprovacao_emissao`
+  - `numero_ssa` validado
+  - `setor_executor` e alias de runtime para `divisao_emissora`
+  - `emission_date` segue bloqueado porque o export atual nao entrega `Emitida Em` confiavel
+- `derivadas_relacionadas`
+  - parser derivado proprio validado
+  - export oficial segue instavel no fluxo Playwright
 
 ## Matriz atual de `data de emissao`
 Suportado hoje no runtime:
@@ -144,6 +150,12 @@ Suportado hoje no runtime:
 Bloqueado hoje no runtime:
 - `aprovacao_emissao`
 - `derivadas_relacionadas`
+
+Filtros gerais adicionais validados:
+- `numero_ssa`:
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_emissao`
 
 Formato aceito pelo parser:
 - `DD/MM/YYYY`
@@ -215,3 +227,5 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 - o alias `scripts/main_windows.ps1` existe apenas para compatibilidade
 - nao ha necessidade de instalar modulo extra para secret no Windows atual
 - o launcher nao cria script novo para variacoes; lote e unitario passam pelo mesmo caminho oficial
+- `derivadas_relacionadas` nao deve ser tratada como fluxo geral estavel enquanto o export oficial continuar intermitente
+- `aprovacao_emissao` nao deve anunciar `data de emissao` enquanto `Emitida Em` seguir pouco confiavel no export

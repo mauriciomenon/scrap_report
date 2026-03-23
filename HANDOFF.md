@@ -4,30 +4,16 @@
 - repo: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
 - remoto: `origin/master`
-- commit atual de referencia: `25f46e1`
-- status: runtime e launcher Windows atualizados e sincronizados com remoto
+- baseline runtime atual: `b893356`
+- status: runtime estabilizado, docs em sync neste ciclo, release nova pendente
 
 ## Current truth
-O projeto saiu da fase inicial de migracao e entrou em estado operacional.
-Hoje existem tres camadas claras:
+O projeto esta operacional em tres camadas:
 - execucao unitaria de scraping e staging
 - geracao de relatorios derivados por tipo de planilha
 - varredura em lote por plano e preset
 
-## Entrypoints operacionais
-- `EXECUTAR_SCRAP_WINDOWS.ps1`: entrypoint oficial
-- `EXECUTAR_SCRAP_WINDOWS.cmd`: launcher para usuario final
-- `scripts/main_windows.ps1`: alias legado
-- `scripts/scrape_sam_windows.ps1`: wrapper principal do Windows
-- `python -m scrap_report.cli`: entrypoint CLI completo
-
-## Runtime principal
-- `config.py`: defaults, filtros e grupos de setores
-- `scraper.py`: navegacao Playwright nas telas SAM
-- `pipeline.py`: scrape + stage + reporting
-- `reporting.py`: parser e artefatos derivados
-- `sweep.py`: `FilterSpec`, `SweepPlan`, `SweepRunner` e presets
-- `cli.py`: `windows-flow`, `sweep-run`, `pipeline`, `report-from-excel`, `secret` e demais comandos
+O ponto importante agora nao e falta de runtime geral. O ponto importante e que os casos especiais restantes foram explicitados e nao estao mais escondidos em heuristica.
 
 ## Report kinds suportados
 - `pendentes`
@@ -40,101 +26,70 @@ Hoje existem tres camadas claras:
 - `derivadas_relacionadas`
 - `reprogramacoes`
 
-## Estado validado em ambiente real
-### Conteudo validado
-- `pendentes`
-- `executadas`
-- `pendentes_execucao`
-- `consulta_ssa`
-- `consulta_ssa_print`
-- `derivadas_relacionadas`
-- `aprovacao_cancelamento`
-- `reprogramacoes`
+## Matriz curta de filtros
+- `numero_ssa` validado:
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_emissao`
+- `data de emissao` validada:
+  - `executadas`
+  - `pendentes`
+  - `pendentes_execucao`
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_cancelamento`
+  - `reprogramacoes`
+- `data de emissao` bloqueada:
+  - `aprovacao_emissao`
+  - `derivadas_relacionadas`
 
-### Fluxo estavel com 0 linhas na rodada validada
-- `aprovacao_emissao`
+## Casos especiais reais
+### `aprovacao_emissao`
+- `setor_executor` usa alias de runtime para `divisao_emissora`
+- baseline exporta normalmente
+- `numero_ssa` foi validado
+- `emission_date` segue bloqueado porque o export atual nao entrega `Emitida Em` confiavel
 
-## Matriz atual de `data de emissao`
-Validado no runtime:
-- `executadas`
-- `pendentes`
-- `pendentes_execucao`
-- `consulta_ssa`
-- `consulta_ssa_print`
-- `aprovacao_cancelamento`
-- `reprogramacoes`
+### `derivadas_relacionadas`
+- usa parser derivado proprio
+- o parser esta validado
+- o gargalo atual nao e parser; e export oficial instavel no fluxo Playwright
 
-Bloqueado no runtime:
-- `aprovacao_emissao`
-- `derivadas_relacionadas`
+## Evidencia recente
+### `derivadas_relacionadas`
+- manifest: [staging\sweep_derivadas_relacionadas_baseline.json](C:\Users\mauri\git\scrap_report\staging\sweep_derivadas_relacionadas_baseline.json)
+- erro validado:
+  - `report_kind=derivadas_relacionadas nao entregou download no fluxo oficial; tela segue especial por export instavel`
 
-Regra de formato:
-- aceitos no parser central:
-  - `DD/MM/YYYY`
-  - `DDMMYYYY`
-  - `YYYY-MM-DD`
-- rejeitado cedo:
-  - `MM/DD/YYYY`
+### `aprovacao_emissao`
+- baseline: [staging\sweep_aprovacao_emissao_baseline_none.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_baseline_none.json)
+- bloqueio de data: [staging\sweep_aprovacao_emissao_emission_date_blocked.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_emission_date_blocked.json)
+- derivado baseline: [ssas_dados_20260322_231441_748743.xlsx](C:\Users\mauri\git\scrap_report\staging\reports\ssas_dados_20260322_231441_748743.xlsx)
+- observacao:
+  - `87` linhas
+  - coluna `Emitida Em` presente
+  - apenas `1` valor nao nulo na rodada atual
 
-## Filtros e setores
-Defaults operacionais atuais:
-- `Setor Emissor = IEE3`
-- `Setor Executor = MEL4`
+## Commits relevantes apos `v0.1.1`
+- `5436620` `STABILITY_PATCH: explicitar alias aprovacao emissao`
+- `0e109f4` `STABILITY_PATCH: explicitar parser derivadas`
+- `a2ef27c` `STABILITY_PATCH: liberar numero ssa aprovacao`
+- `55ccbe6` `STABILITY_PATCH: explicitar export derivadas`
+- `b893356` `STABILITY_PATCH: explicitar bloqueio emissao`
 
-Suporte atual:
-- apenas emissor
-- apenas executor
-- ambos
-- nenhum
-
-Grupos de prioridade registrados:
-- principal: `IEE3`, `MEL4`, `MEL3`
-- segundo_plano: `IEE1`, `IEE2`, `IEE4`
-- terceiro_plano: `MEL1`, `MEL2`, `IEQ1`, `IEQ2`, `IEQ3`, `ILA1`, `ILA2`, `ILA3`
-- prioritarios: uniao dos tres grupos acima
-- demais: reservado para preenchimento futuro
-
-## Sweep atual
-Ja entregue:
-- `FilterSpec`
-- `SweepPlan`
-- `SweepRunner`
-- presets operacionais
-- integracao de `-Preset` ao launcher Windows
-
-Ainda nao entregue:
-- agendamento
-- paralelismo
-- presets ligados a rotina de agenda
-
-## Artefatos
-- bruto staged: `staging\*.xlsx` ou `staging\*.pdf`
-- derivados: `staging\reports\*.xlsx`
-- manifests unitarios e de lote: caminho informado em `--output-json`
-
-## Evidencia tecnica consolidada
-### Windows / SAM
-- fluxo no-args validado
-- fluxo com parametros validado
-- `consulta_ssa_print` validada com pdf real
-- `derivadas_relacionadas` validada com parser normalizado
-- preset no launcher Windows validado por smoke de encaminhamento
-
-### Quality gates recentes
-- `py_compile`: verde nos slices recentes
-- `ruff`: verde nos slices recentes
-- `ty`: verde nos slices recentes
-- `pytest` focado: verde nos slices recentes, incluindo `test_sweep.py`
+## Quality gates mais recentes
+- `py_compile`: verde
+- `ruff`: verde
+- `ty`: verde
+- `pytest` focado: `86 passed`
 
 ## Riscos residuais reais
-- `data de emissao` no sweep ainda e parcial por `report_kind`
-- `aprovacao_emissao` segue bloqueado por semantica fraca do export
-- `derivadas_relacionadas` segue bloqueado por instabilidade de export
-- grupo `demais` ainda esta vazio
-- ainda faltam algumas telas adicionais do menu `Relatorios`
-- smoke Debian13 real segue dependente de conectividade externa estavel
+- `derivadas_relacionadas` ainda depende de estabilizar export oficial
+- `aprovacao_emissao` ainda depende de uma fonte confiavel de `Emitida Em` antes de liberar `emission_date`
+- `demais` continua vazio em `SETOR_PRIORITY_GROUPS`
+- faltam algumas telas adicionais do menu `Relatorios`
 
 ## Proximos passos naturais
-1. rodar um sweep real com preset em um report kind verde e validar artefatos ponta a ponta
-2. decidir se a proxima prioridade e `data de emissao` no sweep ou novas telas do menu `Relatorios`
-3. preencher o grupo `demais` quando a lista operacional estiver pronta
+1. criar nova tag/release em cima do range real apos `v0.1.1`
+2. se voltar ao codigo, priorizar export oficial de `derivadas_relacionadas`
+3. depois avaliar se existe criterio forte para `Emitida Em` em `aprovacao_emissao`

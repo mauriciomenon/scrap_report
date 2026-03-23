@@ -9,6 +9,10 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
 - wrapper legado mantido: `scripts/main_windows.ps1`
 - fluxo Windows unitario: `windows-flow`
 - fluxo Windows em lote por preset: `sweep-run`
+- `numero_ssa` validado no runtime para:
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_emissao`
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -61,12 +65,18 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
 - `pendentes_execucao`
 - `consulta_ssa`
 - `consulta_ssa_print`
-- `derivadas_relacionadas`
 - `aprovacao_cancelamento`
 - `reprogramacoes`
+- `aprovacao_emissao` baseline com `numero_ssa`
 
-### Fluxos estaveis com ausencia real de dados na rodada validada
+### Casos especiais explicitados
 - `aprovacao_emissao`
+  - `numero_ssa` validado
+  - `setor_executor` e alias de runtime para `divisao_emissora`
+  - `emission_date` segue bloqueado porque o export atual nao entrega `Emitida Em` confiavel
+- `derivadas_relacionadas`
+  - parser derivado proprio validado
+  - export oficial segue instavel no fluxo Playwright
 
 ## Matriz atual de `data de emissao`
 
@@ -79,8 +89,22 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
 | `consulta_ssa_print` | suportado | `DD/MM/YYYY` | pdf validado com `numero_ssa + data`; data errada gera sem resultados |
 | `aprovacao_cancelamento` | suportado | `DD/MM/YYYY` | |
 | `reprogramacoes` | suportado | `DD/MM/YYYY` | |
-| `aprovacao_emissao` | bloqueado | nenhum liberado | filtro altera o resultado, mas a semantica do export ainda nao esta forte o bastante para liberar |
+| `aprovacao_emissao` | bloqueado | nenhum liberado | export atual nao entrega `Emitida Em` confiavel |
 | `derivadas_relacionadas` | bloqueado | nenhum liberado | export instavel mesmo sem filtro de data |
+
+## Matriz atual de filtros gerais
+
+| report_kind | runtime geral | `numero_ssa` | `emission_year_week` | `emission_date` | observacao |
+| --- | --- | --- | --- | --- | --- |
+| `pendentes` | sim | nao | sim | sim | fluxo geral estavel |
+| `executadas` | sim | nao | sim | sim | fluxo geral estavel |
+| `pendentes_execucao` | sim | nao | sim | sim | fluxo geral estavel |
+| `consulta_ssa` | sim | sim | sim | sim | combinacao `numero_ssa + data` validada |
+| `consulta_ssa_print` | parcial | sim | sim | sim | export PDF proprio |
+| `aprovacao_emissao` | parcial | sim | sim | nao | alias `setor_executor -> divisao_emissora` |
+| `aprovacao_cancelamento` | sim | nao | sim | sim | fluxo geral estavel |
+| `derivadas_relacionadas` | parcial | nao | sim | nao | parser especial e export oficial instavel |
+| `reprogramacoes` | sim | nao | sim | sim | fluxo geral estavel |
 
 Regra global de formato:
 - `MM/DD/YYYY` e rejeitado cedo no runtime com erro explicito
@@ -210,8 +234,8 @@ uv run --project . python -m scrap_report.cli secret setup --username "menon" --
 - `reports = {}` por desenho
 
 ### Fluxo `derivadas_relacionadas`
-- xlsx bruto staged
-- xlsx derivado normalizado
+- xlsx bruto staged quando o export oficial entrega download
+- xlsx derivado normalizado por parser proprio
 - estatisticas
 
 ## Ordenacao e preservacao de dados
@@ -226,8 +250,8 @@ uv run --project . python -m scrap_report.cli secret setup --username "menon" --
 
 ## Limites conhecidos
 - `data de emissao` no sweep ainda e parcial por `report_kind`
-- `aprovacao_emissao` segue bloqueado por semantica fraca do export
-- `derivadas_relacionadas` segue bloqueado por instabilidade de export
+- `aprovacao_emissao` segue bloqueado para `emission_date` porque o export atual nao entrega `Emitida Em` confiavel
+- `derivadas_relacionadas` segue bloqueado por instabilidade de export no fluxo oficial
 - `demais_*` existe como preset, mas hoje depende de preencher o grupo `demais`
 - ainda faltam algumas telas adicionais do menu `Relatorios`
 
