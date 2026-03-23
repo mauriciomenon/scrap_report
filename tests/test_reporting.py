@@ -5,6 +5,8 @@ import pandas as pd
 
 from scrap_report.reporting import (
     artifacts_to_dict,
+    build_sam_api_dataframe,
+    export_data_csv,
     load_excel,
     load_derivadas_relacionadas_excel,
     load_excel_for_report,
@@ -94,6 +96,32 @@ def test_export_summary_statistics(tmp_path: Path):
     assert out.exists()
     loaded = pd.read_excel(out)
     assert "Coluna" in loaded.columns
+
+
+def test_export_data_csv(tmp_path: Path):
+    df = _sample_df()
+    out = export_data_csv(df, tmp_path / "dados.csv")
+    assert out.exists()
+    loaded = pd.read_csv(out)
+    assert len(loaded) == 2
+
+
+def test_build_sam_api_dataframe_preserves_export_columns():
+    df = build_sam_api_dataframe(
+        [
+            {
+                "ssa_number": "202600001",
+                "executor_sector": "MEL4",
+                "emitter_sector": "IEE3",
+                "detail_present": True,
+            }
+        ]
+    )
+
+    assert "ssa_number" in df.columns
+    assert "localization" in df.columns
+    assert "detail_present" in df.columns
+    assert df.iloc[0]["ssa_number"] == "202600001"
 
 
 def test_generate_text_report(tmp_path: Path):

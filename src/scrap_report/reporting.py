@@ -5,12 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 import unicodedata
 
 import pandas as pd
 
 from .config import normalize_setor_filter, report_kind_uses_custom_parser
+from .sam_api import SAM_API_EXPORT_COLUMNS
 DERIVADAS_RELACIONADAS_COLUMNS = (
     "ssa_referencia_numero",
     "ssa_referencia_localizacao",
@@ -254,6 +255,26 @@ def export_data_excel(df: pd.DataFrame, filename: Path) -> Path:
     with pd.ExcelWriter(path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Dados", index=False)
     return path
+
+
+def export_data_csv(df: pd.DataFrame, filename: Path) -> Path:
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False, encoding="utf-8")
+    return path
+
+
+def build_sam_api_dataframe(records: list[dict[str, Any]]) -> pd.DataFrame:
+    if not records:
+        return pd.DataFrame(columns=list(SAM_API_EXPORT_COLUMNS))
+    df = pd.DataFrame(records)
+    for column in SAM_API_EXPORT_COLUMNS:
+        if column not in df.columns:
+            df[column] = None
+    ordered_columns = list(SAM_API_EXPORT_COLUMNS) + [
+        column for column in df.columns if column not in SAM_API_EXPORT_COLUMNS
+    ]
+    return df.loc[:, ordered_columns]
 
 
 def export_summary_statistics(df: pd.DataFrame, filename: Path) -> Path:

@@ -208,7 +208,7 @@ def test_sam_api_search_command_writes_output_json(
 
     def fake_search(**kwargs):
         seen["search_kwargs"] = kwargs
-        return [{"SSANumber": "202600001", "ExecutorSector": "MEL4"}]
+        return [{"ssa_number": "202600001", "executor_sector": "MEL4", "detail_present": True}]
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
     monkeypatch.setattr("scrap_report.cli.search_pending_ssas_by_localization_range", fake_search)
@@ -227,8 +227,22 @@ def test_sam_api_search_command_writes_output_json(
             "MEL4",
             "--executor-sector",
             "MEL3",
+            "--emitter-sector",
+            "IEE3",
             "--include-details",
             "--ignore-https-errors",
+            "--localization-contains",
+            "A0",
+            "--year-week-start",
+            "202609",
+            "--year-week-end",
+            "202610",
+            "--emission-date-start",
+            "2026-02-23",
+            "--emission-date-end",
+            "24/02/2026",
+            "--limit",
+            "5",
             "--output-json",
             str(out_json),
         ]
@@ -239,7 +253,14 @@ def test_sam_api_search_command_writes_output_json(
     assert seen["timeout_seconds"] == 30.0
     assert seen["verify_tls"] is False
     assert seen["search_kwargs"]["executor_sectors"] == ("MEL4", "MEL3")
+    assert seen["search_kwargs"]["emitter_sectors"] == ("IEE3",)
     assert seen["search_kwargs"]["include_details"] is True
+    assert seen["search_kwargs"]["localization_contains"] == "A0"
+    assert seen["search_kwargs"]["year_week_start"] == "202609"
+    assert seen["search_kwargs"]["year_week_end"] == "202610"
+    assert seen["search_kwargs"]["emission_date_start"] == "23/02/2026"
+    assert seen["search_kwargs"]["emission_date_end"] == "24/02/2026"
+    assert seen["search_kwargs"]["limit"] == 5
     content = out_json.read_text(encoding="utf-8")
     assert '"status": "ok"' in content
     assert '"count": 1' in content
@@ -254,10 +275,11 @@ def test_sam_api_detail_command_writes_output_json(
             self.timeout_seconds = timeout_seconds
             self.verify_tls = verify_tls
 
-        def get_ssa_by_number(self, ssa_number):
-            return {"SSANumber": ssa_number, "SituationDesc": "AGUARDANDO PROGRAMACAO"}
-
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr(
+        "scrap_report.cli.fetch_ssa_details_by_numbers",
+        lambda **kwargs: [{"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True}],
+    )
 
     out_json = tmp_path / "out" / "sam_api_detail.json"
     code = main(
@@ -265,6 +287,8 @@ def test_sam_api_detail_command_writes_output_json(
             "sam-api",
             "--ssa-number",
             "202602521",
+            "--year-week-start",
+            "202609",
             "--output-json",
             str(out_json),
         ]
@@ -273,7 +297,60 @@ def test_sam_api_detail_command_writes_output_json(
     assert code == 0
     content = out_json.read_text(encoding="utf-8")
     assert '"mode": "detail"' in content
-    assert '"SSANumber": "202602521"' in content
+    assert '"ssa_number": "202602521"' in content
+
+
+def test_sam_api_detail_command_accepts_file_and_exports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    numbers_file = tmp_path / "ssas.txt"
+    numbers_file.write_text("202602521\n202600001\n", encoding="utf-8")
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls):
+            self.base_url = base_url
+            self.timeout_seconds = timeout_seconds
+            self.verify_tls = verify_tls
+
+    seen = {}
+
+    def fake_fetch(**kwargs):
+        seen["kwargs"] = kwargs
+        return [
+            {"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True},
+            {"ssa_number": "202600001", "executor_sector": "MAM1", "detail_present": True},
+        ]
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr("scrap_report.cli.fetch_ssa_details_by_numbers", fake_fetch)
+
+    out_json = tmp_path / "out" / "sam_api_detail_batch.json"
+    out_csv = tmp_path / "out" / "sam_api_detail_batch.csv"
+    out_xlsx = tmp_path / "out" / "sam_api_detail_batch.xlsx"
+    code = main(
+        [
+            "sam-api",
+            "--ssa-number-file",
+            str(numbers_file),
+            "--limit",
+            "2",
+            "--output-json",
+            str(out_json),
+            "--output-csv",
+            str(out_csv),
+            "--output-xlsx",
+            str(out_xlsx),
+        ]
+    )
+
+    assert code == 0
+    assert seen["kwargs"]["ssa_numbers"] == ["202602521", "202600001"]
+    assert out_csv.exists()
+    assert out_xlsx.exists()
+    content = out_json.read_text(encoding="utf-8")
+    assert '"count": 2' in content
+    assert '"csv": ' in content
+    assert '"xlsx": ' in content
 
 
 def test_auth_flow_emits_security_notice_and_preserves_json_streams(

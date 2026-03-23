@@ -17,6 +17,7 @@ from .config import (
     DEFAULT_SETOR_EXECUTOR,
     REPORT_KINDS,
     SECRET_SETUP_HINT,
+    normalize_emission_date,
     report_kind_uses_excel_output,
 )
 from .contract import (
@@ -29,12 +30,24 @@ from .contract import (
 )
 from .file_ops import find_latest_xlsx, stage_download
 from .pipeline import run_pipeline, run_pipeline_from_local_download, run_report_only
-from .reporting import artifacts_to_dict, generate_ssa_report_from_excel
+from .reporting import (
+    artifacts_to_dict,
+    build_sam_api_dataframe,
+    export_data_csv,
+    export_data_excel,
+    generate_ssa_report_from_excel,
+)
 from .redaction import assert_no_sensitive_fields
 from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
-from .sam_api import DEFAULT_SAM_API_BASE_URL, SAMApiClient, SAMApiError, search_pending_ssas_by_localization_range
+from .sam_api import (
+    DEFAULT_SAM_API_BASE_URL,
+    SAMApiClient,
+    SAMApiError,
+    fetch_ssa_details_by_numbers,
+    search_pending_ssas_by_localization_range,
+)
 from .sweep import (
     SWEEP_PRESET_NAMES,
     SWEEP_SCOPE_MODES,
@@ -381,14 +394,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="filtro opcional de executor; repetir para varios setores",
     )
     sam_api.add_argument(
+        "--emitter-sector",
+        action="append",
+        default=[],
+        help="filtro opcional de emissor; repetir para varios setores",
+    )
+    sam_api.add_argument(
         "--include-details",
         action="store_true",
         help="enriquece cada SSA com GetSSABySSANumber",
     )
     sam_api.add_argument(
         "--ssa-number",
+        action="append",
+        default=[],
+        help="consulta detalhada por numero de SSA; repetir para varios itens",
+    )
+    sam_api.add_argument(
+        "--ssa-number-file",
         default=None,
-        help="consulta detalhada direta por numero de SSA",
+        help="arquivo txt com uma SSA por linha para detalhamento em lote",
     )
     sam_api.add_argument(
         "--timeout-seconds",
@@ -397,10 +422,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="timeout HTTP para a API REST",
     )
     sam_api.add_argument(
+        "--localization-contains",
+        default=None,
+        help="substring opcional de localizacao para filtrar resultado",
+    )
+    sam_api.add_argument("--year-week-start", default=None)
+    sam_api.add_argument("--year-week-end", default=None)
+    sam_api.add_argument("--emission-date-start", default=None)
+    sam_api.add_argument("--emission-date-end", default=None)
+    sam_api.add_argument(
+        "--limit",
+        default=None,
+        type=int,
+        help="limite maximo de itens retornados apos filtros",
+    )
+    sam_api.add_argument(
         "--ignore-https-errors",
         action="store_true",
         help="ignora validacao TLS para a API REST",
     )
+    sam_api.add_argument("--output-csv", default=None, help="salva dados tabulares em csv")
+    sam_api.add_argument("--output-xlsx", default=None, help="salva dados tabulares em xlsx")
     sam_api.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
 
     return parser
@@ -439,6 +481,41 @@ def _emit_unvalidated_json(payload: dict[str, Any], output_json: str | None) -> 
         out = Path(output_json)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text + "\n", encoding="utf-8")
+
+
+def _read_ssa_numbers_from_file(path_value: str | None) -> list[str]:
+    if not path_value:
+        return []
+    path = Path(path_value)
+    content = path.read_text(encoding="utf-8")
+    return [line.strip() for line in content.splitlines() if line.strip()]
+
+
+def _normalize_optional_emission_date_window(
+    emission_date_start: str | None,
+    emission_date_end: str | None,
+) -> tuple[str | None, str | None]:
+    normalized_start = normalize_emission_date(emission_date_start)
+    normalized_end = normalize_emission_date(emission_date_end)
+    if bool(normalized_start) != bool(normalized_end):
+        raise ValueError("filtro por data de emissao exige inicio e fim")
+    return normalized_start or None, normalized_end or None
+
+
+def _export_sam_api_records(
+    records: list[dict[str, Any]],
+    output_csv: str | None,
+    output_xlsx: str | None,
+) -> dict[str, str]:
+    exports: dict[str, str] = {}
+    if not output_csv and not output_xlsx:
+        return exports
+    df = build_sam_api_dataframe(records)
+    if output_csv:
+        exports["csv"] = str(export_data_csv(df, Path(output_csv)))
+    if output_xlsx:
+        exports["xlsx"] = str(export_data_excel(df, Path(output_xlsx)))
+    return exports
 
 
 def _build_default_sweep_output_json(staging_dir: Path, report_kind: str) -> Path:
@@ -613,37 +690,70 @@ def main(argv: list[str] | None = None) -> int:
             verify_tls=not args.ignore_https_errors,
         )
         try:
-            if args.ssa_number:
-                detail = client.get_ssa_by_number(args.ssa_number)
+            if args.limit is not None and args.limit <= 0:
+                raise ValueError("limit deve ser maior que zero")
+            normalized_emission_start, normalized_emission_end = _normalize_optional_emission_date_window(
+                args.emission_date_start,
+                args.emission_date_end,
+            )
+            ssa_numbers = args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file)
+            if ssa_numbers:
+                items = fetch_ssa_details_by_numbers(
+                    client=client,
+                    ssa_numbers=ssa_numbers,
+                    executor_sectors=tuple(args.executor_sector),
+                    emitter_sectors=tuple(args.emitter_sector),
+                    localization_contains=args.localization_contains,
+                    year_week_start=args.year_week_start,
+                    year_week_end=args.year_week_end,
+                    emission_date_start=normalized_emission_start,
+                    emission_date_end=normalized_emission_end,
+                    limit=args.limit,
+                )
                 payload = {
                     "status": "ok",
                     "mode": "detail",
-                    "ssa_number": args.ssa_number,
-                    "item": detail,
+                    "count": len(items),
+                    "ssa_numbers": ssa_numbers,
+                    "items": items,
                 }
             else:
                 items = search_pending_ssas_by_localization_range(
                     client=client,
                     executor_sectors=tuple(args.executor_sector),
+                    emitter_sectors=tuple(args.emitter_sector),
                     start_localization_code=args.start_localization_code,
                     end_localization_code=args.end_localization_code,
                     number_of_years=args.number_of_years,
                     include_details=args.include_details,
+                    localization_contains=args.localization_contains,
+                    year_week_start=args.year_week_start,
+                    year_week_end=args.year_week_end,
+                    emission_date_start=normalized_emission_start,
+                    emission_date_end=normalized_emission_end,
+                    limit=args.limit,
                 )
                 payload = {
                     "status": "ok",
                     "mode": "search",
                     "count": len(items),
                     "executor_sectors": args.executor_sector,
+                    "emitter_sectors": args.emitter_sector,
                     "include_details": args.include_details,
                     "start_localization_code": args.start_localization_code,
                     "end_localization_code": args.end_localization_code,
                     "number_of_years": args.number_of_years,
+                    "localization_contains": args.localization_contains,
                     "items": items,
                 }
         except (ValueError, SAMApiError) as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
+        payload["exports"] = _export_sam_api_records(
+            records=payload["items"],
+            output_csv=args.output_csv,
+            output_xlsx=args.output_xlsx,
+        )
         _emit_unvalidated_json(payload, args.output_json)
         return 0
 
