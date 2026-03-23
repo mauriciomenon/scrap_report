@@ -5,7 +5,7 @@
 - avaliar reducao de custo linear no detalhe em lote REST para SSAs unicas em volume alto
 - avaliar paralelismo ou cache controlado na REST sem quebrar rastreabilidade nem ordem
 - ampliar o `sweep-run --runtime rest` para outros `report_kind` alem de `pendentes`
-- avaliar estrategia especifica para modo geral REST com detalhamento amplo por `emission_date` acima de janelas semanais sem estourar timeout operacional
+- avaliar estrategia especifica para modo geral REST com detalhamento amplo por `emission_date` acima de janelas de 28 dias sem custo e latencia excessivos
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

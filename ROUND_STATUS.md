@@ -236,6 +236,42 @@ Resultado:
 - observacao:
   - o wrapper do terminal marcou timeout, mas o processo concluiu e gravou manifest e artefatos validos
 
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 21 dias
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-15 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_21d_v1.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_21d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_21d_v1.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=730`
+  - `detail_count=730`
+  - `without_detail_count=0`
+- observacao:
+  - concluiu dentro de timeout de shell maior
+
+### `sweep-run` REST sem credencial, geral com detalhamento por `emission_date`, 28 dias
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-22 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_all_emission_date_28d_v1.json
+```
+
+Resultado:
+- manifest: [tmp\sweep_rest_all_emission_date_28d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_28d_v1.json)
+- `status=ok`
+- `item_count=1`
+- `success_count=1`
+- item unico:
+  - `record_count=1103`
+  - `detail_count=1103`
+  - `without_detail_count=0`
+- observacao:
+  - concluiu dentro de timeout de shell maior
+
 ### Correcao de bug no `emission_date` do sweep REST
 - o `sweep-run --runtime rest` falhava cedo ao inferir `number_of_years` quando `emission_date` vinha em `YYYY-MM-DD`
 - causa real:
@@ -453,8 +489,8 @@ Resultado:
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
 - o chunking removeu a falha seca, o dedupe removeu repeticao inutil e o cache por execucao evita reconsulta da mesma SSA, mas o custo de detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
-- `emission_date` geral agora esta verde em janelas curtas e semanais
-- o modo geral com detalhamento amplo por `emission_date` continua caro para janelas maiores
+- `emission_date` geral agora esta verde para 1, 3, 7, 14, 21 e 28 dias
+- o modo geral com detalhamento amplo por `emission_date` continua caro para janelas acima de 28 dias
 
 ## Proximo passo natural
 1. decidir se vale:
