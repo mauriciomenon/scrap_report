@@ -7,6 +7,7 @@
 - modo unitario: `windows-flow`
 - modo lote: `sweep-run`
 - branch alvo: `master`
+- para recorte multi-setor do mesmo relatorio, o modo recomendado e um pedido unico com expansao automatica por setor
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -62,6 +63,35 @@ Comportamento padrao:
 Saidas no caso `both` com preset:
 - `staging/sweep_windows_pendentes.json`
 - `staging/sweep_windows_executadas.json`
+
+## Modo recomendado para varios setores no mesmo relatorio
+Quando o objetivo for pedir, por exemplo, `IEE1 IEE2 IEE3 IEE4` para um mesmo relatorio:
+- nao repetir o comando quatro vezes
+- nao tentar montar um unico campo de tela com varios setores
+- usar um pedido unico de lote com varios setores
+
+Comportamento real validado:
+- o sistema expande um item por setor
+- gera um arquivo por setor
+- devolve um unico manifest de controle
+
+Relatorios validados neste modo:
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `reprogramacoes`
+
+Exemplo:
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_pendentes_eval.json
+```
+
+O que esperar:
+- `item_count = 4`
+- `success_count = 4` quando todos fecharem
+- um staged por setor
+- um derivado por setor
+- um erro isolado por item se algum setor falhar
 
 ## Regras do modo preset
 - `-Preset` usa `sweep-run` internamente
@@ -227,5 +257,6 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 - o alias `scripts/main_windows.ps1` existe apenas para compatibilidade
 - nao ha necessidade de instalar modulo extra para secret no Windows atual
 - o launcher nao cria script novo para variacoes; lote e unitario passam pelo mesmo caminho oficial
+- para panorama multi-setor, preferir pedido unico com varios setores em vez de repetir chamadas manuais
 - `derivadas_relacionadas` nao deve ser tratada como fluxo geral estavel enquanto o export oficial continuar intermitente
 - `aprovacao_emissao` nao deve anunciar `data de emissao` enquanto `Emitida Em` seguir pouco confiavel no export

@@ -34,6 +34,11 @@
   - `reprogramacoes`
 - `aprovacao_emissao` continua bloqueado para `data de emissao`
 - `derivadas_relacionadas` continua bloqueado para `data de emissao`
+- modo multi-setor em pedido unico agora esta validado e recomendado para:
+  - `pendentes`
+  - `executadas`
+  - `pendentes_execucao`
+  - `reprogramacoes`
 
 ## Evidencia operacional rodada 2026-03-22
 ### Diagnostico de ambiente
@@ -94,6 +99,47 @@ Conclusao:
 - bloqueio continua correto
 - mensagem operacional agora reflete o motivo real
 
+### Pedido unico multi-setor `IEE1 IEE2 IEE3 IEE4`
+Objetivo:
+- validar que um unico pedido consegue gerar um arquivo por setor automaticamente
+
+#### `pendentes`
+- manifest: [staging\sweep_iee1_iee4_pendentes_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_pendentes_eval.json)
+- resultado:
+  - `status=ok`
+  - `item_count=4`
+  - `success_count=4`
+
+#### `executadas`
+- manifest: [staging\sweep_iee1_iee4_executadas_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_executadas_eval.json)
+- resultado:
+  - `status=ok`
+  - `item_count=4`
+  - `success_count=4`
+
+#### `pendentes_execucao`
+- manifest: [staging\sweep_iee1_iee4_pendentes_execucao_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_pendentes_execucao_eval.json)
+- resultado:
+  - `status=ok`
+  - `item_count=4`
+  - `success_count=4`
+
+#### `reprogramacoes`
+- manifest: [staging\sweep_iee1_iee4_reprogramacoes_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_reprogramacoes_eval.json)
+- resultado:
+  - `status=ok`
+  - `item_count=4`
+  - `success_count=4`
+
+Conclusao:
+- o sistema ja suporta pedido unico multi-setor
+- o comportamento recomendado e:
+  - um pedido
+  - um item por setor
+  - um arquivo por setor
+  - um manifest unico de controle
+- nao ha evidencia ainda de um unico export do SAM com varios setores no mesmo campo
+
 ## Quality gates deste ciclo
 Comandos:
 ```powershell
@@ -129,6 +175,6 @@ Resultados:
 - faltam telas adicionais do menu `Relatorios`
 
 ## Proximo passo natural
-1. sincronizar docs ativos
-2. criar release nova com os commits apos `v0.1.1`
+1. sincronizar docs ativos com o modo multi-setor recomendado
+2. criar release incremental nova com essa documentacao
 3. decidir se a proxima frente de codigo sera export de `derivadas_relacionadas` ou fonte confiavel de `Emitida Em` em `aprovacao_emissao`

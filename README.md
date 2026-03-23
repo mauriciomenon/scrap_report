@@ -13,6 +13,10 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
   - `consulta_ssa`
   - `consulta_ssa_print`
   - `aprovacao_emissao`
+- modo recomendado para recorte multi-setor do mesmo relatorio:
+  - um pedido unico
+  - expansao automatica em um arquivo por setor
+  - um manifest unico com status por item
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -131,6 +135,47 @@ Exemplos:
 - ambos: `--setor MEL4 --setor-emissor IEE3`
 - nenhum: `--setor ALL --setor-emissor ALL`
 
+## Pedido unico multi-setor
+Para relatorios do mesmo tipo com varios setores emissores ou executores, o padrao recomendado agora e:
+- fazer um pedido unico
+- informar a lista de setores
+- deixar o sistema expandir internamente para um item por setor
+- receber um manifest unico e um arquivo por setor
+
+Isto nao significa:
+- um unico export do SAM com varios setores no mesmo campo
+
+Isto significa:
+- uma unica chamada operacional
+- varias execucoes internas controladas
+- um artefato staged e um derivado por setor
+- um manifest unico com `item_count`, `success_count`, `failure_count` e telemetria por item
+
+Vantagens praticas:
+- evita repetir comando manualmente para cada setor
+- preserva rastreabilidade por setor
+- isola erro por item sem matar o lote inteiro
+- encaixa melhor em rotinas operacionais amplas
+
+Relatorios validados neste modo:
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `reprogramacoes`
+
+Exemplo real validado para `IEE1 IEE2 IEE3 IEE4`:
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_pendentes_eval.json
+```
+
+Resultado esperado nesse modo:
+- `item_count = 4`
+- um item para `IEE1`
+- um item para `IEE2`
+- um item para `IEE3`
+- um item para `IEE4`
+- um arquivo staged e um derivado por item bem sucedido
+
 ## Grupos de setores atuais
 - principal: `IEE3`, `MEL4`, `MEL3`
 - segundo_plano: `IEE1`, `IEE2`, `IEE4`
@@ -196,6 +241,11 @@ uv run --project . python -m scrap_report.cli windows-flow --username "menon" --
 ### sweep-run manual
 ```powershell
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode executor --setores-executor MEL4 MEL3 --year-week-start 202608 --year-week-end 202612 --output-json staging/sweep_manual.json
+```
+
+### sweep-run multi-setor em um pedido
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind executadas --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_executadas_eval.json
 ```
 
 ### sweep-run com preset

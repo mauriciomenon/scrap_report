@@ -15,6 +15,12 @@ O projeto esta operacional em tres camadas:
 
 O ponto importante agora nao e falta de runtime geral. O ponto importante e que os casos especiais restantes foram explicitados e nao estao mais escondidos em heuristica.
 
+Para recorte multi-setor do mesmo relatorio, o modo recomendado agora e:
+- um pedido unico
+- expansao automatica em um item por setor
+- um arquivo por setor
+- um manifest unico de controle
+
 ## Report kinds suportados
 - `pendentes`
 - `executadas`
@@ -90,6 +96,6 @@ O ponto importante agora nao e falta de runtime geral. O ponto importante e que 
 - faltam algumas telas adicionais do menu `Relatorios`
 
 ## Proximos passos naturais
-1. criar nova tag/release em cima do range real apos `v0.1.1`
+1. criar nova tag/release incremental com a documentacao do modo multi-setor recomendado
 2. se voltar ao codigo, priorizar export oficial de `derivadas_relacionadas`
 3. depois avaliar se existe criterio forte para `Emitida Em` em `aprovacao_emissao`
