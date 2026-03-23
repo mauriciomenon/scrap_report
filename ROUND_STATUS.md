@@ -1,25 +1,22 @@
 # ROUND_STATUS
 
 ## Sessao atual
-- data: `2026-03-22`
+- data: `2026-03-23`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- baseline runtime atual: `b893356`
-- doc sync pendente neste ciclo: sim
+- baseline runtime no inicio da sessao: `81fb0c6`
+- runtime REST endurecido neste ciclo: `f1c846a`
+- doc sync pendente neste ciclo: nao
 
 ## Snapshot executivo
 - repo publico existente: sim
 - branch operacional: `master`
-- runtime geral: estavel para os `report_kind` principais
-- release publicada mais recente antes deste ciclo: `v0.1.1`
-- commits reais apos `v0.1.1`:
-  - `5436620` `STABILITY_PATCH: explicitar alias aprovacao emissao`
-  - `0e109f4` `STABILITY_PATCH: explicitar parser derivadas`
-  - `a2ef27c` `STABILITY_PATCH: liberar numero ssa aprovacao`
-  - `55ccbe6` `STABILITY_PATCH: explicitar export derivadas`
-  - `b893356` `STABILITY_PATCH: explicitar bloqueio emissao`
+- runtime Playwright principal: estavel no baseline anterior
+- camada REST sem Playwright: entregue em tres niveis
+- release mais recente conhecida antes deste ciclo: `v0.1.3`
 
 ## Current truth do runtime
+### Fluxo Playwright
 - `numero_ssa` validado para:
   - `consulta_ssa`
   - `consulta_ssa_print`
@@ -34,147 +31,131 @@
   - `reprogramacoes`
 - `aprovacao_emissao` continua bloqueado para `data de emissao`
 - `derivadas_relacionadas` continua bloqueado para `data de emissao`
-- modo multi-setor em pedido unico agora esta validado e recomendado para:
-  - `pendentes`
-  - `executadas`
-  - `pendentes_execucao`
-  - `reprogramacoes`
 
-## Evidencia operacional rodada 2026-03-22
-### Diagnostico de ambiente
-- DNS `osprd.itaipu`: `172.17.7.165`
-- `uv run python -m scrap_report.cli secret get --username menon`: `status=ok`
+### Fluxo REST sem Playwright
+- nivel 1:
+  - API interna reutilizavel em `sam_api.py`
+- nivel 2:
+  - comando opinativo `sam-api-flow`
+- nivel 3:
+  - fluxo totalmente independente `sam-api-standalone`
+- filtros REST atuais:
+  - executor
+  - emissor
+  - localizacao
+  - `year_week`
+  - `emission_date`
+  - lista de SSAs
+- exportacao REST atual:
+  - `json`
+  - `csv`
+  - `xlsx`
+  - resumo `xlsx`
 
-### `derivadas_relacionadas`
-Comando:
-```powershell
-uv run python -m scrap_report.cli sweep-run --username menon --report-kind derivadas_relacionadas --scope-mode nenhum --ignore-https-errors --output-json staging/sweep_derivadas_relacionadas_baseline.json
-```
-
-Resultado:
-- manifest: [staging\sweep_derivadas_relacionadas_baseline.json](C:\Users\mauri\git\scrap_report\staging\sweep_derivadas_relacionadas_baseline.json)
-- status: `error`
-- erro validado:
-  - `report_kind=derivadas_relacionadas nao entregou download no fluxo oficial; tela segue especial por export instavel`
-
-Conclusao:
-- o parser especial continua valido
-- o gargalo real no fluxo oficial segue sendo export/download, nao parser
-
-### `aprovacao_emissao` baseline
-Comando:
-```powershell
-uv run python -m scrap_report.cli sweep-run --username menon --report-kind aprovacao_emissao --scope-mode nenhum --ignore-https-errors --output-json staging/sweep_aprovacao_emissao_baseline_none.json
-```
-
-Resultado:
-- manifest: [staging\sweep_aprovacao_emissao_baseline_none.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_baseline_none.json)
-- status: `ok`
-- staged: [aprovacao_emissao_SSAs Pendentes de Aprovação na Emissão_22-03-2026_1114PM_20260322_231441_7571f94e.xlsx](C:\Users\mauri\git\scrap_report\staging\aprovacao_emissao_SSAs%20Pendentes%20de%20Aprova%C3%A7%C3%A3o%20na%20Emiss%C3%A3o_22-03-2026_1114PM_20260322_231441_7571f94e.xlsx)
-- derivado: [ssas_dados_20260322_231441_748743.xlsx](C:\Users\mauri\git\scrap_report\staging\reports\ssas_dados_20260322_231441_748743.xlsx)
-- linhas no derivado: `87`
-- coluna `Emitida Em`:
-  - presente
-  - `emitida_em_nonnull=1`
-  - maioria das linhas inspecionadas veio nula
-
-Conclusao:
-- baseline da tela exporta
-- `numero_ssa` continua util nesta tela
-- `Emitida Em` continua pouco confiavel para liberar `data de emissao`
-
-### `aprovacao_emissao` com `data de emissao`
-Comando:
-```powershell
-uv run python -m scrap_report.cli sweep-run --username menon --report-kind aprovacao_emissao --scope-mode nenhum --emission-date-start 2026-03-22 --emission-date-end 2026-03-22 --ignore-https-errors --output-json staging/sweep_aprovacao_emissao_emission_date_blocked.json
-```
-
-Resultado:
-- manifest: [staging\sweep_aprovacao_emissao_emission_date_blocked.json](C:\Users\mauri\git\scrap_report\staging\sweep_aprovacao_emissao_emission_date_blocked.json)
-- status: `error`
-- erro validado:
-  - `report_kind=aprovacao_emissao nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel`
-
-Conclusao:
-- bloqueio continua correto
-- mensagem operacional agora reflete o motivo real
-
-### Pedido unico multi-setor `IEE1 IEE2 IEE3 IEE4`
-Objetivo:
-- validar que um unico pedido consegue gerar um arquivo por setor automaticamente
-
-#### `pendentes`
-- manifest: [staging\sweep_iee1_iee4_pendentes_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_pendentes_eval.json)
-- resultado:
-  - `status=ok`
-  - `item_count=4`
-  - `success_count=4`
-
-#### `executadas`
-- manifest: [staging\sweep_iee1_iee4_executadas_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_executadas_eval.json)
-- resultado:
-  - `status=ok`
-  - `item_count=4`
-  - `success_count=4`
-
-#### `pendentes_execucao`
-- manifest: [staging\sweep_iee1_iee4_pendentes_execucao_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_pendentes_execucao_eval.json)
-- resultado:
-  - `status=ok`
-  - `item_count=4`
-  - `success_count=4`
-
-#### `reprogramacoes`
-- manifest: [staging\sweep_iee1_iee4_reprogramacoes_eval.json](C:\Users\mauri\git\scrap_report\staging\sweep_iee1_iee4_reprogramacoes_eval.json)
-- resultado:
-  - `status=ok`
-  - `item_count=4`
-  - `success_count=4`
-
-Conclusao:
-- o sistema ja suporta pedido unico multi-setor
-- o comportamento recomendado e:
-  - um pedido
-  - um item por setor
-  - um arquivo por setor
-  - um manifest unico de controle
-- nao ha evidencia ainda de um unico export do SAM com varios setores no mesmo campo
-
-## Quality gates deste ciclo
+## Evidencia operacional rodada 2026-03-23
+### Quality gates do slice REST final
 Comandos:
 ```powershell
-uv run python -m py_compile src\scrap_report\scraper.py src\scrap_report\sweep.py tests\test_scraper_contract.py tests\test_sweep.py
-uv run ruff check src\scrap_report\scraper.py src\scrap_report\sweep.py tests\test_scraper_contract.py tests\test_sweep.py
+uv run python -m py_compile src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\reporting.py src\scrap_report\contract.py tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
+uv run ruff check src\scrap_report\sam_api.py src\scrap_report\cli.py src\scrap_report\reporting.py src\scrap_report\contract.py tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
 uv run ty check src
-uv run pytest -q tests\test_scraper_contract.py tests\test_sweep.py tests\test_config_secrets.py tests\test_reporting.py tests\test_pipeline_offline.py
+uv run pytest -q tests\test_sam_api.py tests\test_cli.py tests\test_reporting.py tests\test_contract.py
 ```
 
 Resultados:
 - `py_compile`: ok
 - `ruff`: ok
 - `ty`: ok
-- `pytest`: `86 passed`
+- `pytest`: `74 passed`
 
-## Estado por report kind
-| report_kind | runtime geral | `numero_ssa` | `emission_year_week` | `emission_date` | observacao |
-| --- | --- | --- | --- | --- | --- |
-| `pendentes` | sim | nao | sim | sim | verde |
-| `executadas` | sim | nao | sim | sim | verde |
-| `pendentes_execucao` | sim | nao | sim | sim | verde |
-| `consulta_ssa` | sim | sim | sim | sim | verde |
-| `consulta_ssa_print` | parcial | sim | sim | sim | PDF proprio |
-| `aprovacao_emissao` | parcial | sim | sim | nao | alias de executor e export com `Emitida Em` pouco confiavel |
-| `aprovacao_cancelamento` | sim | nao | sim | sim | verde |
-| `derivadas_relacionadas` | parcial | nao | sim | nao | parser especial e export oficial instavel |
-| `reprogramacoes` | sim | nao | sim | sim | verde |
+### Nivel 1, API interna
+Comando:
+```powershell
+uv run --python 3.13 python -
+```
+
+Fluxo:
+- `SAMApiClient`
+- `query_sam_api_records(...)`
+- `executor_sectors=("MAM1",)`
+- `limit=2`
+
+Resultado:
+- `mode=search`
+- `count=2`
+- primeiro item:
+  - `ssa_number=202600001`
+  - `executor_sector=MAM1`
+  - `emitter_sector=OUO6`
+
+### Nivel 2, comando opinativo
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 2 --ignore-https-errors --output-json tmp/sam_api_flow_real_v2.json --output-csv tmp/sam_api_flow_real_v2.csv --output-xlsx tmp/sam_api_flow_real_v2.xlsx
+```
+
+Resultado:
+- manifest: [tmp\sam_api_flow_real_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_flow_real_v2.json)
+- `status=ok`
+- `profile=panorama`
+- `mode=search`
+- `count=2`
+- `verify_tls=false`
+- `warnings=["tls_verification_disabled"]`
+- exportacoes:
+  - [tmp\sam_api_flow_real_v2.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_flow_real_v2.csv)
+  - [tmp\sam_api_flow_real_v2.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_flow_real_v2.xlsx)
+
+### Nivel 3, fluxo independente
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone_real_v2 --output-json tmp/sam_api_standalone_manifest_v2.json
+```
+
+Resultado:
+- manifest: [tmp\sam_api_standalone_manifest_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_manifest_v2.json)
+- `status=ok`
+- `profile=detail-lote`
+- `mode=detail`
+- `count=1`
+- `verify_tls=false`
+- `warnings=["tls_verification_disabled"]`
+- artefatos:
+  - [sam_api_detail-lote_dados_20260323_123504_358529.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_real_v2\sam_api_detail-lote_dados_20260323_123504_358529.csv)
+  - [sam_api_detail-lote_dados_20260323_123504_358529.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_real_v2\sam_api_detail-lote_dados_20260323_123504_358529.xlsx)
+  - [sam_api_detail-lote_resumo_20260323_123504_358529.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_standalone_real_v2\sam_api_detail-lote_resumo_20260323_123504_358529.xlsx)
+
+### Mitigacoes novas nesta rodada
+- detalhe em lote agora tem limite operacional explicito
+- o payload REST agora inclui:
+  - `filters`
+  - `warnings`
+  - `verify_tls`
+  - `timeout_seconds`
+- o schema JSON da REST foi endurecido para exigir esse contexto minimo
+
+## Commits relevantes da frente REST
+- `6129535` `STABILITY_PATCH: adicionar cliente sam api`
+- `5511d49` `STABILITY_PATCH: ampliar integracao sam api`
+- `81fb0c6` `STABILITY_PATCH: fechar niveis rest api`
+- `f1c846a` `STABILITY_PATCH: endurecer operacao rest`
+
+## Estado por camada
+| camada | status | observacao |
+| --- | --- | --- |
+| Playwright unitario | verde | fluxo oficial mantido |
+| Sweep multi-setor | verde | pedido unico por setor validado |
+| REST nivel 1 | verde | API interna reutilizavel |
+| REST nivel 2 | verde | `sam-api-flow` operacional |
+| REST nivel 3 | verde | `sam-api-standalone` com manifest proprio |
 
 ## Risco residual
-- `derivadas_relacionadas` continua sendo o ultimo gargalo real de export oficial
-- `aprovacao_emissao` continua sem base para liberar `data de emissao`
-- `demais_*` continua dependente de preencher o grupo `demais`
-- faltam telas adicionais do menu `Relatorios`
+- a REST API ainda depende de `--ignore-https-errors` no ambiente atual
+- detalhe em lote acima do limite operacional agora falha cedo; ainda nao existe chunking controlado
+- a documentacao e o handoff precisam refletir integralmente a trilha REST deste ciclo
 
 ## Proximo passo natural
-1. sincronizar docs ativos com o modo multi-setor recomendado
-2. criar release incremental nova com essa documentacao
-3. decidir se a proxima frente de codigo sera export de `derivadas_relacionadas` ou fonte confiavel de `Emitida Em` em `aprovacao_emissao`
+1. decidir se vale:
+   - resolver confianca de certificado para a REST
+   - adicionar chunking controlado para lotes muito grandes
+2. ou voltar para as pendencias do fluxo Playwright

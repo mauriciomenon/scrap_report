@@ -1,6 +1,8 @@
 # RECOVERY_BACKLOG
 
 ## NAO_BLOQUEANTE_DEFERIDO
+- avaliar configuracao de certificado confiavel para a REST API e reduzir dependencia de `--ignore-https-errors`
+- avaliar chunking controlado para detalhe em lote acima do limite operacional atual
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

@@ -17,6 +17,10 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
   - um pedido unico
   - expansao automatica em um arquivo por setor
   - um manifest unico com status por item
+- camada REST sem Playwright disponivel em tres niveis:
+  - API interna reutilizavel
+  - comando opinativo `sam-api-flow`
+  - fluxo totalmente independente `sam-api-standalone`
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -50,6 +54,80 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
 - `src/scrap_report/pipeline.py`: execucao unitaria de scrape + stage + reports
 - `src/scrap_report/sweep.py`: planejamento, runner e presets de lote
 - `src/scrap_report/cli.py`: comandos operacionais
+- `src/scrap_report/sam_api.py`: cliente REST e filtros operacionais sem Playwright
+- `src/scrap_report/contract.py`: contrato JSON externo dos comandos
+
+## Camada REST sem Playwright
+Objetivo:
+- consultar a `SAM_SMA_API` diretamente, sem navegador, sem login e sem staging do pipeline classico
+
+Endpoints atualmente usados:
+- geral por faixa de localizacao:
+  - `GetPendingSSAsByLocalizationRange`
+- detalhado por numero de SSA:
+  - `GetSSABySSANumber`
+
+Os tres niveis hoje sao:
+1. API interna reutilizavel
+- funcoes em `sam_api.py`
+- uso por codigo Python e por outras camadas da CLI
+
+2. comando operacional opinativo
+- `sam-api-flow`
+- pensado para uso humano direto com perfis:
+  - `panorama`
+  - `detail-lote`
+
+3. fluxo totalmente independente
+- `sam-api-standalone`
+- gera:
+  - manifest proprio
+  - `csv`
+  - `xlsx`
+  - resumo `xlsx`
+- nao usa Playwright
+- nao usa o staging do pipeline antigo
+
+### Filtros REST atualmente suportados
+- `--executor-sector` repetivel
+- `--emitter-sector` repetivel
+- `--ssa-number` repetivel
+- `--ssa-number-file`
+- `--localization-contains`
+- `--year-week-start`
+- `--year-week-end`
+- `--emission-date-start`
+- `--emission-date-end`
+- `--limit`
+
+### Exportacao REST atualmente suportada
+- `json`
+- `csv`
+- `xlsx`
+- resumo `xlsx` no modo independente
+
+### Regra operacional de lote REST
+- detalhamento em lote agora tem limite operacional explicito
+- o objetivo e bloquear consultas caras por acidente
+- se o operador exceder o limite, o comando falha cedo com erro claro
+- a saida publica nao esconde esse bloqueio
+
+### TLS e certificados na REST
+- no ambiente atual, a API interna ainda exige `--ignore-https-errors` para uso estavel
+- isso aparece explicitamente em `warnings` e em `verify_tls=false` no payload/manifests
+- nao existe fallback silencioso
+
+### Manifest REST
+Os payloads REST agora carregam contexto operacional minimo obrigatorio:
+- `filters`
+- `warnings`
+- `verify_tls`
+- `timeout_seconds`
+
+Isto vale para:
+- `sam-api`
+- `sam-api-flow`
+- `sam-api-standalone`
 
 ## Report kinds suportados
 - `pendentes`
@@ -257,6 +335,28 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 ```powershell
 uv run --project . python -m scrap_report.cli pipeline --report-only --source-excel staging/pendentes_arquivo.xlsx --report-kind pendentes --staging-dir staging --output-json staging/pipeline_report_only.json
 ```
+
+### sam-api tecnico
+```powershell
+uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 3 --ignore-https-errors --output-json tmp/sam_api_search.json
+```
+
+### sam-api-flow opinativo
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
+```
+
+### sam-api-standalone independente
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### Resultado esperado no fluxo independente
+- um manifest JSON proprio
+- um `csv` de dados
+- um `xlsx` de dados
+- um `xlsx` de resumo
+- sem dependencia do pipeline Playwright
 
 ## Fluxo de segredo
 - comandos com auth resolvem credencial antes da operacao

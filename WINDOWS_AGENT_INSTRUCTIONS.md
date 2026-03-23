@@ -8,6 +8,7 @@
 - modo lote: `sweep-run`
 - branch alvo: `master`
 - para recorte multi-setor do mesmo relatorio, o modo recomendado e um pedido unico com expansao automatica por setor
+- existe uma camada REST sem Playwright para consultas diretas a `SAM_SMA_API`
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -253,10 +254,50 @@ uv run --project . python -m scrap_report.cli windows-flow --username "menon" --
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --preset principal_executor --output-json staging/sweep_principal_executor.json
 ```
 
+## Fluxos REST sem Playwright
+Estes comandos sao independentes do launcher Windows principal:
+- nao usam navegador
+- nao fazem login
+- nao usam `windows-flow`
+- nao usam `sweep-run`
+
+### 1. Comando tecnico
+```powershell
+uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_search.json
+```
+
+### 2. Comando opinativo
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ignore-https-errors --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
+```
+
+### 3. Fluxo totalmente independente
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### O que sai no fluxo independente
+- manifest JSON proprio
+- `csv` de dados
+- `xlsx` de dados
+- `xlsx` de resumo
+
+### Limites operacionais REST
+- detalhe em lote tem limite operacional explicito
+- se a consulta exceder esse limite, o comando falha cedo
+- a saida JSON registra `warnings`, `verify_tls` e `timeout_seconds`
+
+### Certificado REST
+- no ambiente atual, a REST API ainda exige `--ignore-https-errors` para uso estavel
+- isso fica explicito no payload via:
+  - `warnings=["tls_verification_disabled"]`
+  - `verify_tls=false`
+
 ## Observacoes operacionais
 - o alias `scripts/main_windows.ps1` existe apenas para compatibilidade
 - nao ha necessidade de instalar modulo extra para secret no Windows atual
 - o launcher nao cria script novo para variacoes; lote e unitario passam pelo mesmo caminho oficial
 - para panorama multi-setor, preferir pedido unico com varios setores em vez de repetir chamadas manuais
+- para consulta REST direta, preferir `sam-api-flow` quando o objetivo for operacao e `sam-api-standalone` quando o objetivo for artefato independente
 - `derivadas_relacionadas` nao deve ser tratada como fluxo geral estavel enquanto o export oficial continuar intermitente
 - `aprovacao_emissao` nao deve anunciar `data de emissao` enquanto `Emitida Em` seguir pouco confiavel no export
