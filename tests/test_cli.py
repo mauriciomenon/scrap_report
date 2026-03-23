@@ -317,7 +317,7 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     numbers_file = tmp_path / "ssas.txt"
-    numbers_file.write_text("202602521\n202600001\n", encoding="utf-8")
+    numbers_file.write_text("202602521\n202600001\n202602521\n", encoding="utf-8")
 
     class _FakeClient:
         def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
@@ -369,6 +369,7 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     assert '"csv": ' in content
     assert '"xlsx": ' in content
     assert '"filters"' in content
+    assert '"warnings": ["ssa_numbers_deduped"]' in content
 
 
 def test_sam_api_flow_panorama_writes_summary(
@@ -1427,6 +1428,24 @@ def test_sam_api_flow_accepts_ca_file(
     assert code == 0
     assert seen["verify_tls"] is True
     assert seen["ca_file"] == str(tmp_path / "corp-ca.pem")
+
+
+def test_sam_api_command_reports_missing_ca_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    code = main(
+        [
+            "sam-api",
+            "--ssa-number",
+            "202602521",
+            "--ca-file",
+            str(tmp_path / "missing-ca.pem"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "ca_file nao encontrado" in captured.err
 
 
 def test_sweep_run_rejects_preset_with_manual_scope(

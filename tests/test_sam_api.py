@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import ssl
+import urllib.error
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -188,6 +190,37 @@ def test_fetch_ssa_details_by_numbers_chunks_large_batch(monkeypatch: pytest.Mon
     assert records[0]["ssa_number"] == "0"
 
 
+def test_fetch_ssa_details_by_numbers_dedupes_repeated_numbers(monkeypatch: pytest.MonkeyPatch):
+    client = SAMApiClient()
+    seen_chunks: list[tuple[str, ...]] = []
+
+    def fake_get_ssas_by_numbers(self, ssa_numbers):
+        seen_chunks.append(tuple(ssa_numbers))
+        return [
+            {
+                "SSANumber": number,
+                "LocalizationCode": f"L{number}",
+                "Description": f"SSA {number}",
+                "EmmiterSector": "IEE3",
+                "ExecutorSector": "MEL4",
+                "EmissionDateTime": "23/02/2026 10:52:02",
+                "YearWeek": 202609,
+            }
+            for number in ssa_numbers
+        ]
+
+    monkeypatch.setattr(SAMApiClient, "get_ssas_by_numbers", fake_get_ssas_by_numbers)
+
+    records = fetch_ssa_details_by_numbers(
+        client,
+        ssa_numbers=("202600001", "202600001", "202600002", "202600001"),
+    )
+
+    assert len(seen_chunks) == 1
+    assert seen_chunks[0] == ("202600001", "202600002")
+    assert [item["ssa_number"] for item in records] == ["202600001", "202600002"]
+
+
 def test_query_sam_api_records_uses_detail_path(monkeypatch: pytest.MonkeyPatch):
     client = SAMApiClient()
     monkeypatch.setattr(
@@ -349,6 +382,44 @@ def test_search_pending_ssas_chunks_large_enrichment_batch(monkeypatch: pytest.M
     assert len(seen_chunks[1]) == 1
 
 
+def test_search_pending_ssas_dedupes_repeated_ssa_detail_lookup(monkeypatch: pytest.MonkeyPatch):
+    client = SAMApiClient()
+    seen_chunks: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_pending_ssas_by_localization_range",
+        lambda self, **_kwargs: [
+            {"SSANumber": "202600001", "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A001"},
+            {"SSANumber": "202600001", "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A001"},
+            {"SSANumber": "202600002", "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A002"},
+        ],
+    )
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_ssas_by_numbers",
+        lambda self, ssa_numbers: (
+            seen_chunks.append(tuple(ssa_numbers))
+            or [
+                {
+                    "SSANumber": number,
+                    "ExecutorSector": "MEL4",
+                    "EmmiterSector": "IEE3",
+                    "LocalizationCode": "A001" if number == "202600001" else "A002",
+                    "EmissionDateTime": "23/02/2026 10:52:02",
+                    "YearWeek": 202609,
+                }
+                for number in ssa_numbers
+            ]
+        ),
+    )
+
+    items = search_pending_ssas_by_localization_range(client, include_details=True)
+
+    assert len(seen_chunks) == 1
+    assert seen_chunks[0] == ("202600001", "202600002")
+    assert len(items) == 3
+
+
 def test_get_pending_ssas_by_localization_range_rejects_non_list(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
         "scrap_report.sam_api.urllib.request.urlopen",
@@ -360,8 +431,10 @@ def test_get_pending_ssas_by_localization_range_rejects_non_list(monkeypatch: py
         client.get_pending_ssas_by_localization_range("A", "Z", 1)
 
 
-def test_build_ssl_context_uses_custom_ca_file(monkeypatch: pytest.MonkeyPatch):
+def test_build_ssl_context_uses_custom_ca_file(tmp_path, monkeypatch: pytest.MonkeyPatch):
     seen = {}
+    ca_file = tmp_path / "corp-ca.pem"
+    ca_file.write_text("dummy", encoding="utf-8")
 
     def fake_create_default_context(*, cafile=None):
         seen["cafile"] = cafile
@@ -369,8 +442,41 @@ def test_build_ssl_context_uses_custom_ca_file(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr("scrap_report.sam_api.ssl.create_default_context", fake_create_default_context)
 
-    client = SAMApiClient(verify_tls=True, ca_file="C:/tmp/corp-ca.pem")
+    client = SAMApiClient(verify_tls=True, ca_file=str(ca_file))
     context = client._build_ssl_context()
 
     assert context is not None
-    assert seen["cafile"] == "C:/tmp/corp-ca.pem"
+    assert seen["cafile"] == str(ca_file)
+
+
+def test_build_ssl_context_rejects_missing_ca_file(tmp_path):
+    client = SAMApiClient(verify_tls=True, ca_file=str(tmp_path / "missing.pem"))
+
+    with pytest.raises(SAMApiError, match="ca_file nao encontrado"):
+        client._build_ssl_context()
+
+
+def test_request_json_reports_tls_verification_error(monkeypatch: pytest.MonkeyPatch):
+    def fake_urlopen(request, timeout, context):
+        raise ssl.SSLCertVerificationError(1, "self-signed certificate in certificate chain")
+
+    monkeypatch.setattr("scrap_report.sam_api.urllib.request.urlopen", fake_urlopen)
+
+    client = SAMApiClient()
+
+    with pytest.raises(SAMApiError, match="TLS nao confiavel"):
+        client.get_ssa_by_number("202602521")
+
+
+def test_request_json_reports_wrapped_tls_verification_error(monkeypatch: pytest.MonkeyPatch):
+    def fake_urlopen(request, timeout, context):
+        raise urllib.error.URLError(
+            ssl.SSLCertVerificationError(1, "self-signed certificate in certificate chain")
+        )
+
+    monkeypatch.setattr("scrap_report.sam_api.urllib.request.urlopen", fake_urlopen)
+
+    client = SAMApiClient()
+
+    with pytest.raises(SAMApiError, match="TLS nao confiavel"):
+        client.get_ssa_by_number("202602521")

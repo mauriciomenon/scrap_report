@@ -388,6 +388,7 @@ def test_sweep_runner_rest_mode_exports_records_for_pendentes(tmp_path: Path):
     assert seen["verify_tls"] is False
     assert seen["ca_file"] == str(tmp_path / "corp-ca.pem")
     assert seen["query_kwargs"]["emitter_sectors"] == ("IEE3",)
+    assert seen["query_kwargs"]["number_of_years"] == 1
     assert seen["query_kwargs"]["include_details"] is True
     assert seen["prefix"] == "pendentes_001"
     assert "rest_sweep" in str(seen["output_dir"])
@@ -417,6 +418,126 @@ def test_sweep_runner_rest_mode_rejects_unsupported_report_kind(tmp_path: Path):
     assert manifest.runtime_mode == "rest"
     assert manifest.items[0].runtime_mode == "rest"
     assert "suporta apenas report_kind=pendentes" in (manifest.items[0].error or "")
+
+
+def test_sweep_runner_rest_mode_supports_multiple_items(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="pendentes",
+        scope_mode="emissor",
+        setores_emissor=("IEE3", "IEE1"),
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        runtime_mode="rest",
+    )
+    seen_emitters: list[tuple[str, ...]] = []
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
+            pass
+
+    def _fake_query_runner(**kwargs):
+        emitter_sectors = tuple(kwargs["emitter_sectors"])
+        seen_emitters.append(emitter_sectors)
+        emitter = emitter_sectors[0]
+        return (
+            "search",
+            [
+                {
+                    "ssa_number": f"{emitter}-1",
+                    "executor_sector": "MEL4",
+                    "emitter_sector": emitter,
+                    "detail_present": False,
+                    "year_week": 202609,
+                }
+            ],
+        )
+
+    def _fake_exporter(records, output_dir, prefix):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        data_csv = output_dir / f"{prefix}.csv"
+        data_xlsx = output_dir / f"{prefix}.xlsx"
+        summary_xlsx = output_dir / f"{prefix}_summary.xlsx"
+        data_csv.write_text("ssa_number\n", encoding="utf-8")
+        data_xlsx.write_text("xlsx", encoding="utf-8")
+        summary_xlsx.write_text("summary", encoding="utf-8")
+        return SAMApiArtifacts(data_csv=data_csv, data_xlsx=data_xlsx, summary_xlsx=summary_xlsx)
+
+    manifest = SweepRunner(
+        sam_api_client_factory=_FakeClient,
+        sam_api_query_runner=_fake_query_runner,
+        sam_api_artifacts_exporter=_fake_exporter,
+    ).run(plan, runtime)
+
+    assert manifest.status == "ok"
+    assert manifest.item_count == 2
+    assert manifest.success_count == 2
+    assert seen_emitters == [("IEE3",), ("IEE1",)]
+
+
+def test_sweep_runner_rest_mode_supports_unfiltered_scope(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="pendentes",
+        scope_mode="nenhum",
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        runtime_mode="rest",
+    )
+    seen = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
+            pass
+
+    def _fake_query_runner(**kwargs):
+        seen["executor_sectors"] = kwargs["executor_sectors"]
+        seen["emitter_sectors"] = kwargs["emitter_sectors"]
+        seen["number_of_years"] = kwargs["number_of_years"]
+        return (
+            "search",
+            [
+                {
+                    "ssa_number": "202600001",
+                    "executor_sector": "MEL4",
+                    "emitter_sector": "IEE3",
+                    "detail_present": False,
+                    "year_week": 202609,
+                }
+            ],
+        )
+
+    def _fake_exporter(records, output_dir, prefix):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        data_csv = output_dir / f"{prefix}.csv"
+        data_xlsx = output_dir / f"{prefix}.xlsx"
+        summary_xlsx = output_dir / f"{prefix}_summary.xlsx"
+        data_csv.write_text("ssa_number\n202600001\n", encoding="utf-8")
+        data_xlsx.write_text("xlsx", encoding="utf-8")
+        summary_xlsx.write_text("summary", encoding="utf-8")
+        return SAMApiArtifacts(data_csv=data_csv, data_xlsx=data_xlsx, summary_xlsx=summary_xlsx)
+
+    manifest = SweepRunner(
+        sam_api_client_factory=_FakeClient,
+        sam_api_query_runner=_fake_query_runner,
+        sam_api_artifacts_exporter=_fake_exporter,
+    ).run(plan, runtime)
+
+    assert manifest.status == "ok"
+    assert manifest.item_count == 1
+    assert seen["executor_sectors"] == ()
+    assert seen["emitter_sectors"] == ()
+    assert seen["number_of_years"] == 1
 
 
 def test_preset_names_include_priority_groups_and_scope_modes():

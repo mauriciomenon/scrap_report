@@ -49,6 +49,21 @@ def _normalize_group_token(value: str) -> str:
     return value.strip().lower()
 
 
+def _infer_rest_number_of_years(spec: "FilterSpec") -> int:
+    year_candidates: list[int] = []
+    if spec.emission_year_week_start:
+        year_candidates.append(int(spec.emission_year_week_start[:4]))
+    if spec.emission_year_week_end:
+        year_candidates.append(int(spec.emission_year_week_end[:4]))
+    if spec.emission_date_start:
+        year_candidates.append(int(spec.emission_date_start[-4:]))
+    if spec.emission_date_end:
+        year_candidates.append(int(spec.emission_date_end[-4:]))
+    if not year_candidates:
+        return 100000
+    return max(year_candidates) - min(year_candidates) + 1
+
+
 def _resolve_group_alias(group_name: str) -> tuple[str, ...]:
     normalized_group = _normalize_group_token(group_name)
     alias = SETOR_GROUP_ALIASES.get(normalized_group)
@@ -532,6 +547,7 @@ class SweepRunner:
                 ssa_numbers=(spec.numero_ssa,) if spec.numero_ssa else (),
                 executor_sectors=(spec.setor_executor,) if spec.setor_executor else (),
                 emitter_sectors=(spec.setor_emissor,) if spec.setor_emissor else (),
+                number_of_years=_infer_rest_number_of_years(spec),
                 include_details=bool(
                     spec.numero_ssa
                     or spec.emission_year_week_start

@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+from pathlib import Path
 import ssl
 from typing import Any, Iterable, Sequence
+import urllib.error
 from urllib.parse import urlencode
 import urllib.request
 
@@ -56,7 +58,13 @@ class SAMApiClient:
     def _build_ssl_context(self) -> ssl.SSLContext | None:
         if self.verify_tls:
             if self.ca_file:
-                return ssl.create_default_context(cafile=self.ca_file)
+                ca_path = Path(self.ca_file)
+                if not ca_path.is_file():
+                    raise SAMApiError(f"ca_file nao encontrado: {self.ca_file}")
+                try:
+                    return ssl.create_default_context(cafile=str(ca_path))
+                except ssl.SSLError as exc:
+                    raise SAMApiError(f"ca_file invalido: {self.ca_file}: {exc}") from exc
             return None
         return ssl._create_unverified_context()
 
@@ -71,6 +79,25 @@ class SAMApiClient:
                 context=context,
             ) as response:
                 body = response.read().decode("utf-8")
+        except urllib.error.URLError as exc:
+            reason = getattr(exc, "reason", None)
+            if isinstance(reason, ssl.SSLCertVerificationError):
+                detail = getattr(reason, "verify_message", None) or str(reason)
+                raise SAMApiError(
+                    f"falha ao consultar {endpoint}: TLS nao confiavel ({detail}); "
+                    "forneca --ca-file ou use --ignore-https-errors quando permitido"
+                ) from exc
+            if isinstance(reason, ssl.SSLError):
+                raise SAMApiError(f"falha ao consultar {endpoint}: erro TLS ({reason})") from exc
+            raise SAMApiError(f"falha ao consultar {endpoint}: {exc}") from exc
+        except ssl.SSLCertVerificationError as exc:
+            detail = getattr(exc, "verify_message", None) or str(exc)
+            raise SAMApiError(
+                f"falha ao consultar {endpoint}: TLS nao confiavel ({detail}); "
+                "forneca --ca-file ou use --ignore-https-errors quando permitido"
+            ) from exc
+        except ssl.SSLError as exc:
+            raise SAMApiError(f"falha ao consultar {endpoint}: erro TLS ({exc})") from exc
         except Exception as exc:  # pragma: no cover - depende da rede
             raise SAMApiError(f"falha ao consultar {endpoint}: {exc}") from exc
         try:
@@ -133,6 +160,18 @@ def _normalize_upper_set(values: Iterable[str]) -> set[str]:
 
 def _normalize_ssa_number_set(values: Iterable[str]) -> set[str]:
     return {value.strip() for value in values if value and value.strip()}
+
+
+def _normalize_ssa_number_list(values: Iterable[str]) -> list[str]:
+    unique_values: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = value.strip() if value else ""
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_values.append(normalized)
+    return unique_values
 
 
 def _parse_datetime_value(value: object) -> datetime | None:
@@ -279,8 +318,9 @@ def fetch_ssa_details_by_numbers(
     emission_date_end: str | None = None,
     limit: int | None = None,
 ) -> list[dict[str, Any]]:
+    normalized_numbers = _normalize_ssa_number_list(ssa_numbers)
     raw_details: list[dict[str, Any]] = []
-    for chunk in _chunk_sequence(tuple(ssa_numbers), MAX_SAM_API_DETAIL_BATCH_SIZE):
+    for chunk in _chunk_sequence(tuple(normalized_numbers), MAX_SAM_API_DETAIL_BATCH_SIZE):
         raw_details.extend(client.get_ssas_by_numbers(chunk))
     records = [normalize_ssa_record(detail_record=item) for item in raw_details]
     return filter_normalized_ssa_records(
@@ -288,7 +328,7 @@ def fetch_ssa_details_by_numbers(
         executor_sectors=executor_sectors,
         emitter_sectors=emitter_sectors,
         localization_contains=localization_contains,
-        ssa_numbers=ssa_numbers,
+        ssa_numbers=normalized_numbers,
         year_week_start=year_week_start,
         year_week_end=year_week_end,
         emission_date_start=emission_date_start,
@@ -313,7 +353,7 @@ def query_sam_api_records(
     emission_date_end: str | None = None,
     limit: int | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
-    normalized_numbers = [value.strip() for value in ssa_numbers if value and value.strip()]
+    normalized_numbers = _normalize_ssa_number_list(ssa_numbers)
     if normalized_numbers:
         return (
             "detail",
@@ -408,9 +448,10 @@ def search_pending_ssas_by_localization_range(
     if not needs_details:
         return base_filtered
 
-    ssa_numbers_for_detail = [str(item.get("ssa_number") or "").strip() for item in base_filtered]
-    if any(not value for value in ssa_numbers_for_detail):
+    raw_ssa_numbers_for_detail = [str(item.get("ssa_number") or "").strip() for item in base_filtered]
+    if any(not value for value in raw_ssa_numbers_for_detail):
         raise SAMApiError("item retornado sem ssa_number, impossivel enriquecer com detalhe")
+    ssa_numbers_for_detail = _normalize_ssa_number_list(raw_ssa_numbers_for_detail)
     detail_records: list[dict[str, Any]] = []
     for chunk in _chunk_sequence(tuple(ssa_numbers_for_detail), MAX_SAM_API_DETAIL_BATCH_SIZE):
         detail_records.extend(client.get_ssas_by_numbers(chunk))

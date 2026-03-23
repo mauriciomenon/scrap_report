@@ -583,6 +583,18 @@ def _read_ssa_numbers_from_file(path_value: str | None) -> list[str]:
     return [line.strip() for line in content.splitlines() if line.strip()]
 
 
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    unique_values: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = value.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_values.append(normalized)
+    return unique_values
+
+
 def _normalize_optional_emission_date_window(
     emission_date_start: str | None,
     emission_date_end: str | None,
@@ -611,7 +623,7 @@ def _export_sam_api_records(
 
 
 def _resolve_sam_api_ssa_numbers(args: Any) -> list[str]:
-    return args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file)
+    return _dedupe_preserve_order(args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file))
 
 
 def _validate_sam_api_limit(limit: int | None) -> None:
@@ -650,7 +662,10 @@ def _build_sam_api_warnings(args: Any) -> list[str]:
         warnings.append("tls_verification_disabled")
     if getattr(args, "ca_file", None):
         warnings.append("custom_ca_file_configured")
+    raw_ssa_numbers = args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file)
     ssa_numbers = _resolve_sam_api_ssa_numbers(args)
+    if len(raw_ssa_numbers) != len(ssa_numbers):
+        warnings.append("ssa_numbers_deduped")
     if len(ssa_numbers) > MAX_SAM_API_DETAIL_BATCH_SIZE:
         warnings.append("detail_batch_chunked")
     return warnings
