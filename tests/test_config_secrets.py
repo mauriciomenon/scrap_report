@@ -4,12 +4,14 @@ from datetime import date
 
 from scrap_report.config import (
     CliConfigInput,
+    FILTER_RUNTIME_ALIASES,
     ScrapeConfig,
     VALIDATED_FILTER_CAPABILITIES,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
     normalize_emission_date,
     normalize_setor_filter,
+    report_kind_runtime_filter_name,
 )
 from scrap_report.secret_provider import MemorySecretProvider
 
@@ -49,6 +51,12 @@ def test_validated_filter_capabilities_keep_consulta_numero_ssa():
     assert "emission_date" in VALIDATED_FILTER_CAPABILITIES["reprogramacoes"]
     assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["aprovacao_emissao"]
     assert "emission_date" not in VALIDATED_FILTER_CAPABILITIES["derivadas_relacionadas"]
+
+
+def test_runtime_filter_aliases_make_aprovacao_emissao_exception_explicit():
+    assert FILTER_RUNTIME_ALIASES["aprovacao_emissao"]["setor_executor"] == "divisao_emissora"
+    assert report_kind_runtime_filter_name("aprovacao_emissao", "setor_executor") == "divisao_emissora"
+    assert report_kind_runtime_filter_name("pendentes", "setor_executor") == "setor_executor"
 
 
 def test_cli_config_uses_provider_secret():

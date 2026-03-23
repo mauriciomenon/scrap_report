@@ -56,6 +56,9 @@ VALIDATED_FILTER_CAPABILITIES = {
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}
     ),
 }
+FILTER_RUNTIME_ALIASES = {
+    "aprovacao_emissao": {"setor_executor": "divisao_emissora"},
+}
 EMISSION_DATE_SUPPORTED_REPORT_KINDS = tuple(
     kind
     for kind, filters in VALIDATED_FILTER_CAPABILITIES.items()
@@ -138,6 +141,10 @@ def normalize_text_filter(value: str | None) -> str:
 
 def report_kind_supports_filter(report_kind: str, filter_name: str) -> bool:
     return filter_name in VALIDATED_FILTER_CAPABILITIES.get(report_kind, frozenset())
+
+
+def report_kind_runtime_filter_name(report_kind: str, filter_name: str) -> str:
+    return FILTER_RUNTIME_ALIASES.get(report_kind, {}).get(filter_name, filter_name)
 
 
 def report_kind_uses_excel_output(report_kind: str) -> bool:

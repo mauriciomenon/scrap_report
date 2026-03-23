@@ -241,3 +241,29 @@ def test_unsupported_report_kind_rejects_numero_ssa_selector(tmp_path):
 
     with pytest.raises(RuntimeError, match="nao suporta filtro numero_ssa validado"):
         SAMScraper(cfg)._resolve_filter_selector(page=None, filter_name="numero_ssa")  # type: ignore[arg-type]
+
+
+def test_aprovacao_emissao_maps_executor_filter_to_divisao_emissora(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="aprovacao_emissao",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    seen: dict[str, str] = {}
+
+    def fake_resolve_selector(self, page, stable_id=None, name=None, **kwargs):
+        seen["stable_id"] = stable_id or ""
+        seen["name"] = name or ""
+        return "selector-ok"
+
+    monkeypatch.setattr(SAMScraper, "_resolve_selector", fake_resolve_selector)
+
+    selector = SAMScraper(cfg)._resolve_executor_filter_selector(page=None)  # type: ignore[arg-type]
+
+    assert selector == "selector-ok"
+    assert seen["stable_id"] == SAMLocators.FILTER["divisao_emissora"]
+    assert seen["name"] == "[name*='DivisionEmmiter']"

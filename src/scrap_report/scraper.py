@@ -16,6 +16,7 @@ from playwright.sync_api import Page, sync_playwright
 from .config import (
     EMISSION_DATE_SUPPORTED_REPORT_KINDS,
     ScrapeConfig,
+    report_kind_runtime_filter_name,
     report_kind_supports_filter,
 )
 from .redaction import redact_text
@@ -488,7 +489,11 @@ class SAMScraper:
         return f"{self.config.emission_year_week_start}..{self.config.emission_year_week_end}"
 
     def _resolve_executor_filter_selector(self, page: Page) -> str:
-        if self.config.report_kind == "aprovacao_emissao":
+        runtime_filter = report_kind_runtime_filter_name(
+            self.config.report_kind,
+            "setor_executor",
+        )
+        if runtime_filter == "divisao_emissora":
             return self._resolve_selector(
                 page,
                 stable_id=self.locators.FILTER["divisao_emissora"],
