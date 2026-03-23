@@ -11,7 +11,7 @@ from typing import Callable
 from urllib.parse import urlsplit
 
 import pandas as pd
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 from .config import (
     EMISSION_DATE_SUPPORTED_REPORT_KINDS,
@@ -272,16 +272,24 @@ class SAMScraper:
             page,
             stable_id=self._resolve_export_locator(),
         )
-        with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
-            self._open_actions_menu(page)
-            self._wait_for_export_ready(page, selector)
-            page.click(selector)
+        try:
+            with page.expect_download(timeout=self.config.download_timeout_ms) as download_promise:
+                self._open_actions_menu(page)
+                self._wait_for_export_ready(page, selector)
+                page.click(selector)
 
-            download = download_promise.value
-            target = self.config.download_dir / download.suggested_filename
-            download.save_as(str(target))
-            logger.info("download concluido: %s", target)
-            return target
+                download = download_promise.value
+                target = self.config.download_dir / download.suggested_filename
+                download.save_as(str(target))
+                logger.info("download concluido: %s", target)
+                return target
+        except PlaywrightTimeoutError as exc:
+            if self.config.report_kind == "derivadas_relacionadas":
+                raise RuntimeError(
+                    "report_kind=derivadas_relacionadas nao entregou download no fluxo oficial; "
+                    "tela segue especial por export instavel"
+                ) from exc
+            raise
 
     def _resolve_export_locator(self) -> str:
         if self.config.report_kind == "consulta_ssa_print":

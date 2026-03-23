@@ -1,4 +1,5 @@
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from scrap_report.config import ScrapeConfig
 from scrap_report.scraper import SAMLocators, SAMScraper
@@ -109,6 +110,45 @@ def test_build_empty_result_download_creates_header_only_xlsx(tmp_path):
     assert path.exists()
     assert path.suffix.lower() == ".xlsx"
     assert "sem_resultados" in path.name
+
+
+def test_derivadas_relacionadas_export_timeout_has_explicit_runtime_error(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="derivadas_relacionadas",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+
+    class FakeDownloadPromise:
+        @property
+        def value(self):
+            raise PlaywrightTimeoutError("timed out")
+
+    class FakeExpectDownload:
+        def __enter__(self):
+            return FakeDownloadPromise()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        def expect_download(self, timeout):
+            return FakeExpectDownload()
+
+        def click(self, selector):
+            return None
+
+    monkeypatch.setattr(scraper, "_resolve_selector", lambda *args, **kwargs: "selector-ok")
+    monkeypatch.setattr(scraper, "_open_actions_menu", lambda page: None)
+    monkeypatch.setattr(scraper, "_wait_for_export_ready", lambda page, selector: None)
+
+    with pytest.raises(RuntimeError, match="tela segue especial por export instavel"):
+        scraper._export_download(FakePage())
 
 
 def test_empty_result_title_uses_all_when_filters_are_disabled(tmp_path):
