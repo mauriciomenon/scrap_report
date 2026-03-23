@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from scrap_report.reporting import SAMApiArtifacts
 from scrap_report.sweep import (
     FilterSpec,
     SweepPlan,
@@ -162,6 +163,7 @@ def test_sweep_runner_keeps_order_and_collects_successes(tmp_path: Path):
     assert manifest.status == "ok"
     assert manifest.success_count == 2
     assert manifest.failure_count == 0
+    assert manifest.runtime_mode == "playwright"
     assert [item["setor_executor"] for item in manifest.to_payload()["items"]] == ["MEL4", "MEL3"]
 
 
@@ -308,6 +310,113 @@ def test_sweep_runner_rejects_unsupported_emission_date_report_kind(tmp_path: Pa
         "nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel"
         in (manifest.items[0].error or "")
     )
+
+
+def test_sweep_runner_rest_mode_exports_records_for_pendentes(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="pendentes",
+        scope_mode="emissor",
+        setores_emissor=("IEE3",),
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        runtime_mode="rest",
+        rest_base_url="https://example/rest",
+        rest_timeout_seconds=45.0,
+        rest_verify_tls=False,
+        rest_ca_file=str(tmp_path / "corp-ca.pem"),
+    )
+    seen = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
+            seen["base_url"] = base_url
+            seen["timeout_seconds"] = timeout_seconds
+            seen["verify_tls"] = verify_tls
+            seen["ca_file"] = ca_file
+
+    def _fake_query_runner(**kwargs):
+        seen["query_kwargs"] = kwargs
+        return (
+            "search",
+            [
+                {
+                    "ssa_number": "202600001",
+                    "executor_sector": "MEL4",
+                    "emitter_sector": "IEE3",
+                    "detail_present": False,
+                    "year_week": 202609,
+                }
+            ],
+        )
+
+    def _fake_exporter(records, output_dir, prefix):
+        seen["records"] = records
+        seen["output_dir"] = output_dir
+        seen["prefix"] = prefix
+        output_dir.mkdir(parents=True, exist_ok=True)
+        data_csv = output_dir / f"{prefix}.csv"
+        data_xlsx = output_dir / f"{prefix}.xlsx"
+        summary_xlsx = output_dir / f"{prefix}_summary.xlsx"
+        data_csv.write_text("ssa_number\n202600001\n", encoding="utf-8")
+        data_xlsx.write_text("xlsx", encoding="utf-8")
+        summary_xlsx.write_text("summary", encoding="utf-8")
+        return SAMApiArtifacts(
+            data_csv=data_csv,
+            data_xlsx=data_xlsx,
+            summary_xlsx=summary_xlsx,
+        )
+
+    manifest = SweepRunner(
+        sam_api_client_factory=_FakeClient,
+        sam_api_query_runner=_fake_query_runner,
+        sam_api_artifacts_exporter=_fake_exporter,
+    ).run(plan, runtime)
+
+    payload = manifest.to_payload()
+    assert manifest.status == "ok"
+    assert manifest.runtime_mode == "rest"
+    assert payload["runtime_mode"] == "rest"
+    assert payload["items"][0]["runtime_mode"] == "rest"
+    assert seen["base_url"] == "https://example/rest"
+    assert seen["timeout_seconds"] == 45.0
+    assert seen["verify_tls"] is False
+    assert seen["ca_file"] == str(tmp_path / "corp-ca.pem")
+    assert seen["query_kwargs"]["emitter_sectors"] == ("IEE3",)
+    assert seen["query_kwargs"]["include_details"] is True
+    assert seen["prefix"] == "pendentes_001"
+    assert "rest_sweep" in str(seen["output_dir"])
+    assert payload["items"][0]["reports"]["mode"] == "search"
+    assert payload["items"][0]["telemetry"]["record_count"] == 1
+    assert payload["items"][0]["telemetry"]["without_detail_count"] == 1
+
+
+def test_sweep_runner_rest_mode_rejects_unsupported_report_kind(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="executadas",
+        scope_mode="nenhum",
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+        runtime_mode="rest",
+    )
+
+    manifest = SweepRunner().run(plan, runtime)
+
+    assert manifest.status == "error"
+    assert manifest.runtime_mode == "rest"
+    assert manifest.items[0].runtime_mode == "rest"
+    assert "suporta apenas report_kind=pendentes" in (manifest.items[0].error or "")
 
 
 def test_preset_names_include_priority_groups_and_scope_modes():

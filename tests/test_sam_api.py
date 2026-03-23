@@ -155,14 +155,37 @@ def test_fetch_ssa_details_by_numbers_filters_and_limits(monkeypatch: pytest.Mon
     assert records[0]["ssa_number"] == "202600001"
 
 
-def test_fetch_ssa_details_by_numbers_rejects_large_batch():
+def test_fetch_ssa_details_by_numbers_chunks_large_batch(monkeypatch: pytest.MonkeyPatch):
     client = SAMApiClient()
+    seen_chunks: list[tuple[str, ...]] = []
 
-    with pytest.raises(SAMApiError, match="limite operacional de detalhe em lote"):
-        fetch_ssa_details_by_numbers(
-            client,
-            ssa_numbers=tuple(str(index) for index in range(MAX_SAM_API_DETAIL_BATCH_SIZE + 1)),
-        )
+    def fake_get_ssas_by_numbers(self, ssa_numbers):
+        seen_chunks.append(tuple(ssa_numbers))
+        return [
+            {
+                "SSANumber": number,
+                "LocalizationCode": f"L{number}",
+                "Description": f"SSA {number}",
+                "EmmiterSector": "IEE3",
+                "ExecutorSector": "MEL4",
+                "EmissionDateTime": "23/02/2026 10:52:02",
+                "YearWeek": 202609,
+            }
+            for number in ssa_numbers
+        ]
+
+    monkeypatch.setattr(SAMApiClient, "get_ssas_by_numbers", fake_get_ssas_by_numbers)
+
+    records = fetch_ssa_details_by_numbers(
+        client,
+        ssa_numbers=tuple(str(index) for index in range(MAX_SAM_API_DETAIL_BATCH_SIZE + 1)),
+    )
+
+    assert len(records) == MAX_SAM_API_DETAIL_BATCH_SIZE + 1
+    assert len(seen_chunks) == 2
+    assert len(seen_chunks[0]) == MAX_SAM_API_DETAIL_BATCH_SIZE
+    assert len(seen_chunks[1]) == 1
+    assert records[0]["ssa_number"] == "0"
 
 
 def test_query_sam_api_records_uses_detail_path(monkeypatch: pytest.MonkeyPatch):
@@ -288,8 +311,9 @@ def test_search_pending_ssas_applies_detail_only_filters(monkeypatch: pytest.Mon
     assert items[0]["ssa_number"] == "202600002"
 
 
-def test_search_pending_ssas_rejects_large_enrichment_batch(monkeypatch: pytest.MonkeyPatch):
+def test_search_pending_ssas_chunks_large_enrichment_batch(monkeypatch: pytest.MonkeyPatch):
     client = SAMApiClient()
+    seen_chunks: list[tuple[str, ...]] = []
     monkeypatch.setattr(
         SAMApiClient,
         "get_pending_ssas_by_localization_range",
@@ -298,9 +322,31 @@ def test_search_pending_ssas_rejects_large_enrichment_batch(monkeypatch: pytest.
             for index in range(MAX_SAM_API_DETAIL_BATCH_SIZE + 1)
         ],
     )
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_ssas_by_numbers",
+        lambda self, ssa_numbers: (
+            seen_chunks.append(tuple(ssa_numbers))
+            or [
+                {
+                    "SSANumber": number,
+                    "ExecutorSector": "MEL4",
+                    "EmmiterSector": "IEE3",
+                    "LocalizationCode": "A001",
+                    "EmissionDateTime": "23/02/2026 10:52:02",
+                    "YearWeek": 202609,
+                }
+                for number in ssa_numbers
+            ]
+        ),
+    )
 
-    with pytest.raises(SAMApiError, match="limite operacional de detalhe em lote"):
-        search_pending_ssas_by_localization_range(client, include_details=True)
+    items = search_pending_ssas_by_localization_range(client, include_details=True)
+
+    assert len(items) == MAX_SAM_API_DETAIL_BATCH_SIZE + 1
+    assert len(seen_chunks) == 2
+    assert len(seen_chunks[0]) == MAX_SAM_API_DETAIL_BATCH_SIZE
+    assert len(seen_chunks[1]) == 1
 
 
 def test_get_pending_ssas_by_localization_range_rejects_non_list(monkeypatch: pytest.MonkeyPatch):
@@ -312,3 +358,19 @@ def test_get_pending_ssas_by_localization_range_rejects_non_list(monkeypatch: py
 
     with pytest.raises(SAMApiError):
         client.get_pending_ssas_by_localization_range("A", "Z", 1)
+
+
+def test_build_ssl_context_uses_custom_ca_file(monkeypatch: pytest.MonkeyPatch):
+    seen = {}
+
+    def fake_create_default_context(*, cafile=None):
+        seen["cafile"] = cafile
+        return object()
+
+    monkeypatch.setattr("scrap_report.sam_api.ssl.create_default_context", fake_create_default_context)
+
+    client = SAMApiClient(verify_tls=True, ca_file="C:/tmp/corp-ca.pem")
+    context = client._build_ssl_context()
+
+    assert context is not None
+    assert seen["cafile"] == "C:/tmp/corp-ca.pem"

@@ -45,6 +45,7 @@ from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
 from .sam_api import (
     DEFAULT_SAM_API_BASE_URL,
+    MAX_SAM_API_DETAIL_BATCH_SIZE,
     SAMApiClient,
     SAMApiError,
     build_sam_api_summary,
@@ -281,6 +282,28 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="ignora erros de certificado TLS no navegador",
     )
+    sweep_run.add_argument(
+        "--runtime",
+        default="playwright",
+        choices=["playwright", "rest"],
+        help="runtime do sweep: navegador oficial ou camada REST suportada",
+    )
+    sweep_run.add_argument(
+        "--rest-base-url",
+        default=DEFAULT_SAM_API_BASE_URL,
+        help="base URL da SAM_SMA_API quando --runtime rest",
+    )
+    sweep_run.add_argument(
+        "--rest-timeout-seconds",
+        default=30.0,
+        type=float,
+        help="timeout HTTP da REST API quando --runtime rest",
+    )
+    sweep_run.add_argument(
+        "--rest-ca-file",
+        default=None,
+        help="arquivo PEM opcional para validar TLS da REST API",
+    )
     sweep_run.add_argument("--output-json", default=None, help="salva manifest json em arquivo")
     sweep_run.add_argument(
         "--secure-required",
@@ -443,6 +466,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="ignora validacao TLS para a API REST",
     )
+    sam_api.add_argument(
+        "--ca-file",
+        default=None,
+        help="arquivo PEM opcional para validar TLS da API REST",
+    )
     sam_api.add_argument("--output-csv", default=None, help="salva dados tabulares em csv")
     sam_api.add_argument("--output-xlsx", default=None, help="salva dados tabulares em xlsx")
     sam_api.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
@@ -474,6 +502,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sam_api_flow.add_argument("--include-details", action="store_true")
     sam_api_flow.add_argument("--timeout-seconds", default=30.0, type=float)
     sam_api_flow.add_argument("--ignore-https-errors", action="store_true")
+    sam_api_flow.add_argument("--ca-file", default=None)
     sam_api_flow.add_argument("--output-json", default=None)
     sam_api_flow.add_argument("--output-csv", default=None)
     sam_api_flow.add_argument("--output-xlsx", default=None)
@@ -504,6 +533,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sam_api_standalone.add_argument("--include-details", action="store_true")
     sam_api_standalone.add_argument("--timeout-seconds", default=30.0, type=float)
     sam_api_standalone.add_argument("--ignore-https-errors", action="store_true")
+    sam_api_standalone.add_argument("--ca-file", default=None)
     sam_api_standalone.add_argument("--output-dir", default="output")
     sam_api_standalone.add_argument("--output-json", default=None)
 
@@ -618,6 +648,11 @@ def _build_sam_api_warnings(args: Any) -> list[str]:
     warnings: list[str] = []
     if args.ignore_https_errors:
         warnings.append("tls_verification_disabled")
+    if getattr(args, "ca_file", None):
+        warnings.append("custom_ca_file_configured")
+    ssa_numbers = _resolve_sam_api_ssa_numbers(args)
+    if len(ssa_numbers) > MAX_SAM_API_DETAIL_BATCH_SIZE:
+        warnings.append("detail_batch_chunked")
     return warnings
 
 
@@ -881,6 +916,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
+            ca_file=args.ca_file,
         )
         try:
             mode, items = _run_sam_api_query(args, client)
@@ -901,6 +937,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
+            ca_file=args.ca_file,
         )
         try:
             mode, items = _run_sam_api_query(args, client)
@@ -923,6 +960,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
+            ca_file=args.ca_file,
         )
         try:
             _validate_sam_api_limit(args.limit)
@@ -1057,6 +1095,11 @@ def main(argv: list[str] | None = None) -> int:
             selector_mode=base_cfg.selector_mode,
             ignore_https_errors=base_cfg.ignore_https_errors,
             generate_reports=True,
+            runtime_mode=args.runtime,
+            rest_base_url=args.rest_base_url,
+            rest_timeout_seconds=args.rest_timeout_seconds,
+            rest_verify_tls=not args.ignore_https_errors,
+            rest_ca_file=args.rest_ca_file,
         )
         manifest = SweepRunner().run(plan, runtime)
         output_json = args.output_json or str(

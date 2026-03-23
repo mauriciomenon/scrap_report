@@ -33,12 +33,12 @@ class SAMApiError(RuntimeError):
     """Erro funcional ao consultar a SAM_SMA_API."""
 
 
-def _validate_detail_batch_size(count: int, context: str) -> None:
-    if count > MAX_SAM_API_DETAIL_BATCH_SIZE:
-        raise SAMApiError(
-            f"{context} excede limite operacional de detalhe em lote "
-            f"({count} > {MAX_SAM_API_DETAIL_BATCH_SIZE}); refine filtros ou reduza a lista"
-        )
+def _chunk_sequence(values: Sequence[str], chunk_size: int) -> tuple[tuple[str, ...], ...]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size deve ser maior que zero")
+    return tuple(
+        tuple(values[index : index + chunk_size]) for index in range(0, len(values), chunk_size)
+    )
 
 
 @dataclass(slots=True)
@@ -46,6 +46,7 @@ class SAMApiClient:
     base_url: str = DEFAULT_SAM_API_BASE_URL
     timeout_seconds: float = 30.0
     verify_tls: bool = True
+    ca_file: str | None = None
 
     def _build_url(self, endpoint: str, params: dict[str, Any]) -> str:
         normalized_base = self.base_url.rstrip("/")
@@ -54,6 +55,8 @@ class SAMApiClient:
 
     def _build_ssl_context(self) -> ssl.SSLContext | None:
         if self.verify_tls:
+            if self.ca_file:
+                return ssl.create_default_context(cafile=self.ca_file)
             return None
         return ssl._create_unverified_context()
 
@@ -276,8 +279,9 @@ def fetch_ssa_details_by_numbers(
     emission_date_end: str | None = None,
     limit: int | None = None,
 ) -> list[dict[str, Any]]:
-    _validate_detail_batch_size(len(ssa_numbers), "consulta detalhada")
-    raw_details = client.get_ssas_by_numbers(ssa_numbers)
+    raw_details: list[dict[str, Any]] = []
+    for chunk in _chunk_sequence(tuple(ssa_numbers), MAX_SAM_API_DETAIL_BATCH_SIZE):
+        raw_details.extend(client.get_ssas_by_numbers(chunk))
     records = [normalize_ssa_record(detail_record=item) for item in raw_details]
     return filter_normalized_ssa_records(
         records,
@@ -407,8 +411,9 @@ def search_pending_ssas_by_localization_range(
     ssa_numbers_for_detail = [str(item.get("ssa_number") or "").strip() for item in base_filtered]
     if any(not value for value in ssa_numbers_for_detail):
         raise SAMApiError("item retornado sem ssa_number, impossivel enriquecer com detalhe")
-    _validate_detail_batch_size(len(ssa_numbers_for_detail), "enriquecimento por detalhe")
-    detail_records = client.get_ssas_by_numbers(ssa_numbers_for_detail)
+    detail_records: list[dict[str, Any]] = []
+    for chunk in _chunk_sequence(tuple(ssa_numbers_for_detail), MAX_SAM_API_DETAIL_BATCH_SIZE):
+        detail_records.extend(client.get_ssas_by_numbers(chunk))
     detail_by_number = {
         str(item.get("SSANumber") or "").strip(): item for item in detail_records if item.get("SSANumber")
     }

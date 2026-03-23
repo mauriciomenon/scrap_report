@@ -201,10 +201,11 @@ def test_sam_api_search_command_writes_output_json(
     seen = {}
 
     class _FakeClient:
-        def __init__(self, base_url, timeout_seconds, verify_tls):
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
             seen["base_url"] = base_url
             seen["timeout_seconds"] = timeout_seconds
             seen["verify_tls"] = verify_tls
+            seen["ca_file"] = ca_file
 
     def fake_query(**kwargs):
         seen["query_kwargs"] = kwargs
@@ -255,6 +256,7 @@ def test_sam_api_search_command_writes_output_json(
     assert seen["base_url"].endswith("/SSA_API")
     assert seen["timeout_seconds"] == 30.0
     assert seen["verify_tls"] is False
+    assert seen["ca_file"] is None
     assert seen["query_kwargs"]["executor_sectors"] == ("MEL4", "MEL3")
     assert seen["query_kwargs"]["emitter_sectors"] == ("IEE3",)
     assert seen["query_kwargs"]["include_details"] is True
@@ -276,10 +278,11 @@ def test_sam_api_detail_command_writes_output_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     class _FakeClient:
-        def __init__(self, base_url, timeout_seconds, verify_tls):
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
             self.base_url = base_url
             self.timeout_seconds = timeout_seconds
             self.verify_tls = verify_tls
+            self.ca_file = ca_file
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
     monkeypatch.setattr(
@@ -317,10 +320,11 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     numbers_file.write_text("202602521\n202600001\n", encoding="utf-8")
 
     class _FakeClient:
-        def __init__(self, base_url, timeout_seconds, verify_tls):
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
             self.base_url = base_url
             self.timeout_seconds = timeout_seconds
             self.verify_tls = verify_tls
+            self.ca_file = ca_file
 
     seen = {}
 
@@ -371,10 +375,11 @@ def test_sam_api_flow_panorama_writes_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     class _FakeClient:
-        def __init__(self, base_url, timeout_seconds, verify_tls):
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
             self.base_url = base_url
             self.timeout_seconds = timeout_seconds
             self.verify_tls = verify_tls
+            self.ca_file = ca_file
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
     monkeypatch.setattr(
@@ -410,10 +415,11 @@ def test_sam_api_standalone_generates_manifest_and_exports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     class _FakeClient:
-        def __init__(self, base_url, timeout_seconds, verify_tls):
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
             self.base_url = base_url
             self.timeout_seconds = timeout_seconds
             self.verify_tls = verify_tls
+            self.ca_file = ca_file
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
     monkeypatch.setattr(
@@ -1320,6 +1326,107 @@ def test_sweep_run_accepts_preset_without_scope_or_setores(
     assert code == 0
     assert seen["scope_mode"] == "executor"
     assert seen["setores_executor"] == ("IEE3", "MEL4", "MEL3")
+
+
+def test_sweep_run_accepts_runtime_rest_and_rest_tls_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "pendentes",
+                "scope_mode": "executor",
+                "runtime_mode": "rest",
+                "item_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "items": [],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["runtime_mode"] = runtime.runtime_mode
+            seen["rest_base_url"] = runtime.rest_base_url
+            seen["rest_timeout_seconds"] = runtime.rest_timeout_seconds
+            seen["rest_verify_tls"] = runtime.rest_verify_tls
+            seen["rest_ca_file"] = runtime.rest_ca_file
+            return _Manifest()
+
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "executor",
+            "--setores-executor",
+            "MEL4",
+            "--runtime",
+            "rest",
+            "--rest-base-url",
+            "https://apps.itaipu.gov.br/SAM_SMA_API/rest/SSA_API",
+            "--rest-timeout-seconds",
+            "45",
+            "--rest-ca-file",
+            str(tmp_path / "ca.pem"),
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_rest.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["runtime_mode"] == "rest"
+    assert seen["rest_timeout_seconds"] == 45.0
+    assert seen["rest_verify_tls"] is True
+    assert seen["rest_ca_file"] == str(tmp_path / "ca.pem")
+
+
+def test_sam_api_flow_accepts_ca_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    seen = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
+            seen["verify_tls"] = verify_tls
+            seen["ca_file"] = ca_file
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr(
+        "scrap_report.cli.query_sam_api_records",
+        lambda **kwargs: ("search", []),
+    )
+
+    code = main(
+        [
+            "sam-api-flow",
+            "--profile",
+            "panorama",
+            "--ca-file",
+            str(tmp_path / "corp-ca.pem"),
+            "--output-json",
+            str(tmp_path / "out" / "sam_api_flow_ca.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["verify_tls"] is True
+    assert seen["ca_file"] == str(tmp_path / "corp-ca.pem")
 
 
 def test_sweep_run_rejects_preset_with_manual_scope(

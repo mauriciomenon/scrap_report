@@ -14,9 +14,12 @@ from .config import (
     normalize_setor_filter,
 )
 from .pipeline import run_pipeline
+from .reporting import export_sam_api_artifacts, sam_api_artifacts_to_dict
+from .sam_api import DEFAULT_SAM_API_BASE_URL, SAMApiClient, build_sam_api_summary, query_sam_api_records
 
 SWEEP_SCOPE_MODES = ("emissor", "executor", "ambos", "nenhum")
 SWEEP_PRESET_SCOPES = ("emissor", "executor", "ambos")
+SWEEP_RUNTIME_MODES = ("playwright", "rest")
 SETOR_GROUP_ALIASES = {
     "principal": "principal",
     "segundo_plano": "segundo_plano",
@@ -292,11 +295,23 @@ class SweepRuntimeConfig:
     selector_mode: str = "adaptive"
     ignore_https_errors: bool = False
     generate_reports: bool = True
+    runtime_mode: str = "playwright"
+    rest_base_url: str = DEFAULT_SAM_API_BASE_URL
+    rest_timeout_seconds: float = 30.0
+    rest_verify_tls: bool = True
+    rest_ca_file: str | None = None
+
+    def __post_init__(self) -> None:
+        normalized_runtime = self.runtime_mode.strip().lower()
+        if normalized_runtime not in SWEEP_RUNTIME_MODES:
+            raise ValueError("runtime_mode invalido")
+        object.__setattr__(self, "runtime_mode", normalized_runtime)
 
 
 @dataclass(frozen=True, slots=True)
 class SweepItemResult:
     index: int
+    runtime_mode: str
     scope_mode: str
     setor_emissor: str | None
     setor_executor: str | None
@@ -315,6 +330,7 @@ class SweepItemResult:
     def to_payload(self) -> dict[str, object]:
         return {
             "index": self.index,
+            "runtime_mode": self.runtime_mode,
             "scope_mode": self.scope_mode,
             "setor_emissor": self.setor_emissor,
             "setor_executor": self.setor_executor,
@@ -337,6 +353,7 @@ class SweepManifest:
     status: str
     report_kind: str
     scope_mode: str
+    runtime_mode: str
     item_count: int
     success_count: int
     failure_count: int
@@ -347,6 +364,7 @@ class SweepManifest:
             "status": self.status,
             "report_kind": self.report_kind,
             "scope_mode": self.scope_mode,
+            "runtime_mode": self.runtime_mode,
             "item_count": self.item_count,
             "success_count": self.success_count,
             "failure_count": self.failure_count,
@@ -355,8 +373,17 @@ class SweepManifest:
 
 
 class SweepRunner:
-    def __init__(self, pipeline_runner=run_pipeline) -> None:
+    def __init__(
+        self,
+        pipeline_runner=run_pipeline,
+        sam_api_client_factory=SAMApiClient,
+        sam_api_query_runner=query_sam_api_records,
+        sam_api_artifacts_exporter=export_sam_api_artifacts,
+    ) -> None:
         self._pipeline_runner = pipeline_runner
+        self._sam_api_client_factory = sam_api_client_factory
+        self._sam_api_query_runner = sam_api_query_runner
+        self._sam_api_artifacts_exporter = sam_api_artifacts_exporter
 
     def run(self, plan: SweepPlan, runtime: SweepRuntimeConfig) -> SweepManifest:
         results = tuple(
@@ -375,6 +402,7 @@ class SweepRunner:
             status=status,
             report_kind=plan.report_kind,
             scope_mode=plan.scope_mode,
+            runtime_mode=runtime.runtime_mode,
             item_count=len(results),
             success_count=success_count,
             failure_count=failure_count,
@@ -398,6 +426,7 @@ class SweepRunner:
                 error += " neste runtime"
             return SweepItemResult(
                 index=item.index,
+                runtime_mode=runtime.runtime_mode,
                 scope_mode=spec.scope_mode,
                 setor_emissor=spec.setor_emissor,
                 setor_executor=spec.setor_executor,
@@ -409,6 +438,8 @@ class SweepRunner:
                 status="error",
                 error=error,
             )
+        if runtime.runtime_mode == "rest":
+            return self._run_rest_item(item=item, spec=spec, report_kind=report_kind, runtime=runtime)
         config = ScrapeConfig(
             username=runtime.username,
             password=runtime.password,
@@ -435,6 +466,7 @@ class SweepRunner:
         except Exception as exc:
             return SweepItemResult(
                 index=item.index,
+                runtime_mode=runtime.runtime_mode,
                 scope_mode=spec.scope_mode,
                 setor_emissor=spec.setor_emissor,
                 setor_executor=spec.setor_executor,
@@ -449,6 +481,7 @@ class SweepRunner:
 
         return SweepItemResult(
             index=item.index,
+            runtime_mode=runtime.runtime_mode,
             scope_mode=spec.scope_mode,
             setor_emissor=spec.setor_emissor,
             setor_executor=spec.setor_executor,
@@ -462,4 +495,94 @@ class SweepRunner:
             staged_path=pipeline_result.staged_path,
             reports=dict(pipeline_result.reports),
             telemetry=dict(pipeline_result.telemetry),
+        )
+
+    def _run_rest_item(
+        self,
+        item: SweepItem,
+        spec: FilterSpec,
+        report_kind: str,
+        runtime: SweepRuntimeConfig,
+    ) -> SweepItemResult:
+        if report_kind != "pendentes":
+            return SweepItemResult(
+                index=item.index,
+                runtime_mode=runtime.runtime_mode,
+                scope_mode=spec.scope_mode,
+                setor_emissor=spec.setor_emissor,
+                setor_executor=spec.setor_executor,
+                numero_ssa=spec.numero_ssa,
+                emission_year_week_start=spec.emission_year_week_start,
+                emission_year_week_end=spec.emission_year_week_end,
+                emission_date_start=spec.emission_date_start,
+                emission_date_end=spec.emission_date_end,
+                status="error",
+                error="runtime rest no sweep suporta apenas report_kind=pendentes neste ciclo",
+            )
+
+        client = self._sam_api_client_factory(
+            base_url=runtime.rest_base_url,
+            timeout_seconds=runtime.rest_timeout_seconds,
+            verify_tls=runtime.rest_verify_tls,
+            ca_file=runtime.rest_ca_file,
+        )
+        try:
+            mode, records = self._sam_api_query_runner(
+                client=client,
+                ssa_numbers=(spec.numero_ssa,) if spec.numero_ssa else (),
+                executor_sectors=(spec.setor_executor,) if spec.setor_executor else (),
+                emitter_sectors=(spec.setor_emissor,) if spec.setor_emissor else (),
+                include_details=bool(
+                    spec.numero_ssa
+                    or spec.emission_year_week_start
+                    or spec.emission_year_week_end
+                    or spec.emission_date_start
+                    or spec.emission_date_end
+                ),
+                year_week_start=spec.emission_year_week_start,
+                year_week_end=spec.emission_year_week_end,
+                emission_date_start=spec.emission_date_start,
+                emission_date_end=spec.emission_date_end,
+            )
+            output_dir = runtime.staging_dir / "rest_sweep" / report_kind / f"item_{item.index:03d}"
+            artifacts = self._sam_api_artifacts_exporter(records, output_dir, f"{report_kind}_{item.index:03d}")
+            summary = build_sam_api_summary(records)
+        except Exception as exc:
+            return SweepItemResult(
+                index=item.index,
+                runtime_mode=runtime.runtime_mode,
+                scope_mode=spec.scope_mode,
+                setor_emissor=spec.setor_emissor,
+                setor_executor=spec.setor_executor,
+                numero_ssa=spec.numero_ssa,
+                emission_year_week_start=spec.emission_year_week_start,
+                emission_year_week_end=spec.emission_year_week_end,
+                emission_date_start=spec.emission_date_start,
+                emission_date_end=spec.emission_date_end,
+                status="error",
+                error=str(exc),
+            )
+
+        reports = sam_api_artifacts_to_dict(artifacts)
+        reports["mode"] = mode
+        return SweepItemResult(
+            index=item.index,
+            runtime_mode=runtime.runtime_mode,
+            scope_mode=spec.scope_mode,
+            setor_emissor=spec.setor_emissor,
+            setor_executor=spec.setor_executor,
+            numero_ssa=spec.numero_ssa,
+            emission_year_week_start=spec.emission_year_week_start,
+            emission_year_week_end=spec.emission_year_week_end,
+            emission_date_start=spec.emission_date_start,
+            emission_date_end=spec.emission_date_end,
+            status="ok",
+            source_path=artifacts.data_csv,
+            staged_path=artifacts.data_xlsx,
+            reports=reports,
+            telemetry={
+                "record_count": len(records),
+                "detail_count": int(summary["detail_count"]),
+                "without_detail_count": int(summary["without_detail_count"]),
+            },
         )
