@@ -49,6 +49,7 @@ from .sam_api import (
     SAMApiClient,
     SAMApiError,
     build_sam_api_summary,
+    export_server_root_ca,
     query_sam_api_records,
 )
 from .sweep import (
@@ -537,6 +538,17 @@ def _build_parser() -> argparse.ArgumentParser:
     sam_api_standalone.add_argument("--output-dir", default="output")
     sam_api_standalone.add_argument("--output-json", default=None)
 
+    sam_api_cert = sub.add_parser(
+        "sam-api-cert",
+        help="exporta a CA raiz apresentada pelo host REST para uso com --ca-file",
+    )
+    sam_api_cert.add_argument("--host", default="apps.itaipu.gov.br")
+    sam_api_cert.add_argument("--port", default=443, type=int)
+    sam_api_cert.add_argument("--output", required=True)
+    sam_api_cert.add_argument("--openssl-bin", default=None)
+    sam_api_cert.add_argument("--timeout-seconds", default=30.0, type=float)
+    sam_api_cert.add_argument("--output-json", default=None)
+
     return parser
 
 
@@ -593,6 +605,12 @@ def _dedupe_preserve_order(values: list[str]) -> list[str]:
         seen.add(normalized)
         unique_values.append(normalized)
     return unique_values
+
+
+def _normalize_optional_path(path_value: str | None) -> str | None:
+    if not path_value:
+        return None
+    return str(Path(path_value).expanduser().resolve())
 
 
 def _normalize_optional_emission_date_window(
@@ -766,8 +784,8 @@ def _build_default_sweep_output_json(staging_dir: Path, report_kind: str) -> Pat
     return staging_dir / f"sweep_{report_kind}_{stamp}.json"
 
 
-def _print_secret_policy_notice(command: str, output_json: str | None) -> None:
-    if command not in AUTH_REQUIRED_COMMANDS:
+def _print_secret_policy_notice(args: Any, output_json: str | None) -> None:
+    if not _command_requires_auth(args):
         return
     notice = (
         "[security] Esta etapa resolve credencial de login antes da operacao. "
@@ -783,6 +801,12 @@ def _print_secret_policy_notice(command: str, output_json: str | None) -> None:
             "[security] Aviso emitido em stderr para preservar JSON limpo em stdout.",
             file=sys.stderr,
         )
+
+
+def _command_requires_auth(args: Any) -> bool:
+    if args.command != "sweep-run":
+        return args.command in AUTH_REQUIRED_COMMANDS
+    return getattr(args, "runtime", "playwright") != "rest"
 
 
 def _ensure_secret_available(
@@ -931,7 +955,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
-            ca_file=args.ca_file,
+            ca_file=_normalize_optional_path(args.ca_file),
         )
         try:
             mode, items = _run_sam_api_query(args, client)
@@ -952,7 +976,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
-            ca_file=args.ca_file,
+            ca_file=_normalize_optional_path(args.ca_file),
         )
         try:
             mode, items = _run_sam_api_query(args, client)
@@ -975,7 +999,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             timeout_seconds=args.timeout_seconds,
             verify_tls=not args.ignore_https_errors,
-            ca_file=args.ca_file,
+            ca_file=_normalize_optional_path(args.ca_file),
         )
         try:
             _validate_sam_api_limit(args.limit)
@@ -998,8 +1022,26 @@ def main(argv: list[str] | None = None) -> int:
         _emit_json(payload, manifest_path, "sam_api_flow_result")
         return 0
 
+    if args.command == "sam-api-cert":
+        try:
+            payload = {
+                "status": "ok",
+                **export_server_root_ca(
+                    output_path=args.output,
+                    host=args.host,
+                    port=args.port,
+                    openssl_bin=args.openssl_bin,
+                    timeout_seconds=args.timeout_seconds,
+                ),
+            }
+        except SAMApiError as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+        _emit_unvalidated_json(payload, args.output_json)
+        return 0
+
     if args.command == "windows-flow":
-        _print_secret_policy_notice(args.command, args.output_json)
+        _print_secret_policy_notice(args, args.output_json)
         provider = build_secret_provider()
         if not provider.test_backend():
             print("[error] backend de secret indisponivel", file=sys.stderr)
@@ -1044,9 +1086,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "sweep-run":
-        _print_secret_policy_notice(args.command, args.output_json)
+        _print_secret_policy_notice(args, args.output_json)
         input_password = args.password
-        if args.prompt_password and not input_password:
+        if args.runtime != "rest" and args.prompt_password and not input_password:
             input_password = _read_password_masked("password: ")
         try:
             if args.preset:
@@ -1063,6 +1105,49 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError(
                         "preset nao pode ser combinado com scope-mode, setores ou filtros de data manuais"
                     )
+            if args.preset:
+                plan = build_preset_plan(args.preset, args.report_kind)
+            else:
+                if not args.scope_mode:
+                    raise ValueError("scope-mode obrigatorio quando preset nao for informado")
+                plan = SweepPlan(
+                    report_kind=args.report_kind,
+                    scope_mode=args.scope_mode,
+                    setores_emissor=tuple(args.setores_emissor),
+                    setores_executor=tuple(args.setores_executor),
+                    numero_ssa=args.numero_ssa,
+                    emission_year_week_start=args.year_week_start,
+                    emission_year_week_end=args.year_week_end,
+                    emission_date_start=args.emission_date_start,
+                    emission_date_end=args.emission_date_end,
+                )
+            if args.runtime == "rest":
+                download_dir = Path(args.download_dir)
+                staging_dir = Path(args.staging_dir)
+                download_dir.mkdir(parents=True, exist_ok=True)
+                staging_dir.mkdir(parents=True, exist_ok=True)
+                runtime = SweepRuntimeConfig(
+                    username=(args.username or "").strip(),
+                    password=(input_password or "").strip(),
+                    base_url=args.base_url,
+                    headless=not args.headed,
+                    download_dir=download_dir,
+                    staging_dir=staging_dir,
+                    selector_mode=args.selector_mode,
+                    ignore_https_errors=args.ignore_https_errors,
+                    generate_reports=True,
+                    runtime_mode=args.runtime,
+                    rest_base_url=args.rest_base_url,
+                    rest_timeout_seconds=args.rest_timeout_seconds,
+                    rest_verify_tls=not args.ignore_https_errors,
+                    rest_ca_file=_normalize_optional_path(args.rest_ca_file),
+                )
+                manifest = SweepRunner().run(plan, runtime)
+                output_json = args.output_json or str(
+                    _build_default_sweep_output_json(staging_dir, args.report_kind)
+                )
+                _emit_unvalidated_json(manifest.to_payload(), output_json)
+                return 0 if manifest.status == "ok" else 1
             base_cfg = CliConfigInput(
                 username=args.username,
                 password=input_password,
@@ -1080,22 +1165,6 @@ def main(argv: list[str] | None = None) -> int:
                 selector_mode=args.selector_mode,
                 ignore_https_errors=args.ignore_https_errors,
             ).to_scrape_config()
-            if args.preset:
-                plan = build_preset_plan(args.preset, args.report_kind)
-            else:
-                if not args.scope_mode:
-                    raise ValueError("scope-mode obrigatorio quando preset nao for informado")
-                plan = SweepPlan(
-                    report_kind=args.report_kind,
-                    scope_mode=args.scope_mode,
-                    setores_emissor=tuple(args.setores_emissor),
-                    setores_executor=tuple(args.setores_executor),
-                    numero_ssa=args.numero_ssa,
-                    emission_year_week_start=args.year_week_start,
-                    emission_year_week_end=args.year_week_end,
-                    emission_date_start=args.emission_date_start,
-                    emission_date_end=args.emission_date_end,
-                )
         except ValueError as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
@@ -1114,7 +1183,7 @@ def main(argv: list[str] | None = None) -> int:
             rest_base_url=args.rest_base_url,
             rest_timeout_seconds=args.rest_timeout_seconds,
             rest_verify_tls=not args.ignore_https_errors,
-            rest_ca_file=args.rest_ca_file,
+            rest_ca_file=_normalize_optional_path(args.rest_ca_file),
         )
         manifest = SweepRunner().run(plan, runtime)
         output_json = args.output_json or str(
@@ -1157,7 +1226,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command in {"scrape", "pipeline", "ingest-latest"}:
-        _print_secret_policy_notice(args.command, args.output_json)
+        _print_secret_policy_notice(args, args.output_json)
         input_password = args.password
         if args.prompt_password and not input_password:
             input_password = _read_password_masked("password: ")

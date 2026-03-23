@@ -1397,6 +1397,61 @@ def test_sweep_run_accepts_runtime_rest_and_rest_tls_options(
     assert seen["rest_ca_file"] == str(tmp_path / "ca.pem")
 
 
+def test_sweep_run_rest_does_not_require_secret_backend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    seen = {}
+
+    class _Manifest:
+        status = "ok"
+
+        def to_payload(self):
+            return {
+                "status": "ok",
+                "report_kind": "pendentes",
+                "scope_mode": "nenhum",
+                "runtime_mode": "rest",
+                "item_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "items": [],
+            }
+
+    class _FakeRunner:
+        def run(self, plan, runtime):
+            seen["username"] = runtime.username
+            seen["password"] = runtime.password
+            seen["download_dir"] = runtime.download_dir
+            seen["staging_dir"] = runtime.staging_dir
+            return _Manifest()
+
+    def fail_build_secret_provider():
+        raise AssertionError("secret backend nao deveria ser consultado no runtime rest")
+
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", fail_build_secret_provider)
+    monkeypatch.setattr("scrap_report.cli.SweepRunner", lambda: _FakeRunner())
+
+    code = main(
+        [
+            "sweep-run",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "nenhum",
+            "--runtime",
+            "rest",
+            "--output-json",
+            str(tmp_path / "out" / "sweep_rest_no_auth.json"),
+        ]
+    )
+
+    assert code == 0
+    assert seen["username"] == ""
+    assert seen["password"] == ""
+    assert seen["download_dir"] == Path("downloads")
+    assert seen["staging_dir"] == Path("staging")
+
+
 def test_sam_api_flow_accepts_ca_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -1446,6 +1501,36 @@ def test_sam_api_command_reports_missing_ca_file(
 
     assert code == 1
     assert "ca_file nao encontrado" in captured.err
+
+
+def test_sam_api_cert_exports_root_ca(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        "scrap_report.cli.export_server_root_ca",
+        lambda **kwargs: {
+            "host": kwargs["host"],
+            "port": kwargs["port"],
+            "output_path": kwargs["output_path"],
+            "certificate_count": 2,
+            "root_certificate_index": 1,
+            "subject": "CN=Root",
+            "issuer": "CN=Root",
+            "openssl_bin": "openssl",
+        },
+    )
+
+    code = main(
+        [
+            "sam-api-cert",
+            "--output",
+            str(tmp_path / "corp-root.pem"),
+            "--output-json",
+            str(tmp_path / "out" / "sam_api_cert.json"),
+        ]
+    )
+
+    assert code == 0
 
 
 def test_sweep_run_rejects_preset_with_manual_scope(

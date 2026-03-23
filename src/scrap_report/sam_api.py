@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import json
 from pathlib import Path
+import re
+import shutil
 import ssl
+import subprocess
 from typing import Any, Iterable, Sequence
 import urllib.error
 from urllib.parse import urlencode
@@ -49,6 +52,7 @@ class SAMApiClient:
     timeout_seconds: float = 30.0
     verify_tls: bool = True
     ca_file: str | None = None
+    _detail_cache: dict[str, dict[str, Any]] = field(default_factory=dict, init=False, repr=False)
 
     def _build_url(self, endpoint: str, params: dict[str, Any]) -> str:
         normalized_base = self.base_url.rstrip("/")
@@ -127,12 +131,16 @@ class SAMApiClient:
         normalized_number = ssa_number.strip()
         if not normalized_number:
             raise ValueError("ssa_number nao pode ser vazio")
+        cached = self._detail_cache.get(normalized_number)
+        if cached is not None:
+            return cached
         payload = self._request_json(
             "GetSSABySSANumber",
             {"SSANumber": normalized_number},
         )
         if not isinstance(payload, dict):
             raise SAMApiError("GetSSABySSANumber nao retornou objeto")
+        self._detail_cache[normalized_number] = payload
         return payload
 
     def get_ssas_by_numbers(self, ssa_numbers: Sequence[str]) -> list[dict[str, Any]]:
@@ -172,6 +180,89 @@ def _normalize_ssa_number_list(values: Iterable[str]) -> list[str]:
         seen.add(normalized)
         unique_values.append(normalized)
     return unique_values
+
+
+def _extract_pem_blocks(text: str) -> list[str]:
+    return re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", text, flags=re.S)
+
+
+def _extract_chain_metadata(text: str) -> list[tuple[str, str]]:
+    metadata: list[tuple[str, str]] = []
+    lines = text.splitlines()
+    for index, line in enumerate(lines[:-1]):
+        subject_match = re.match(r"\s*\d+\s+s:(.*)", line)
+        issuer_match = re.match(r"\s*i:(.*)", lines[index + 1])
+        if not subject_match or not issuer_match:
+            continue
+        metadata.append((subject_match.group(1).strip(), issuer_match.group(1).strip()))
+    return metadata
+
+
+def export_server_root_ca(
+    output_path: str | Path,
+    host: str = "apps.itaipu.gov.br",
+    port: int = 443,
+    openssl_bin: str | None = None,
+    timeout_seconds: float = 30.0,
+) -> dict[str, Any]:
+    resolved_openssl = openssl_bin or shutil.which("openssl")
+    if not resolved_openssl:
+        raise SAMApiError("openssl nao encontrado no PATH para exportar a cadeia do servidor")
+    command = [
+        resolved_openssl,
+        "s_client",
+        "-showcerts",
+        "-servername",
+        host,
+        "-connect",
+        f"{host}:{port}",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            input="Q\n",
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SAMApiError(f"timeout ao consultar cadeia TLS de {host}:{port}") from exc
+    output = completed.stdout or ""
+    if not output:
+        stderr = (completed.stderr or "").strip()
+        raise SAMApiError(f"openssl nao retornou cadeia TLS para {host}:{port}: {stderr or 'saida vazia'}")
+
+    pem_blocks = _extract_pem_blocks(output)
+    if not pem_blocks:
+        raise SAMApiError(f"nenhum certificado PEM encontrado na cadeia TLS de {host}:{port}")
+
+    metadata = _extract_chain_metadata(output)
+    root_index = len(pem_blocks) - 1
+    subject = issuer = None
+    if metadata:
+        for index, (chain_subject, chain_issuer) in enumerate(metadata[: len(pem_blocks)]):
+            if chain_subject == chain_issuer:
+                root_index = index
+                subject = chain_subject
+                issuer = chain_issuer
+                break
+        if subject is None or issuer is None:
+            subject, issuer = metadata[min(root_index, len(metadata) - 1)]
+
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(pem_blocks[root_index] + "\n", encoding="utf-8")
+    return {
+        "host": host,
+        "port": port,
+        "output_path": str(target),
+        "openssl_bin": resolved_openssl,
+        "certificate_count": len(pem_blocks),
+        "root_certificate_index": root_index,
+        "subject": subject,
+        "issuer": issuer,
+    }
 
 
 def _parse_datetime_value(value: object) -> datetime | None:
@@ -436,14 +527,17 @@ def search_pending_ssas_by_localization_range(
         number_of_years=number_of_years,
     )
     base_records = [normalize_ssa_record(base_record=item) for item in pending]
-    needs_details = include_details or year_week_start or year_week_end or emission_date_start or emission_date_end
+    detail_filter_requested = bool(
+        year_week_start or year_week_end or emission_date_start or emission_date_end
+    )
+    needs_details = include_details or detail_filter_requested
     base_filtered = filter_normalized_ssa_records(
         base_records,
         executor_sectors=executor_sectors,
         emitter_sectors=emitter_sectors,
         localization_contains=localization_contains,
         ssa_numbers=ssa_numbers,
-        limit=None if needs_details else limit,
+        limit=None if detail_filter_requested else limit,
     )
     if not needs_details:
         return base_filtered

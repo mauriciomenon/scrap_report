@@ -532,7 +532,10 @@ class SweepRunner:
                 emission_date_start=spec.emission_date_start,
                 emission_date_end=spec.emission_date_end,
                 status="error",
-                error="runtime rest no sweep suporta apenas report_kind=pendentes neste ciclo",
+                error=(
+                    "runtime rest no sweep suporta apenas report_kind=pendentes; "
+                    "SAM_SMA_API atual expone consulta geral de pendentes e detalhe por SSA"
+                ),
             )
 
         client = self._sam_api_client_factory(

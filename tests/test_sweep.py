@@ -418,6 +418,7 @@ def test_sweep_runner_rest_mode_rejects_unsupported_report_kind(tmp_path: Path):
     assert manifest.runtime_mode == "rest"
     assert manifest.items[0].runtime_mode == "rest"
     assert "suporta apenas report_kind=pendentes" in (manifest.items[0].error or "")
+    assert "GetSSABySSANumber" not in (manifest.items[0].error or "")
 
 
 def test_sweep_runner_rest_mode_supports_multiple_items(tmp_path: Path):

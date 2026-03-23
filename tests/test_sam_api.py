@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import ssl
+import subprocess
 import urllib.error
 from urllib.parse import parse_qs, urlparse
 
@@ -12,6 +14,7 @@ from scrap_report.sam_api import (
     SAMApiClient,
     SAMApiError,
     build_sam_api_summary,
+    export_server_root_ca,
     fetch_ssa_details_by_numbers,
     filter_normalized_ssa_records,
     normalize_ssa_record,
@@ -71,6 +74,24 @@ def test_get_ssa_by_number_requires_non_empty_value():
 
     with pytest.raises(ValueError):
         client.get_ssa_by_number("   ")
+
+
+def test_get_ssa_by_number_uses_client_cache(monkeypatch: pytest.MonkeyPatch):
+    client = SAMApiClient()
+    seen = {"count": 0}
+
+    def fake_request_json(self, endpoint, params):
+        seen["count"] += 1
+        return {"SSANumber": params["SSANumber"], "ExecutorSector": "MEL4"}
+
+    monkeypatch.setattr(SAMApiClient, "_request_json", fake_request_json)
+
+    first = client.get_ssa_by_number("202602521")
+    second = client.get_ssa_by_number("202602521")
+
+    assert first["SSANumber"] == "202602521"
+    assert second["SSANumber"] == "202602521"
+    assert seen["count"] == 1
 
 
 def test_normalize_ssa_record_merges_base_and_detail():
@@ -344,6 +365,48 @@ def test_search_pending_ssas_applies_detail_only_filters(monkeypatch: pytest.Mon
     assert items[0]["ssa_number"] == "202600002"
 
 
+def test_search_pending_ssas_applies_limit_before_detail_when_only_include_details(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    client = SAMApiClient()
+    seen = {}
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_pending_ssas_by_localization_range",
+        lambda self, **_kwargs: [
+            {"SSANumber": "202600001", "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A001"},
+            {"SSANumber": "202600002", "ExecutorSector": "MEL4", "EmitterSector": "IEE3", "Localization": "A002"},
+        ],
+    )
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_ssas_by_numbers",
+        lambda self, ssa_numbers: (
+            seen.update({"ssa_numbers": tuple(ssa_numbers)})
+            or [
+                {
+                    "SSANumber": number,
+                    "ExecutorSector": "MEL4",
+                    "EmmiterSector": "IEE3",
+                    "LocalizationCode": "A001",
+                    "EmissionDateTime": "23/02/2026 10:52:02",
+                    "YearWeek": 202609,
+                }
+                for number in ssa_numbers
+            ]
+        ),
+    )
+
+    items = search_pending_ssas_by_localization_range(
+        client,
+        include_details=True,
+        limit=1,
+    )
+
+    assert len(items) == 1
+    assert seen["ssa_numbers"] == ("202600001",)
+
+
 def test_search_pending_ssas_chunks_large_enrichment_batch(monkeypatch: pytest.MonkeyPatch):
     client = SAMApiClient()
     seen_chunks: list[tuple[str, ...]] = []
@@ -454,6 +517,36 @@ def test_build_ssl_context_rejects_missing_ca_file(tmp_path):
 
     with pytest.raises(SAMApiError, match="ca_file nao encontrado"):
         client._build_ssl_context()
+
+
+def test_export_server_root_ca_writes_self_signed_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    output = tmp_path / "root.pem"
+    chain = """CONNECTED(00000004)
+Certificate chain
+ 0 s:CN=Leaf
+   i:CN=Root
+-----BEGIN CERTIFICATE-----
+LEAF
+-----END CERTIFICATE-----
+ 1 s:CN=Root
+   i:CN=Root
+-----BEGIN CERTIFICATE-----
+ROOT
+-----END CERTIFICATE-----
+"""
+
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(args[0], 0, stdout=chain, stderr="")
+
+    monkeypatch.setattr("scrap_report.sam_api.shutil.which", lambda name: "openssl")
+    monkeypatch.setattr("scrap_report.sam_api.subprocess.run", fake_run)
+
+    payload = export_server_root_ca(output)
+
+    assert output.read_text(encoding="utf-8") == "-----BEGIN CERTIFICATE-----\nROOT\n-----END CERTIFICATE-----\n"
+    assert payload["root_certificate_index"] == 1
+    assert payload["subject"] == "CN=Root"
+    assert payload["issuer"] == "CN=Root"
 
 
 def test_request_json_reports_tls_verification_error(monkeypatch: pytest.MonkeyPatch):
