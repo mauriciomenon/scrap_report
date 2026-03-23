@@ -46,6 +46,21 @@ SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
         "findings_count",
         "findings",
     },
+    "sam_api_result": {
+        "status",
+        "mode",
+        "count",
+        "items",
+        "exports",
+    },
+    "sam_api_flow_result": {
+        "status",
+        "profile",
+        "count",
+        "output_dir",
+        "exports",
+        "summary",
+    },
 }
 
 

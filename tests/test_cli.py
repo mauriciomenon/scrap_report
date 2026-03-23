@@ -206,12 +206,15 @@ def test_sam_api_search_command_writes_output_json(
             seen["timeout_seconds"] = timeout_seconds
             seen["verify_tls"] = verify_tls
 
-    def fake_search(**kwargs):
-        seen["search_kwargs"] = kwargs
-        return [{"ssa_number": "202600001", "executor_sector": "MEL4", "detail_present": True}]
+    def fake_query(**kwargs):
+        seen["query_kwargs"] = kwargs
+        return (
+            "search",
+            [{"ssa_number": "202600001", "executor_sector": "MEL4", "detail_present": True}],
+        )
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
-    monkeypatch.setattr("scrap_report.cli.search_pending_ssas_by_localization_range", fake_search)
+    monkeypatch.setattr("scrap_report.cli.query_sam_api_records", fake_query)
 
     out_json = tmp_path / "out" / "sam_api_search.json"
     code = main(
@@ -252,15 +255,15 @@ def test_sam_api_search_command_writes_output_json(
     assert seen["base_url"].endswith("/SSA_API")
     assert seen["timeout_seconds"] == 30.0
     assert seen["verify_tls"] is False
-    assert seen["search_kwargs"]["executor_sectors"] == ("MEL4", "MEL3")
-    assert seen["search_kwargs"]["emitter_sectors"] == ("IEE3",)
-    assert seen["search_kwargs"]["include_details"] is True
-    assert seen["search_kwargs"]["localization_contains"] == "A0"
-    assert seen["search_kwargs"]["year_week_start"] == "202609"
-    assert seen["search_kwargs"]["year_week_end"] == "202610"
-    assert seen["search_kwargs"]["emission_date_start"] == "23/02/2026"
-    assert seen["search_kwargs"]["emission_date_end"] == "24/02/2026"
-    assert seen["search_kwargs"]["limit"] == 5
+    assert seen["query_kwargs"]["executor_sectors"] == ("MEL4", "MEL3")
+    assert seen["query_kwargs"]["emitter_sectors"] == ("IEE3",)
+    assert seen["query_kwargs"]["include_details"] is True
+    assert seen["query_kwargs"]["localization_contains"] == "A0"
+    assert seen["query_kwargs"]["year_week_start"] == "202609"
+    assert seen["query_kwargs"]["year_week_end"] == "202610"
+    assert seen["query_kwargs"]["emission_date_start"] == "23/02/2026"
+    assert seen["query_kwargs"]["emission_date_end"] == "24/02/2026"
+    assert seen["query_kwargs"]["limit"] == 5
     content = out_json.read_text(encoding="utf-8")
     assert '"status": "ok"' in content
     assert '"count": 1' in content
@@ -277,8 +280,11 @@ def test_sam_api_detail_command_writes_output_json(
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
     monkeypatch.setattr(
-        "scrap_report.cli.fetch_ssa_details_by_numbers",
-        lambda **kwargs: [{"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True}],
+        "scrap_report.cli.query_sam_api_records",
+        lambda **kwargs: (
+            "detail",
+            [{"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True}],
+        ),
     )
 
     out_json = tmp_path / "out" / "sam_api_detail.json"
@@ -314,15 +320,18 @@ def test_sam_api_detail_command_accepts_file_and_exports(
 
     seen = {}
 
-    def fake_fetch(**kwargs):
+    def fake_query(**kwargs):
         seen["kwargs"] = kwargs
-        return [
-            {"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True},
-            {"ssa_number": "202600001", "executor_sector": "MAM1", "detail_present": True},
-        ]
+        return (
+            "detail",
+            [
+                {"ssa_number": "202602521", "executor_sector": "MEL4", "detail_present": True},
+                {"ssa_number": "202600001", "executor_sector": "MAM1", "detail_present": True},
+            ],
+        )
 
     monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
-    monkeypatch.setattr("scrap_report.cli.fetch_ssa_details_by_numbers", fake_fetch)
+    monkeypatch.setattr("scrap_report.cli.query_sam_api_records", fake_query)
 
     out_json = tmp_path / "out" / "sam_api_detail_batch.json"
     out_csv = tmp_path / "out" / "sam_api_detail_batch.csv"
@@ -351,6 +360,86 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     assert '"count": 2' in content
     assert '"csv": ' in content
     assert '"xlsx": ' in content
+
+
+def test_sam_api_flow_panorama_writes_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls):
+            self.base_url = base_url
+            self.timeout_seconds = timeout_seconds
+            self.verify_tls = verify_tls
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr(
+        "scrap_report.cli.query_sam_api_records",
+        lambda **kwargs: (
+            "search",
+            [{"ssa_number": "1", "executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True}],
+        ),
+    )
+
+    out_json = tmp_path / "out" / "sam_api_flow.json"
+    code = main(
+        [
+            "sam-api-flow",
+            "--profile",
+            "panorama",
+            "--executor-sector",
+            "MEL4",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 0
+    content = out_json.read_text(encoding="utf-8")
+    assert '"profile": "panorama"' in content
+    assert '"summary"' in content
+    assert '"total": 1' in content
+
+
+def test_sam_api_standalone_generates_manifest_and_exports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    class _FakeClient:
+        def __init__(self, base_url, timeout_seconds, verify_tls):
+            self.base_url = base_url
+            self.timeout_seconds = timeout_seconds
+            self.verify_tls = verify_tls
+
+    monkeypatch.setattr("scrap_report.cli.SAMApiClient", _FakeClient)
+    monkeypatch.setattr(
+        "scrap_report.cli.query_sam_api_records",
+        lambda **kwargs: (
+            "detail",
+            [{"ssa_number": "202602521", "executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True}],
+        ),
+    )
+
+    out_dir = tmp_path / "standalone"
+    manifest = tmp_path / "standalone_manifest.json"
+    code = main(
+        [
+            "sam-api-standalone",
+            "--profile",
+            "detail-lote",
+            "--ssa-number",
+            "202602521",
+            "--output-dir",
+            str(out_dir),
+            "--output-json",
+            str(manifest),
+        ]
+    )
+
+    assert code == 0
+    content = manifest.read_text(encoding="utf-8")
+    assert '"profile": "detail-lote"' in content
+    assert '"output_dir": ' in content
+    assert '"summary_xlsx": ' in content
+    assert '"manifest_json": ' in content
 
 
 def test_auth_flow_emits_security_notice_and_preserves_json_streams(

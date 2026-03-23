@@ -28,6 +28,8 @@ def test_contract_constants_present():
     assert SCHEMA_VERSION == "1.0.0"
     assert PRODUCER == "scrap_report.cli"
     assert "contract_info" in SCHEMA_REQUIRED_FIELDS
+    assert "sam_api_result" in SCHEMA_REQUIRED_FIELDS
+    assert "sam_api_flow_result" in SCHEMA_REQUIRED_FIELDS
 
 
 def test_utc_now_iso_format():

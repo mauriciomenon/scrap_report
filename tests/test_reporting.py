@@ -6,14 +6,18 @@ import pandas as pd
 from scrap_report.reporting import (
     artifacts_to_dict,
     build_sam_api_dataframe,
+    build_sam_api_summary_frames,
     export_data_csv,
     load_excel,
     load_derivadas_relacionadas_excel,
     load_excel_for_report,
     export_data_excel,
+    export_sam_api_artifacts,
+    export_sam_api_summary_excel,
     export_summary_statistics,
     generate_ssa_report_from_excel,
     generate_text_report,
+    sam_api_artifacts_to_dict,
 )
 
 
@@ -122,6 +126,39 @@ def test_build_sam_api_dataframe_preserves_export_columns():
     assert "localization" in df.columns
     assert "detail_present" in df.columns
     assert df.iloc[0]["ssa_number"] == "202600001"
+
+
+def test_build_sam_api_summary_frames_groups_records():
+    frames = build_sam_api_summary_frames(
+        [
+            {"ssa_number": "1", "executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True},
+            {"ssa_number": "2", "executor_sector": "MEL4", "emitter_sector": "IEE1", "year_week": 202609, "detail_present": False},
+        ]
+    )
+
+    assert set(frames.keys()) == {"overview", "by_executor", "by_emitter", "by_year_week"}
+    assert int(frames["overview"].iloc[0]["value"]) == 2
+    assert int(frames["by_executor"].iloc[0]["count"]) == 2
+
+
+def test_export_sam_api_summary_excel(tmp_path: Path):
+    out = export_sam_api_summary_excel(
+        [{"ssa_number": "1", "executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True}],
+        tmp_path / "sam_api_summary.xlsx",
+    )
+    assert out.exists()
+
+
+def test_export_sam_api_artifacts(tmp_path: Path):
+    artifacts = export_sam_api_artifacts(
+        [{"ssa_number": "1", "executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True}],
+        tmp_path / "out",
+        "sam_api_panorama",
+    )
+    data = sam_api_artifacts_to_dict(artifacts)
+    assert Path(data["data_csv"]).exists()
+    assert Path(data["data_xlsx"]).exists()
+    assert Path(data["summary_xlsx"]).exists()
 
 
 def test_generate_text_report(tmp_path: Path):

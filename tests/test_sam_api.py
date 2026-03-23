@@ -8,9 +8,11 @@ import pytest
 from scrap_report.sam_api import (
     SAMApiClient,
     SAMApiError,
+    build_sam_api_summary,
     fetch_ssa_details_by_numbers,
     filter_normalized_ssa_records,
     normalize_ssa_record,
+    query_sam_api_records,
     search_pending_ssas_by_localization_range,
 )
 
@@ -150,6 +152,32 @@ def test_fetch_ssa_details_by_numbers_filters_and_limits(monkeypatch: pytest.Mon
 
     assert len(records) == 1
     assert records[0]["ssa_number"] == "202600001"
+
+
+def test_query_sam_api_records_uses_detail_path(monkeypatch: pytest.MonkeyPatch):
+    client = SAMApiClient()
+    monkeypatch.setattr(
+        "scrap_report.sam_api.fetch_ssa_details_by_numbers",
+        lambda **kwargs: [{"ssa_number": "202602521"}],
+    )
+
+    mode, records = query_sam_api_records(client, ssa_numbers=("202602521",))
+
+    assert mode == "detail"
+    assert records == [{"ssa_number": "202602521"}]
+
+
+def test_build_sam_api_summary_counts_records():
+    summary = build_sam_api_summary(
+        [
+            {"executor_sector": "MEL4", "emitter_sector": "IEE3", "year_week": 202609, "detail_present": True},
+            {"executor_sector": "MEL4", "emitter_sector": "IEE1", "year_week": 202609, "detail_present": False},
+        ]
+    )
+
+    assert summary["total"] == 2
+    assert summary["detail_count"] == 1
+    assert summary["by_executor"]["MEL4"] == 2
 
 
 def test_search_pending_ssas_filters_executor_and_merges_detail(monkeypatch: pytest.MonkeyPatch):

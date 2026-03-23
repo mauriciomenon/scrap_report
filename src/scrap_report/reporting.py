@@ -38,6 +38,13 @@ class ReportArtifacts:
     relatorio_txt: Path
 
 
+@dataclass(slots=True)
+class SAMApiArtifacts:
+    data_csv: Path
+    data_xlsx: Path
+    summary_xlsx: Path
+
+
 def _nonempty_count(values: pd.Series) -> int:
     return int(sum(value not in (None, "") and not pd.isna(value) for value in values))
 
@@ -277,6 +284,67 @@ def build_sam_api_dataframe(records: list[dict[str, Any]]) -> pd.DataFrame:
     return df.loc[:, ordered_columns]
 
 
+def build_sam_api_summary_frames(records: list[dict[str, Any]]) -> dict[str, pd.DataFrame]:
+    data_df = build_sam_api_dataframe(records)
+    overview_df = pd.DataFrame(
+        [
+            {
+                "metric": "total",
+                "value": int(len(data_df)),
+            },
+            {
+                "metric": "detail_count",
+                "value": int(data_df["detail_present"].fillna(False).astype(bool).sum()),
+            },
+            {
+                "metric": "without_detail_count",
+                "value": int(len(data_df) - data_df["detail_present"].fillna(False).astype(bool).sum()),
+            },
+        ]
+    )
+
+    def _group_counts(column: str) -> pd.DataFrame:
+        if column not in data_df.columns:
+            return pd.DataFrame(columns=[column, "count"])
+        values = data_df[column].fillna("UNKNOWN")
+        counts = values.groupby(values, dropna=False).size()
+        grouped = pd.DataFrame(
+            {
+                column: list(counts.index),
+                "count": counts.astype(int).tolist(),
+            }
+        )
+        return grouped.sort_values(by=[column]).reset_index(drop=True)
+
+    return {
+        "overview": overview_df,
+        "by_executor": _group_counts("executor_sector"),
+        "by_emitter": _group_counts("emitter_sector"),
+        "by_year_week": _group_counts("year_week"),
+    }
+
+
+def export_sam_api_summary_excel(records: list[dict[str, Any]], filename: Path) -> Path:
+    frames = build_sam_api_summary_frames(records)
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        for sheet_name, frame in frames.items():
+            frame.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+    return path
+
+
+def export_sam_api_artifacts(records: list[dict[str, Any]], output_dir: Path, prefix: str) -> SAMApiArtifacts:
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    data_df = build_sam_api_dataframe(records)
+    data_csv = export_data_csv(data_df, output / f"{prefix}_dados_{timestamp}.csv")
+    data_xlsx = export_data_excel(data_df, output / f"{prefix}_dados_{timestamp}.xlsx")
+    summary_xlsx = export_sam_api_summary_excel(records, output / f"{prefix}_resumo_{timestamp}.xlsx")
+    return SAMApiArtifacts(data_csv=data_csv, data_xlsx=data_xlsx, summary_xlsx=summary_xlsx)
+
+
 def export_summary_statistics(df: pd.DataFrame, filename: Path) -> Path:
     summary_rows = []
     for column in df.columns:
@@ -352,4 +420,12 @@ def artifacts_to_dict(artifacts: ReportArtifacts) -> Dict[str, str]:
         "dados": str(artifacts.dados),
         "estatisticas": str(artifacts.estatisticas),
         "relatorio_txt": str(artifacts.relatorio_txt),
+    }
+
+
+def sam_api_artifacts_to_dict(artifacts: SAMApiArtifacts) -> Dict[str, str]:
+    return {
+        "data_csv": str(artifacts.data_csv),
+        "data_xlsx": str(artifacts.data_xlsx),
+        "summary_xlsx": str(artifacts.summary_xlsx),
     }

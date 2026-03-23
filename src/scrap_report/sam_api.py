@@ -283,6 +283,83 @@ def fetch_ssa_details_by_numbers(
     )
 
 
+def query_sam_api_records(
+    client: SAMApiClient,
+    ssa_numbers: Sequence[str] = (),
+    executor_sectors: Sequence[str] = (),
+    emitter_sectors: Sequence[str] = (),
+    start_localization_code: str = "A000A000",
+    end_localization_code: str = "Z999Z999",
+    number_of_years: int = 100000,
+    include_details: bool = False,
+    localization_contains: str | None = None,
+    year_week_start: str | None = None,
+    year_week_end: str | None = None,
+    emission_date_start: str | None = None,
+    emission_date_end: str | None = None,
+    limit: int | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    normalized_numbers = [value.strip() for value in ssa_numbers if value and value.strip()]
+    if normalized_numbers:
+        return (
+            "detail",
+            fetch_ssa_details_by_numbers(
+                client=client,
+                ssa_numbers=normalized_numbers,
+                executor_sectors=executor_sectors,
+                emitter_sectors=emitter_sectors,
+                localization_contains=localization_contains,
+                year_week_start=year_week_start,
+                year_week_end=year_week_end,
+                emission_date_start=emission_date_start,
+                emission_date_end=emission_date_end,
+                limit=limit,
+            ),
+        )
+    return (
+        "search",
+        search_pending_ssas_by_localization_range(
+            client=client,
+            executor_sectors=executor_sectors,
+            emitter_sectors=emitter_sectors,
+            start_localization_code=start_localization_code,
+            end_localization_code=end_localization_code,
+            number_of_years=number_of_years,
+            include_details=include_details,
+            localization_contains=localization_contains,
+            year_week_start=year_week_start,
+            year_week_end=year_week_end,
+            emission_date_start=emission_date_start,
+            emission_date_end=emission_date_end,
+            limit=limit,
+        ),
+    )
+
+
+def build_sam_api_summary(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    by_executor: dict[str, int] = {}
+    by_emitter: dict[str, int] = {}
+    by_year_week: dict[str, int] = {}
+    detail_count = 0
+    for record in records:
+        executor = str(record.get("executor_sector") or "").strip() or "UNKNOWN"
+        emitter = str(record.get("emitter_sector") or "").strip() or "UNKNOWN"
+        year_week = str(record.get("year_week") or "").strip() or "UNKNOWN"
+        by_executor[executor] = by_executor.get(executor, 0) + 1
+        by_emitter[emitter] = by_emitter.get(emitter, 0) + 1
+        by_year_week[year_week] = by_year_week.get(year_week, 0) + 1
+        if bool(record.get("detail_present")):
+            detail_count += 1
+    return {
+        "total": len(records),
+        "detail_count": detail_count,
+        "without_detail_count": len(records) - detail_count,
+        "by_executor": dict(sorted(by_executor.items())),
+        "by_emitter": dict(sorted(by_emitter.items())),
+        "by_year_week": dict(sorted(by_year_week.items())),
+    }
+
+
 def search_pending_ssas_by_localization_range(
     client: SAMApiClient,
     executor_sectors: Sequence[str] = (),

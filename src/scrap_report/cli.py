@@ -35,7 +35,9 @@ from .reporting import (
     build_sam_api_dataframe,
     export_data_csv,
     export_data_excel,
+    export_sam_api_artifacts,
     generate_ssa_report_from_excel,
+    sam_api_artifacts_to_dict,
 )
 from .redaction import assert_no_sensitive_fields
 from .scraper import SAMScraper
@@ -45,8 +47,8 @@ from .sam_api import (
     DEFAULT_SAM_API_BASE_URL,
     SAMApiClient,
     SAMApiError,
-    fetch_ssa_details_by_numbers,
-    search_pending_ssas_by_localization_range,
+    build_sam_api_summary,
+    query_sam_api_records,
 )
 from .sweep import (
     SWEEP_PRESET_NAMES,
@@ -445,6 +447,66 @@ def _build_parser() -> argparse.ArgumentParser:
     sam_api.add_argument("--output-xlsx", default=None, help="salva dados tabulares em xlsx")
     sam_api.add_argument("--output-json", default=None, help="salva resultado json em arquivo")
 
+    sam_api_flow = sub.add_parser(
+        "sam-api-flow",
+        help="comando opinativo para uso operacional da SAM_SMA_API",
+    )
+    sam_api_flow.add_argument(
+        "--profile",
+        required=True,
+        choices=["panorama", "detail-lote"],
+        help="perfil operacional predefinido",
+    )
+    sam_api_flow.add_argument("--base-url", default=DEFAULT_SAM_API_BASE_URL)
+    sam_api_flow.add_argument("--executor-sector", action="append", default=[])
+    sam_api_flow.add_argument("--emitter-sector", action="append", default=[])
+    sam_api_flow.add_argument("--ssa-number", action="append", default=[])
+    sam_api_flow.add_argument("--ssa-number-file", default=None)
+    sam_api_flow.add_argument("--start-localization-code", default="A000A000")
+    sam_api_flow.add_argument("--end-localization-code", default="Z999Z999")
+    sam_api_flow.add_argument("--number-of-years", default=4, type=int)
+    sam_api_flow.add_argument("--localization-contains", default=None)
+    sam_api_flow.add_argument("--year-week-start", default=None)
+    sam_api_flow.add_argument("--year-week-end", default=None)
+    sam_api_flow.add_argument("--emission-date-start", default=None)
+    sam_api_flow.add_argument("--emission-date-end", default=None)
+    sam_api_flow.add_argument("--limit", default=200, type=int)
+    sam_api_flow.add_argument("--include-details", action="store_true")
+    sam_api_flow.add_argument("--timeout-seconds", default=30.0, type=float)
+    sam_api_flow.add_argument("--ignore-https-errors", action="store_true")
+    sam_api_flow.add_argument("--output-json", default=None)
+    sam_api_flow.add_argument("--output-csv", default=None)
+    sam_api_flow.add_argument("--output-xlsx", default=None)
+
+    sam_api_standalone = sub.add_parser(
+        "sam-api-standalone",
+        help="fluxo independente da SAM_SMA_API com manifest e artefatos proprios",
+    )
+    sam_api_standalone.add_argument(
+        "--profile",
+        required=True,
+        choices=["panorama", "detail-lote"],
+    )
+    sam_api_standalone.add_argument("--base-url", default=DEFAULT_SAM_API_BASE_URL)
+    sam_api_standalone.add_argument("--executor-sector", action="append", default=[])
+    sam_api_standalone.add_argument("--emitter-sector", action="append", default=[])
+    sam_api_standalone.add_argument("--ssa-number", action="append", default=[])
+    sam_api_standalone.add_argument("--ssa-number-file", default=None)
+    sam_api_standalone.add_argument("--start-localization-code", default="A000A000")
+    sam_api_standalone.add_argument("--end-localization-code", default="Z999Z999")
+    sam_api_standalone.add_argument("--number-of-years", default=4, type=int)
+    sam_api_standalone.add_argument("--localization-contains", default=None)
+    sam_api_standalone.add_argument("--year-week-start", default=None)
+    sam_api_standalone.add_argument("--year-week-end", default=None)
+    sam_api_standalone.add_argument("--emission-date-start", default=None)
+    sam_api_standalone.add_argument("--emission-date-end", default=None)
+    sam_api_standalone.add_argument("--limit", default=200, type=int)
+    sam_api_standalone.add_argument("--include-details", action="store_true")
+    sam_api_standalone.add_argument("--timeout-seconds", default=30.0, type=float)
+    sam_api_standalone.add_argument("--ignore-https-errors", action="store_true")
+    sam_api_standalone.add_argument("--output-dir", default="output")
+    sam_api_standalone.add_argument("--output-json", default=None)
+
     return parser
 
 
@@ -516,6 +578,94 @@ def _export_sam_api_records(
     if output_xlsx:
         exports["xlsx"] = str(export_data_excel(df, Path(output_xlsx)))
     return exports
+
+
+def _resolve_sam_api_ssa_numbers(args: Any) -> list[str]:
+    return args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file)
+
+
+def _validate_sam_api_limit(limit: int | None) -> None:
+    if limit is not None and limit <= 0:
+        raise ValueError("limit deve ser maior que zero")
+
+
+def _run_sam_api_query(args: Any, client: SAMApiClient) -> tuple[str, list[dict[str, Any]]]:
+    normalized_emission_start, normalized_emission_end = _normalize_optional_emission_date_window(
+        args.emission_date_start,
+        args.emission_date_end,
+    )
+    _validate_sam_api_limit(args.limit)
+    ssa_numbers = _resolve_sam_api_ssa_numbers(args)
+    include_details = bool(getattr(args, "include_details", False))
+    if getattr(args, "profile", None) == "detail-lote":
+        include_details = True
+        if not ssa_numbers:
+            raise ValueError("profile detail-lote exige --ssa-number ou --ssa-number-file")
+    if getattr(args, "profile", None) == "panorama" and not ssa_numbers:
+        include_details = bool(include_details or args.year_week_start or args.year_week_end or args.emission_date_start or args.emission_date_end)
+    return query_sam_api_records(
+        client=client,
+        ssa_numbers=ssa_numbers,
+        executor_sectors=tuple(args.executor_sector),
+        emitter_sectors=tuple(args.emitter_sector),
+        start_localization_code=args.start_localization_code,
+        end_localization_code=args.end_localization_code,
+        number_of_years=args.number_of_years,
+        include_details=include_details,
+        localization_contains=args.localization_contains,
+        year_week_start=args.year_week_start,
+        year_week_end=args.year_week_end,
+        emission_date_start=normalized_emission_start,
+        emission_date_end=normalized_emission_end,
+        limit=args.limit,
+    )
+
+
+def _build_sam_api_payload(mode: str, items: list[dict[str, Any]], args: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "status": "ok",
+        "mode": mode,
+        "count": len(items),
+        "items": items,
+        "exports": {},
+    }
+    if mode == "detail":
+        payload["ssa_numbers"] = _resolve_sam_api_ssa_numbers(args)
+    else:
+        payload["executor_sectors"] = args.executor_sector
+        payload["emitter_sectors"] = args.emitter_sector
+        payload["include_details"] = bool(getattr(args, "include_details", False))
+        payload["start_localization_code"] = args.start_localization_code
+        payload["end_localization_code"] = args.end_localization_code
+        payload["number_of_years"] = args.number_of_years
+        payload["localization_contains"] = args.localization_contains
+    return payload
+
+
+def _build_default_sam_api_output_dir(profile: str) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Path("output") / f"sam_api_{profile}_{stamp}"
+
+
+def _build_default_sam_api_manifest_path(output_dir: Path, profile: str) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return output_dir / f"sam_api_manifest_{profile}_{stamp}.json"
+
+
+def _build_sam_api_flow_payload(
+    profile: str,
+    output_dir: Path,
+    items: list[dict[str, Any]],
+    exports: dict[str, str],
+) -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "profile": profile,
+        "count": len(items),
+        "output_dir": str(output_dir),
+        "exports": exports,
+        "summary": build_sam_api_summary(items),
+    }
 
 
 def _build_default_sweep_output_json(staging_dir: Path, report_kind: str) -> Path:
@@ -690,62 +840,8 @@ def main(argv: list[str] | None = None) -> int:
             verify_tls=not args.ignore_https_errors,
         )
         try:
-            if args.limit is not None and args.limit <= 0:
-                raise ValueError("limit deve ser maior que zero")
-            normalized_emission_start, normalized_emission_end = _normalize_optional_emission_date_window(
-                args.emission_date_start,
-                args.emission_date_end,
-            )
-            ssa_numbers = args.ssa_number + _read_ssa_numbers_from_file(args.ssa_number_file)
-            if ssa_numbers:
-                items = fetch_ssa_details_by_numbers(
-                    client=client,
-                    ssa_numbers=ssa_numbers,
-                    executor_sectors=tuple(args.executor_sector),
-                    emitter_sectors=tuple(args.emitter_sector),
-                    localization_contains=args.localization_contains,
-                    year_week_start=args.year_week_start,
-                    year_week_end=args.year_week_end,
-                    emission_date_start=normalized_emission_start,
-                    emission_date_end=normalized_emission_end,
-                    limit=args.limit,
-                )
-                payload = {
-                    "status": "ok",
-                    "mode": "detail",
-                    "count": len(items),
-                    "ssa_numbers": ssa_numbers,
-                    "items": items,
-                }
-            else:
-                items = search_pending_ssas_by_localization_range(
-                    client=client,
-                    executor_sectors=tuple(args.executor_sector),
-                    emitter_sectors=tuple(args.emitter_sector),
-                    start_localization_code=args.start_localization_code,
-                    end_localization_code=args.end_localization_code,
-                    number_of_years=args.number_of_years,
-                    include_details=args.include_details,
-                    localization_contains=args.localization_contains,
-                    year_week_start=args.year_week_start,
-                    year_week_end=args.year_week_end,
-                    emission_date_start=normalized_emission_start,
-                    emission_date_end=normalized_emission_end,
-                    limit=args.limit,
-                )
-                payload = {
-                    "status": "ok",
-                    "mode": "search",
-                    "count": len(items),
-                    "executor_sectors": args.executor_sector,
-                    "emitter_sectors": args.emitter_sector,
-                    "include_details": args.include_details,
-                    "start_localization_code": args.start_localization_code,
-                    "end_localization_code": args.end_localization_code,
-                    "number_of_years": args.number_of_years,
-                    "localization_contains": args.localization_contains,
-                    "items": items,
-                }
+            mode, items = _run_sam_api_query(args, client)
+            payload = _build_sam_api_payload(mode, items, args)
         except (ValueError, SAMApiError) as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
@@ -754,7 +850,55 @@ def main(argv: list[str] | None = None) -> int:
             output_csv=args.output_csv,
             output_xlsx=args.output_xlsx,
         )
-        _emit_unvalidated_json(payload, args.output_json)
+        _emit_json(payload, args.output_json, "sam_api_result")
+        return 0
+
+    if args.command == "sam-api-flow":
+        client = SAMApiClient(
+            base_url=args.base_url,
+            timeout_seconds=args.timeout_seconds,
+            verify_tls=not args.ignore_https_errors,
+        )
+        try:
+            mode, items = _run_sam_api_query(args, client)
+            payload = _build_sam_api_payload(mode, items, args)
+        except (ValueError, SAMApiError) as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+        payload["profile"] = args.profile
+        payload["summary"] = build_sam_api_summary(items)
+        payload["exports"] = _export_sam_api_records(
+            records=items,
+            output_csv=args.output_csv,
+            output_xlsx=args.output_xlsx,
+        )
+        _emit_json(payload, args.output_json, "sam_api_result")
+        return 0
+
+    if args.command == "sam-api-standalone":
+        client = SAMApiClient(
+            base_url=args.base_url,
+            timeout_seconds=args.timeout_seconds,
+            verify_tls=not args.ignore_https_errors,
+        )
+        try:
+            _validate_sam_api_limit(args.limit)
+            mode, items = _run_sam_api_query(args, client)
+            output_dir = Path(args.output_dir) if args.output_dir else _build_default_sam_api_output_dir(args.profile)
+            artifacts = export_sam_api_artifacts(items, output_dir, f"sam_api_{args.profile}")
+            payload = _build_sam_api_flow_payload(
+                profile=args.profile,
+                output_dir=output_dir,
+                items=items,
+                exports=sam_api_artifacts_to_dict(artifacts),
+            )
+        except (ValueError, SAMApiError) as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return 1
+        manifest_path = args.output_json or str(_build_default_sam_api_manifest_path(output_dir, args.profile))
+        payload["exports"]["manifest_json"] = manifest_path
+        payload["mode"] = mode
+        _emit_json(payload, manifest_path, "sam_api_flow_result")
         return 0
 
     if args.command == "windows-flow":
