@@ -432,6 +432,67 @@ def test_search_pending_ssas_prefilters_by_derived_year_week_before_detail(
     assert seen["ssa_numbers"] == ("202602521",)
 
 
+def test_search_pending_ssas_prefilters_by_emission_date_end_before_detail(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    client = SAMApiClient()
+    seen = {}
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_pending_ssas_by_localization_range",
+        lambda self, **_kwargs: [
+            {
+                "SSANumber": "202600001",
+                "ExecutorSector": "MEL4",
+                "EmitterSector": "IEE3",
+                "Localization": "A001",
+                "IssueDateTime": "2026-02-23T06:00:00Z",
+            },
+            {
+                "SSANumber": "202600002",
+                "ExecutorSector": "MEL4",
+                "EmitterSector": "IEE3",
+                "Localization": "A002",
+                "IssueDateTime": "2026-03-10T06:00:00Z",
+            },
+            {
+                "SSANumber": "202600003",
+                "ExecutorSector": "MEL4",
+                "EmitterSector": "IEE3",
+                "Localization": "A003",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        SAMApiClient,
+        "get_ssas_by_numbers",
+        lambda self, ssa_numbers: (
+            seen.update({"ssa_numbers": tuple(ssa_numbers)})
+            or [
+                {
+                    "SSANumber": number,
+                    "ExecutorSector": "MEL4",
+                    "EmmiterSector": "IEE3",
+                    "LocalizationCode": f"A{index + 1:03d}",
+                    "EmissionDateTime": "23/02/2026 10:52:02",
+                    "YearWeek": 202608,
+                }
+                for index, number in enumerate(ssa_numbers)
+            ]
+        ),
+    )
+
+    items = search_pending_ssas_by_localization_range(
+        client,
+        include_details=True,
+        emission_date_start="2026-02-23",
+        emission_date_end="2026-02-23",
+    )
+
+    assert seen["ssa_numbers"] == ("202600001", "202600003")
+    assert [item["ssa_number"] for item in items] == ["202600001", "202600003"]
+
+
 def test_search_pending_ssas_applies_limit_before_detail_when_only_include_details(
     monkeypatch: pytest.MonkeyPatch,
 ):

@@ -434,6 +434,22 @@ def _prefilter_base_records_by_year_week(
     return filtered
 
 
+def _prefilter_base_records_by_emission_date_end(
+    records: Sequence[dict[str, Any]],
+    emission_date_end: str | None = None,
+) -> list[dict[str, Any]]:
+    normalized_end = normalize_emission_date(emission_date_end)
+    if not normalized_end:
+        return list(records)
+    end_date = datetime.strptime(normalized_end, "%d/%m/%Y").date()
+    filtered: list[dict[str, Any]] = []
+    for record in records:
+        issue_value = _parse_datetime_value(record.get("issue_datetime"))
+        if issue_value is None or issue_value.date() <= end_date:
+            filtered.append(record)
+    return filtered
+
+
 def fetch_ssa_details_by_numbers(
     client: SAMApiClient,
     ssa_numbers: Sequence[str],
@@ -581,6 +597,10 @@ def search_pending_ssas_by_localization_range(
             base_filtered,
             year_week_start=year_week_start,
             year_week_end=year_week_end,
+        )
+        base_filtered = _prefilter_base_records_by_emission_date_end(
+            base_filtered,
+            emission_date_end=emission_date_end,
         )
     if not needs_details:
         return base_filtered

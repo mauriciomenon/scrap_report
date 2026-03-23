@@ -9,6 +9,7 @@ from scrap_report.sweep import (
     SweepRunner,
     SweepRuntimeConfig,
     SWEEP_PRESET_NAMES,
+    _infer_rest_number_of_years,
     build_preset_plan,
     expand_setor_targets,
 )
@@ -56,6 +57,16 @@ def test_filter_spec_rejects_mixed_time_modes():
             emission_date_start="2026-03-01",
             emission_date_end="2026-03-17",
         )
+
+
+def test_infer_rest_number_of_years_accepts_iso_emission_date():
+    spec = FilterSpec(
+        scope_mode="nenhum",
+        emission_date_start="2026-02-23",
+        emission_date_end="2026-02-25",
+    )
+
+    assert _infer_rest_number_of_years(spec) == 1
 
 
 def test_sweep_plan_emissor_expands_group():

@@ -11,6 +11,7 @@ from .config import (
     ScrapeConfig,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
+    normalize_emission_date,
     normalize_setor_filter,
 )
 from .pipeline import run_pipeline
@@ -56,9 +57,11 @@ def _infer_rest_number_of_years(spec: "FilterSpec") -> int:
     if spec.emission_year_week_end:
         year_candidates.append(int(spec.emission_year_week_end[:4]))
     if spec.emission_date_start:
-        year_candidates.append(int(spec.emission_date_start[-4:]))
+        normalized_start = normalize_emission_date(spec.emission_date_start)
+        year_candidates.append(int(normalized_start[-4:]))
     if spec.emission_date_end:
-        year_candidates.append(int(spec.emission_date_end[-4:]))
+        normalized_end = normalize_emission_date(spec.emission_date_end)
+        year_candidates.append(int(normalized_end[-4:]))
     if not year_candidates:
         return 100000
     return max(year_candidates) - min(year_candidates) + 1
