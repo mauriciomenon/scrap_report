@@ -2,8 +2,10 @@
 
 ## NAO_BLOQUEANTE_DEFERIDO
 - avaliar configuracao de certificado confiavel para a REST API e reduzir dependencia de `--ignore-https-errors`
-- avaliar reducao de custo linear no detalhe em lote REST com paralelismo, cache ou batching mais eficiente
+- avaliar reducao de custo linear no detalhe em lote REST para SSAs unicas em volume alto
+- avaliar paralelismo ou cache controlado na REST sem quebrar rastreabilidade nem ordem
 - ampliar o `sweep-run --runtime rest` para outros `report_kind` alem de `pendentes`
+- avaliar estrategia especifica para modo geral REST com detalhamento temporal amplo sem estourar timeout operacional
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

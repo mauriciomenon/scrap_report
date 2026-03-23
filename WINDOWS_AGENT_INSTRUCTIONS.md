@@ -10,6 +10,10 @@
 - para recorte multi-setor do mesmo relatorio, o modo recomendado e um pedido unico com expansao automatica por setor
 - existe uma camada REST sem Playwright para consultas diretas a `SAM_SMA_API`
 - o `sweep-run` agora aceita `--runtime rest` para `pendentes`
+- o caminho REST do sweep ja esta validado para:
+  - um setor
+  - varios setores
+  - geral sem detalhamento
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -260,6 +264,16 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
 ```
 
+### sweep-run REST com varios setores
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_varios_setores.json
+```
+
+### sweep-run REST geral sem detalhamento
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode nenhum --runtime rest --ignore-https-errors --output-json staging/sweep_rest_geral_sem_detalhe.json
+```
+
 ## Fluxos REST sem Playwright
 Estes comandos sao independentes do launcher Windows principal:
 - nao usam navegador
@@ -292,8 +306,11 @@ uv run --project . python -m scrap_report.cli sam-api-standalone --profile detai
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado
+- SSAs repetidas agora sao deduplicadas antes do detalhamento
+- o payload publica `ssa_numbers_deduped` quando a entrada repetida e reduzida
 - a saida JSON segue registrando `warnings`, `verify_tls` e `timeout_seconds`
-- o custo de detalhe continua linear por SSA, entao lote grande ainda exige criterio operacional
+- o custo de detalhe continua linear por SSA unica, entao lote grande ainda exige criterio operacional
+- o gargalo que continua aberto hoje e o modo geral com detalhamento temporal amplo
 
 ### Certificado REST
 - com verificacao TLS ligada, a falha real observada foi:
@@ -301,6 +318,8 @@ uv run --project . python -m scrap_report.cli sam-api-standalone --profile detai
   - `self-signed certificate in certificate chain`
 - o comando agora aceita `--ca-file`, mas essa trilha ainda depende de uma cadeia confiavel real
 - no ambiente atual, a REST API ainda exige `--ignore-https-errors` para uso estavel
+- a mensagem operacional agora indica:
+  - `forneca --ca-file ou use --ignore-https-errors quando permitido`
 - isso fica explicito no payload via:
   - `warnings=["tls_verification_disabled"]`
   - `verify_tls=false`

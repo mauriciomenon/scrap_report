@@ -23,7 +23,11 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
   - fluxo totalmente independente `sam-api-standalone`
 - integracao concreta no fluxo do produto:
   - `sweep-run --runtime rest`
-  - suportado neste ciclo apenas para `report_kind=pendentes`
+  - suportado neste ciclo para `report_kind=pendentes`
+  - validado para:
+    - um setor
+    - varios setores
+    - geral sem detalhamento
 - `data de emissao` validada no runtime para:
   - `executadas`
   - `pendentes`
@@ -112,7 +116,10 @@ Os tres niveis hoje sao:
 ### Regra operacional de lote REST
 - detalhamento em lote agora usa chunking controlado acima de `500` SSAs por bloco
 - o payload continua expondo `detail_batch_chunked` quando a consulta passa desse limite
-- isso evita falha seca do comando, mas nao muda o custo linear do enriquecimento detalhado
+- SSAs repetidas agora sao deduplicadas antes do detalhamento
+- o payload expoe `ssa_numbers_deduped` quando a entrada repetida e reduzida
+- isso evita trabalho repetido inutil e remove custo duplicado por SSA repetida
+- isso evita falha seca do comando, mas nao elimina o custo linear do enriquecimento detalhado para SSAs unicas
 - consultas grandes seguem exigindo criterio operacional
 
 ### TLS e certificados na REST
@@ -122,11 +129,19 @@ Os tres niveis hoje sao:
 - o repo agora suporta `--ca-file` para cadeia customizada, mas essa trilha ainda nao foi validada com um certificado confiavel real
 - no ambiente atual, `--ignore-https-errors` continua sendo o caminho operacional estavel
 - isso aparece explicitamente em `warnings` e em `verify_tls=false` no payload/manifests
+- a mensagem de erro agora aponta a saida operacional correta:
+  - `forneca --ca-file ou use --ignore-https-errors quando permitido`
 
 ### Integracao REST no `sweep-run`
 - o `sweep-run` agora aceita `--runtime rest`
 - escopo validado neste ciclo:
   - `report_kind=pendentes`
+- modos validados:
+  - um setor com detalhamento
+  - varios setores com detalhamento
+  - geral sem detalhamento
+- limite ainda aberto:
+  - geral com detalhamento temporal continua caro e ainda nao esta verde como fluxo operacional
 - artefatos gerados nesse modo:
   - `csv`
   - `xlsx`
@@ -344,6 +359,16 @@ uv run --project . python -m scrap_report.cli sweep-run --username "menon" --rep
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_pendentes.json
 ```
 
+### sweep-run REST com varios setores
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --ignore-https-errors --output-json staging/sweep_rest_varios_setores.json
+```
+
+### sweep-run REST geral sem detalhamento
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode nenhum --runtime rest --ignore-https-errors --output-json staging/sweep_rest_geral_sem_detalhe.json
+```
+
 ### sweep-run multi-setor em um pedido
 ```powershell
 uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind executadas --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_executadas_eval.json
@@ -372,6 +397,11 @@ uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --
 ### sam-api-standalone independente
 ```powershell
 uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### sam-api-standalone com dedupe automatico
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ssa-number 202602521 --ignore-https-errors --output-dir tmp/sam_api_standalone_dedupe --output-json tmp/sam_api_standalone_dedupe.json
 ```
 
 ### Resultado esperado no fluxo independente

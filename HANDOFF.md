@@ -8,6 +8,7 @@
 - baseline REST em tres niveis: `81fb0c6`
 - endurecimento operacional REST: `f1c846a`
 - integracao REST no `sweep-run`: `e9460c9`
+- otimizacao REST mais recente: `a3bddb9`
 
 ## Current truth
 O projeto agora tem duas frentes operacionais distintas:
@@ -24,6 +25,10 @@ O projeto agora tem duas frentes operacionais distintas:
 3. fluxo de produto com REST optativo
 - `sweep-run --runtime rest`
 - suportado neste ciclo para `report_kind=pendentes`
+- validado para:
+  - um setor
+  - varios setores
+  - geral sem detalhamento
 
 ## REST, resumo curto
 ### Nivel 1
@@ -45,12 +50,15 @@ O projeto agora tem duas frentes operacionais distintas:
 ## Mitigacoes novas ja aplicadas
 - chunking controlado no detalhe em lote
 - `detail_batch_chunked` exposto no payload quando aplicavel
+- dedupe de SSA antes do detalhamento
+- `ssa_numbers_deduped` exposto quando a entrada repetida e reduzida
 - integracao optativa da REST no `sweep-run`
 - payload e manifest REST agora incluem:
   - `filters`
   - `warnings`
   - `verify_tls`
   - `timeout_seconds`
+- erro TLS agora aponta `--ca-file` ou `--ignore-https-errors`
 
 ## Estado validado
 ### Playwright
@@ -72,11 +80,14 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sam_api_chunking_manifest.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_chunking_manifest.json)
 - `sweep-run` REST:
   - [sweep_rest_pendentes.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_pendentes.json)
+  - [sweep_rest_varios_setores_v2.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_varios_setores_v2.json)
+  - [sweep_rest_geral_sem_detalhe.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_geral_sem_detalhe.json)
 
 ## Riscos residuais reais
 - a REST API ainda depende de `--ignore-https-errors` no ambiente atual
-- o chunking removeu a falha seca, mas o custo do detalhe continua linear por SSA em lotes grandes
+- o chunking removeu a falha seca e o dedupe removeu repeticao inutil, mas o custo do detalhe continua linear por SSA unica em lotes grandes
 - o `sweep-run` REST ainda esta limitado a `report_kind=pendentes`
+- o modo geral com detalhamento temporal amplo ainda nao esta verde como fluxo operacional
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 
