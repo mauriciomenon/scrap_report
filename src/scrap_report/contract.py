@@ -70,6 +70,17 @@ SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
         "verify_tls",
         "timeout_seconds",
     },
+    "sweep_result": {
+        "status",
+        "report_kind",
+        "scope_mode",
+        "runtime_mode",
+        "item_count",
+        "success_count",
+        "failure_count",
+        "items",
+        "manifest_json",
+    },
 }
 
 

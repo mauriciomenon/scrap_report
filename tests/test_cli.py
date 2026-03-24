@@ -1233,6 +1233,8 @@ def test_sweep_run_writes_manifest_output_json(
     content = out_json.read_text(encoding="utf-8")
     assert '"status": "ok"' in content
     assert '"item_count": 1' in content
+    assert '"runtime_mode": "playwright"' in content
+    assert '"manifest_json": ' in content
 
 
 def test_sweep_run_returns_error_on_partial_manifest(
@@ -1456,6 +1458,9 @@ def test_sweep_run_rest_does_not_require_secret_backend(
     assert seen["password"] == ""
     assert seen["download_dir"] == Path("downloads")
     assert seen["staging_dir"] == Path("staging")
+    content = (tmp_path / "out" / "sweep_rest_no_auth.json").read_text(encoding="utf-8")
+    assert '"runtime_mode": "rest"' in content
+    assert '"manifest_json": ' in content
 
 
 def test_sam_api_flow_accepts_ca_file(

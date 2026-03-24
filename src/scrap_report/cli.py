@@ -1154,7 +1154,10 @@ def main(argv: list[str] | None = None) -> int:
                 output_json = args.output_json or str(
                     _build_default_sweep_output_json(staging_dir, args.report_kind)
                 )
-                _emit_unvalidated_json(manifest.to_payload(), output_json)
+                payload = manifest.to_payload()
+                payload.setdefault("runtime_mode", args.runtime)
+                payload["manifest_json"] = output_json
+                _emit_json(payload, output_json, "sweep_result")
                 return 0 if manifest.status == "ok" else 1
             base_cfg = CliConfigInput(
                 username=args.username,
@@ -1197,7 +1200,10 @@ def main(argv: list[str] | None = None) -> int:
         output_json = args.output_json or str(
             _build_default_sweep_output_json(base_cfg.staging_dir, args.report_kind)
         )
-        _emit_unvalidated_json(manifest.to_payload(), output_json)
+        payload = manifest.to_payload()
+        payload.setdefault("runtime_mode", args.runtime)
+        payload["manifest_json"] = output_json
+        _emit_json(payload, output_json, "sweep_result")
         return 0 if manifest.status == "ok" else 1
 
     if args.command == "pipeline" and args.report_only:
