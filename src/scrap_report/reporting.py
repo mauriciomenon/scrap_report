@@ -420,6 +420,9 @@ def artifacts_to_dict(artifacts: ReportArtifacts) -> Dict[str, str]:
         "dados": str(artifacts.dados),
         "estatisticas": str(artifacts.estatisticas),
         "relatorio_txt": str(artifacts.relatorio_txt),
+        "data_xlsx": str(artifacts.dados),
+        "summary_xlsx": str(artifacts.estatisticas),
+        "report_txt": str(artifacts.relatorio_txt),
     }
 
 

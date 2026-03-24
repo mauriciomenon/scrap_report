@@ -182,6 +182,9 @@ def test_generate_ssa_report_from_excel(tmp_path: Path):
     assert Path(data["dados"]).exists()
     assert Path(data["estatisticas"]).exists()
     assert Path(data["relatorio_txt"]).exists()
+    assert Path(data["data_xlsx"]).exists()
+    assert Path(data["summary_xlsx"]).exists()
+    assert Path(data["report_txt"]).exists()
 
 
 def test_load_derivadas_relacionadas_excel_normalizes_pairs(tmp_path: Path):

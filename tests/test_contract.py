@@ -1,6 +1,7 @@
 import pytest
 
 from scrap_report.contract import (
+    EXPORT_CONTRACTS,
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
     SCHEMA_VERSION,
@@ -27,6 +28,10 @@ def test_validate_payload_schema_unknown_schema():
 def test_contract_constants_present():
     assert SCHEMA_VERSION == "1.0.0"
     assert PRODUCER == "scrap_report.cli"
+    assert "playwright_reports" in EXPORT_CONTRACTS
+    assert "rest_reports" in EXPORT_CONTRACTS
+    assert EXPORT_CONTRACTS["playwright_reports"]["dados"] == "data_xlsx"
+    assert EXPORT_CONTRACTS["rest_reports"]["csv"] == "data_csv"
     assert "contract_info" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_result" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_flow_result" in SCHEMA_REQUIRED_FIELDS

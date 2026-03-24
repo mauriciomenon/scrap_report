@@ -90,6 +90,11 @@ def test_validate_contract_command_writes_output_json(tmp_path: Path):
     assert '"schema_version": "1.0.0"' in content
     assert '"status": "ok"' in content
     assert '"contract"' in content
+    assert '"exports"' in content
+    assert '"playwright_reports"' in content
+    assert '"dados": "data_xlsx"' in content
+    assert '"rest_reports"' in content
+    assert '"csv": "data_csv"' in content
 
 
 def test_secret_set_command_no_plaintext_leak(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch):

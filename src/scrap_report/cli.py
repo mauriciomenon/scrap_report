@@ -21,6 +21,7 @@ from .config import (
     report_kind_uses_excel_output,
 )
 from .contract import (
+    EXPORT_CONTRACTS,
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
     SCHEMA_VERSION,
@@ -862,6 +863,7 @@ def main(argv: list[str] | None = None) -> int:
                         name: sorted(fields)
                         for name, fields in SCHEMA_REQUIRED_FIELDS.items()
                     },
+                    "exports": EXPORT_CONTRACTS,
                 },
             },
             args.output_json,

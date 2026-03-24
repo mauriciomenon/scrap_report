@@ -9,6 +9,20 @@ from typing import Any
 SCHEMA_VERSION = "1.0.0"
 PRODUCER = "scrap_report.cli"
 
+EXPORT_CONTRACTS: dict[str, dict[str, str]] = {
+    "playwright_reports": {
+        "dados": "data_xlsx",
+        "estatisticas": "summary_xlsx",
+        "relatorio_txt": "report_txt",
+    },
+    "rest_reports": {
+        "csv": "data_csv",
+        "xlsx": "data_xlsx",
+        "summary_xlsx": "summary_xlsx",
+        "manifest_json": "manifest_json",
+    },
+}
+
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
@@ -98,6 +112,8 @@ def validate_contract_definition() -> None:
         raise ValueError("PRODUCER nao pode ser vazio")
     if not SCHEMA_REQUIRED_FIELDS:
         raise ValueError("SCHEMA_REQUIRED_FIELDS nao pode ser vazio")
+    if not EXPORT_CONTRACTS:
+        raise ValueError("EXPORT_CONTRACTS nao pode ser vazio")
 
 
 def validate_payload_schema(schema_name: str, payload: dict[str, Any]) -> None:
