@@ -425,6 +425,8 @@ def artifacts_to_dict(artifacts: ReportArtifacts) -> Dict[str, str]:
 
 def sam_api_artifacts_to_dict(artifacts: SAMApiArtifacts) -> Dict[str, str]:
     return {
+        "csv": str(artifacts.data_csv),
+        "xlsx": str(artifacts.data_xlsx),
         "data_csv": str(artifacts.data_csv),
         "data_xlsx": str(artifacts.data_xlsx),
         "summary_xlsx": str(artifacts.summary_xlsx),

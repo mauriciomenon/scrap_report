@@ -156,6 +156,8 @@ def test_export_sam_api_artifacts(tmp_path: Path):
         "sam_api_panorama",
     )
     data = sam_api_artifacts_to_dict(artifacts)
+    assert Path(data["csv"]).exists()
+    assert Path(data["xlsx"]).exists()
     assert Path(data["data_csv"]).exists()
     assert Path(data["data_xlsx"]).exists()
     assert Path(data["summary_xlsx"]).exists()

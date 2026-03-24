@@ -367,7 +367,10 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     content = out_json.read_text(encoding="utf-8")
     assert '"count": 2' in content
     assert '"csv": ' in content
+    assert '"data_csv": ' in content
     assert '"xlsx": ' in content
+    assert '"data_xlsx": ' in content
+    assert '"manifest_json": ' in content
     assert '"filters"' in content
     assert '"warnings": ["ssa_numbers_deduped"]' in content
 
@@ -409,6 +412,7 @@ def test_sam_api_flow_panorama_writes_summary(
     assert '"profile": "panorama"' in content
     assert '"summary"' in content
     assert '"total": 1' in content
+    assert '"manifest_json": ' in content
     assert '"verify_tls": true' in content
 
 
@@ -451,6 +455,8 @@ def test_sam_api_standalone_generates_manifest_and_exports(
     content = manifest.read_text(encoding="utf-8")
     assert '"profile": "detail-lote"' in content
     assert '"output_dir": ' in content
+    assert '"csv": ' in content
+    assert '"xlsx": ' in content
     assert '"summary_xlsx": ' in content
     assert '"manifest_json": ' in content
     assert '"verify_tls": true' in content

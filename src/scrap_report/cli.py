@@ -634,9 +634,13 @@ def _export_sam_api_records(
         return exports
     df = build_sam_api_dataframe(records)
     if output_csv:
-        exports["csv"] = str(export_data_csv(df, Path(output_csv)))
+        csv_path = str(export_data_csv(df, Path(output_csv)))
+        exports["csv"] = csv_path
+        exports["data_csv"] = csv_path
     if output_xlsx:
-        exports["xlsx"] = str(export_data_excel(df, Path(output_xlsx)))
+        xlsx_path = str(export_data_excel(df, Path(output_xlsx)))
+        exports["xlsx"] = xlsx_path
+        exports["data_xlsx"] = xlsx_path
     return exports
 
 
@@ -968,6 +972,8 @@ def main(argv: list[str] | None = None) -> int:
             output_csv=args.output_csv,
             output_xlsx=args.output_xlsx,
         )
+        if args.output_json:
+            payload["exports"]["manifest_json"] = str(Path(args.output_json))
         _emit_json(payload, args.output_json, "sam_api_result")
         return 0
 
@@ -991,6 +997,8 @@ def main(argv: list[str] | None = None) -> int:
             output_csv=args.output_csv,
             output_xlsx=args.output_xlsx,
         )
+        if args.output_json:
+            payload["exports"]["manifest_json"] = str(Path(args.output_json))
         _emit_json(payload, args.output_json, "sam_api_result")
         return 0
 
