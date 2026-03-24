@@ -323,6 +323,19 @@ Contrato atual de `exports` na frente REST:
   - `summary_xlsx`, quando existir
   - `manifest_json`, quando houver saida JSON
 
+Contrato do manifest de `sweep-run`:
+- schema validado na saida final
+- campos obrigatorios:
+  - `status`
+  - `report_kind`
+  - `scope_mode`
+  - `runtime_mode`
+  - `item_count`
+  - `success_count`
+  - `failure_count`
+  - `items`
+  - `manifest_json`
+
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado

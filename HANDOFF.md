@@ -71,6 +71,16 @@ O projeto agora tem duas frentes operacionais distintas:
   - `data_csv` / `data_xlsx`
   - `summary_xlsx`, quando existir
   - `manifest_json`, quando houver saida JSON
+- o manifest de `sweep-run` agora sai com schema formal validado:
+  - `status`
+  - `report_kind`
+  - `scope_mode`
+  - `runtime_mode`
+  - `item_count`
+  - `success_count`
+  - `failure_count`
+  - `items`
+  - `manifest_json`
 - erro TLS agora aponta `--ca-file` ou `--ignore-https-errors`
 - `--ca-file` relativo agora e normalizado para caminho absoluto na CLI
 

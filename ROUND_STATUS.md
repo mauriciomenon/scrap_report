@@ -376,6 +376,27 @@ Resultado:
   - `items[0].reports.data_xlsx`
   - `items[0].reports.summary_xlsx`
 
+### Formalizacao de schema para `sweep-run`
+Mudanca:
+- o manifest de `sweep-run` deixou de ser emitido sem schema formal
+- a CLI agora valida o payload como `sweep_result`
+- o payload final registra tambem:
+  - `manifest_json`
+  - `runtime_mode`
+
+Smoke real:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_iee3_contract_v2.json
+```
+
+Resultado:
+- [tmp\sweep_rest_iee3_contract_v2.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_contract_v2.json)
+  - `schema_version=1.0.0`
+  - `producer=scrap_report.cli`
+  - `runtime_mode=rest`
+  - `manifest_json=tmp\\sweep_rest_iee3_contract_v2.json`
+  - `items[0].telemetry.record_count=26`
+
 ### Correcao de bug no `emission_date` do sweep REST
 - o `sweep-run --runtime rest` falhava cedo ao inferir `number_of_years` quando `emission_date` vinha em `YYYY-MM-DD`
 - causa real:

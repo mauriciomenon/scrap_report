@@ -187,6 +187,20 @@ Isto vale para:
 - `sam-api-flow`
 - `sam-api-standalone`
 
+Contrato formal do manifest de `sweep-run`:
+- o payload agora e emitido com schema validado
+- campos obrigatorios:
+  - `status`
+  - `report_kind`
+  - `scope_mode`
+  - `runtime_mode`
+  - `item_count`
+  - `success_count`
+  - `failure_count`
+  - `items`
+  - `manifest_json`
+- isso reduz adaptador futuro para o repo de reports no consumo do lote REST
+
 ## Report kinds suportados
 - `pendentes`
 - `executadas`
