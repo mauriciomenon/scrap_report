@@ -726,12 +726,20 @@ def _run_sam_api_query(args: Any, client: SAMApiClient) -> tuple[str, list[dict[
 
 
 def _build_sam_api_payload(mode: str, items: list[dict[str, Any]], args: Any) -> dict[str, Any]:
+    summary = build_sam_api_summary(items)
     payload: dict[str, Any] = {
         "status": "ok",
         "mode": mode,
+        "runtime_mode": "rest",
         "count": len(items),
         "items": items,
+        "telemetry": {
+            "record_count": summary["total"],
+            "detail_count": summary["detail_count"],
+            "without_detail_count": summary["without_detail_count"],
+        },
         "exports": {},
+        "manifest_json": None,
         "filters": _build_sam_api_filters(args, mode),
         "warnings": _build_sam_api_warnings(args),
         "verify_tls": not args.ignore_https_errors,
@@ -768,14 +776,22 @@ def _build_sam_api_flow_payload(
     items: list[dict[str, Any]],
     exports: dict[str, str],
 ) -> dict[str, Any]:
+    summary = build_sam_api_summary(items)
     return {
         "status": "ok",
         "profile": profile,
         "mode": mode,
+        "runtime_mode": "rest",
         "count": len(items),
         "output_dir": str(output_dir),
+        "telemetry": {
+            "record_count": summary["total"],
+            "detail_count": summary["detail_count"],
+            "without_detail_count": summary["without_detail_count"],
+        },
         "exports": exports,
-        "summary": build_sam_api_summary(items),
+        "manifest_json": None,
+        "summary": summary,
         "filters": _build_sam_api_filters(args, mode),
         "warnings": _build_sam_api_warnings(args),
         "verify_tls": not args.ignore_https_errors,
@@ -973,7 +989,8 @@ def main(argv: list[str] | None = None) -> int:
             output_xlsx=args.output_xlsx,
         )
         if args.output_json:
-            payload["exports"]["manifest_json"] = str(Path(args.output_json))
+            payload["manifest_json"] = str(Path(args.output_json))
+            payload["exports"]["manifest_json"] = payload["manifest_json"]
         _emit_json(payload, args.output_json, "sam_api_result")
         return 0
 
@@ -998,7 +1015,8 @@ def main(argv: list[str] | None = None) -> int:
             output_xlsx=args.output_xlsx,
         )
         if args.output_json:
-            payload["exports"]["manifest_json"] = str(Path(args.output_json))
+            payload["manifest_json"] = str(Path(args.output_json))
+            payload["exports"]["manifest_json"] = payload["manifest_json"]
         _emit_json(payload, args.output_json, "sam_api_result")
         return 0
 
@@ -1026,6 +1044,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
         manifest_path = args.output_json or str(_build_default_sam_api_manifest_path(output_dir, args.profile))
+        payload["manifest_json"] = manifest_path
         payload["exports"]["manifest_json"] = manifest_path
         _emit_json(payload, manifest_path, "sam_api_flow_result")
         return 0

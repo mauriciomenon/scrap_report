@@ -34,9 +34,39 @@ def test_contract_constants_present():
     assert "filters" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
     assert "warnings" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
     assert "verify_tls" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "runtime_mode" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "telemetry" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
+    assert "manifest_json" in SCHEMA_REQUIRED_FIELDS["sam_api_result"]
     assert "timeout_seconds" in SCHEMA_REQUIRED_FIELDS["sam_api_flow_result"]
+    assert "runtime_mode" in SCHEMA_REQUIRED_FIELDS["sam_api_flow_result"]
+    assert "telemetry" in SCHEMA_REQUIRED_FIELDS["sam_api_flow_result"]
+    assert "manifest_json" in SCHEMA_REQUIRED_FIELDS["sam_api_flow_result"]
     assert "manifest_json" in SCHEMA_REQUIRED_FIELDS["sweep_result"]
     assert "runtime_mode" in SCHEMA_REQUIRED_FIELDS["sweep_result"]
+
+
+def test_validate_payload_schema_sam_api_result_ok():
+    validate_payload_schema(
+        "sam_api_result",
+        {
+            "status": "ok",
+            "mode": "search",
+            "runtime_mode": "rest",
+            "count": 1,
+            "items": [],
+            "telemetry": {
+                "record_count": 1,
+                "detail_count": 0,
+                "without_detail_count": 1,
+            },
+            "exports": {},
+            "manifest_json": "tmp/sam-api.json",
+            "filters": {},
+            "warnings": [],
+            "verify_tls": True,
+            "timeout_seconds": 60,
+        },
+    )
 
 
 def test_validate_payload_schema_sweep_result_ok():

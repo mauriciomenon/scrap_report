@@ -366,6 +366,11 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     assert out_xlsx.exists()
     content = out_json.read_text(encoding="utf-8")
     assert '"count": 2' in content
+    assert '"runtime_mode": "rest"' in content
+    assert '"telemetry": {' in content
+    assert '"record_count": 2' in content
+    assert '"detail_count": 2' in content
+    assert '"without_detail_count": 0' in content
     assert '"csv": ' in content
     assert '"data_csv": ' in content
     assert '"xlsx": ' in content
@@ -410,6 +415,11 @@ def test_sam_api_flow_panorama_writes_summary(
     assert code == 0
     content = out_json.read_text(encoding="utf-8")
     assert '"profile": "panorama"' in content
+    assert '"runtime_mode": "rest"' in content
+    assert '"telemetry": {' in content
+    assert '"record_count": 1' in content
+    assert '"detail_count": 1' in content
+    assert '"without_detail_count": 0' in content
     assert '"summary"' in content
     assert '"total": 1' in content
     assert '"manifest_json": ' in content
@@ -455,6 +465,11 @@ def test_sam_api_standalone_generates_manifest_and_exports(
     content = manifest.read_text(encoding="utf-8")
     assert '"profile": "detail-lote"' in content
     assert '"output_dir": ' in content
+    assert '"runtime_mode": "rest"' in content
+    assert '"telemetry": {' in content
+    assert '"record_count": 1' in content
+    assert '"detail_count": 1' in content
+    assert '"without_detail_count": 0' in content
     assert '"csv": ' in content
     assert '"xlsx": ' in content
     assert '"summary_xlsx": ' in content
