@@ -336,6 +336,19 @@ Contrato do manifest de `sweep-run`:
   - `items`
   - `manifest_json`
 
+Telemetria minima comum nos manifests REST:
+- `runtime_mode`
+- `telemetry.record_count`
+- `telemetry.detail_count`
+- `telemetry.without_detail_count`
+- `manifest_json`
+
+Isto agora vale para:
+- `sam-api`
+- `sam-api-flow`
+- `sam-api-standalone`
+- `sweep-run --runtime rest`
+
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado

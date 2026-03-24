@@ -171,6 +171,9 @@ Os payloads REST agora carregam contexto operacional minimo obrigatorio:
 - `warnings`
 - `verify_tls`
 - `timeout_seconds`
+- `runtime_mode`
+- `telemetry`
+- `manifest_json`
 
 Contrato de `exports` para a frente REST:
 - aliases legados mantidos:
@@ -186,6 +189,19 @@ Isto vale para:
 - `sam-api`
 - `sam-api-flow`
 - `sam-api-standalone`
+
+Telemetria minima comum nos manifests REST:
+- `runtime_mode`
+- `telemetry.record_count`
+- `telemetry.detail_count`
+- `telemetry.without_detail_count`
+- `manifest_json`
+
+Isto agora vale de forma uniforme para:
+- `sam-api`
+- `sam-api-flow`
+- `sam-api-standalone`
+- `sweep-run --runtime rest`
 
 Contrato formal do manifest de `sweep-run`:
 - o payload agora e emitido com schema validado

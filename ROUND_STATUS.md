@@ -73,6 +73,68 @@ Resultados:
 - `ty`: ok
 - `pytest`: `113 passed`
 
+### Slice atual: telemetria minima unificada para manifests REST
+Escopo:
+- alinhar `sam-api`, `sam-api-flow` e `sam-api-standalone` ao contrato minimo ja usado no sweep
+- manter aliases legados sem quebrar consumo atual
+
+Mudanca aplicada:
+- payloads REST agora expõem no topo:
+  - `runtime_mode`
+  - `telemetry`
+  - `manifest_json`
+
+Campos de `telemetry` neste slice:
+- `record_count`
+- `detail_count`
+- `without_detail_count`
+
+Quality gates do slice:
+```powershell
+uv run python -m py_compile src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+uv run ruff check src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+uv run ty check src
+uv run pytest -q tests\test_contract.py tests\test_cli.py tests\test_sweep.py tests\test_reporting.py tests\test_sam_api.py
+```
+
+Resultados:
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest`: `115 passed`
+
+Smokes reais deste slice:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp\itaipu_root_ca_v2.pem --output-json tmp\sam_api_iee3_contract_demo_v4.json --output-csv tmp\sam_api_iee3_contract_demo_v4.csv --output-xlsx tmp\sam_api_iee3_contract_demo_v4.xlsx
+uv run --python 3.13 python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ca-file tmp\itaipu_root_ca_v2.pem --output-dir tmp\sam_api_contract_detail_v1 --output-json tmp\sam_api_contract_detail_v1.json
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp\itaipu_root_ca_v2.pem --output-json tmp\sweep_rest_iee3_contract_v3.json
+```
+
+Resultados reais:
+- `sam-api-flow`:
+  - `status=ok`
+  - `runtime_mode=rest`
+  - `telemetry.record_count=39`
+  - `telemetry.detail_count=0`
+  - `telemetry.without_detail_count=39`
+  - `manifest_json=tmp\\sam_api_iee3_contract_demo_v4.json`
+- `sam-api-standalone`:
+  - `status=ok`
+  - `runtime_mode=rest`
+  - `telemetry.record_count=1`
+  - `telemetry.detail_count=1`
+  - `telemetry.without_detail_count=0`
+  - `manifest_json=tmp\\sam_api_contract_detail_v1.json`
+- `sweep-run --runtime rest`:
+  - `status=ok`
+  - `runtime_mode=rest`
+  - `item_count=1`
+  - `success_count=1`
+  - `manifest_json=tmp\\sweep_rest_iee3_contract_v3.json`
+  - `items[0].telemetry.record_count=26`
+  - `items[0].telemetry.detail_count=26`
+  - `items[0].telemetry.without_detail_count=0`
+
 ### Exportacao real da CA raiz REST
 Comando:
 ```powershell

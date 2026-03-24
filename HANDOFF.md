@@ -66,6 +66,12 @@ O projeto agora tem duas frentes operacionais distintas:
   - `warnings`
   - `verify_tls`
   - `timeout_seconds`
+- os manifests REST agora compartilham telemetria minima comum no topo:
+  - `runtime_mode`
+  - `telemetry.record_count`
+  - `telemetry.detail_count`
+  - `telemetry.without_detail_count`
+  - `manifest_json`
 - `exports` REST agora mantem aliases legados e chaves canonicas:
   - `csv` / `xlsx`
   - `data_csv` / `data_xlsx`
@@ -124,6 +130,9 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sweep_rest_all_emission_date_42d_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_all_emission_date_42d_v1.json)
   - [sam_api_iee3_pendentes_demo.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo.json)
   - [sam_api_iee3_detail_demo.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_detail_demo.json)
+  - [sam_api_iee3_contract_demo_v4.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v4.json)
+  - [sam_api_contract_detail_v1.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_contract_detail_v1.json)
+  - [sweep_rest_iee3_contract_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_contract_v3.json)
 
 ## Riscos residuais reais
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
@@ -132,6 +141,7 @@ O projeto agora tem duas frentes operacionais distintas:
 - `emission_date` geral agora esta verde ate 42 dias
 - acima de 42 dias, o modo geral com detalhamento amplo por `emission_date` continua caro e ainda sem teto operacional provado
 - a camada REST ja demonstrou panorama e detalhe em lote usando a lista real de pendentes da `IEE3`
+- o contrato minimo comum de manifest REST agora esta alinhado para consumo futuro no repo de reports
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 
