@@ -367,6 +367,10 @@ Descoberta automatica de contrato:
   - `contract.preferred_contracts`
   - `contract.minimum_fields_by_flow`
 
+Uso recomendado pelo consumidor:
+- `contract.preferred_contracts` diz qual schema e qual contrato de exports usar por fluxo
+- `contract.minimum_fields_by_flow` diz o conjunto minimo de campos que o consumidor deve exigir
+
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado

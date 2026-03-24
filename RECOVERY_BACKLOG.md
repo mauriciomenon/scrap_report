@@ -10,6 +10,10 @@
 - decidir quando o repo de reports podera migrar de leitura legado `csv/xlsx` para leitura canonica `data_csv/data_xlsx/manifest_json`, agora com `runtime_mode` e `telemetry` comuns no topo
 - decidir quando o repo de reports podera migrar tambem os artefatos Playwright de `dados/estatisticas/relatorio_txt` para `data_xlsx/summary_xlsx/report_txt`
 - decidir se o repo de reports vai confiar so em `validate-contract` como discovery principal ou se ainda vai manter fallback por docs
+- decidir a ordem de migracao do consumidor:
+  - primeiro `validate-contract`
+  - depois `sam-api-flow`
+  - depois `sweep-run --runtime rest`
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

@@ -240,6 +240,49 @@ Resultados reais:
   - `runtime_mode=rest`
   - `manifest_json` presente
 
+### Slice atual: recomendacao de consumo por caso
+Escopo:
+- publicar em `validate-contract` qual fluxo o consumidor deve usar e quais campos minimos deve ler
+
+Mudanca aplicada:
+- `validate-contract` agora expõe:
+  - `contract.preferred_contracts`
+  - `contract.minimum_fields_by_flow`
+
+Quality gates do slice:
+```powershell
+uv run python -m py_compile src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+uv run ruff check src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+uv run ty check src
+uv run pytest -q tests\test_contract.py tests\test_cli.py tests\test_reporting.py tests\test_sam_api.py tests\test_sweep.py
+```
+
+Resultados:
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest`: `115 passed`
+
+Smokes reais deste slice:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli validate-contract --output-json tmp\contract_v3.json
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp\itaipu_root_ca_v2.pem --output-json tmp\sam_api_iee3_contract_demo_v6.json --output-csv tmp\sam_api_iee3_contract_demo_v6.csv --output-xlsx tmp\sam_api_iee3_contract_demo_v6.xlsx
+```
+
+Resultados reais:
+- `validate-contract`:
+  - `status=ok`
+  - `contract.preferred_contracts.sam_api.schema=sam_api_result`
+  - `contract.preferred_contracts.sam_api_standalone.schema=sam_api_flow_result`
+  - `contract.preferred_contracts.sweep_run_rest.schema=sweep_result`
+  - `contract.minimum_fields_by_flow.sam_api_flow` presente
+  - `contract.minimum_fields_by_flow.sweep_run_rest` presente
+- `sam-api-flow`:
+  - `status=ok`
+  - `runtime_mode=rest`
+  - `manifest_json` presente
+  - continua coerente com o discovery publicado
+
 ### Exportacao real da CA raiz REST
 Comando:
 ```powershell
