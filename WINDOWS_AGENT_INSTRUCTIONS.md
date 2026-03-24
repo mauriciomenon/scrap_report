@@ -349,6 +349,22 @@ Isto agora vale para:
 - `sam-api-standalone`
 - `sweep-run --runtime rest`
 
+Aliases canonicos para artefatos Playwright e `report-from-excel`:
+- legados mantidos:
+  - `dados`
+  - `estatisticas`
+  - `relatorio_txt`
+- aliases canonicos:
+  - `data_xlsx`
+  - `summary_xlsx`
+  - `report_txt`
+
+Descoberta automatica de contrato:
+- `validate-contract` agora publica em JSON:
+  - `contract.schemas`
+  - `contract.exports.playwright_reports`
+  - `contract.exports.rest_reports`
+
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado

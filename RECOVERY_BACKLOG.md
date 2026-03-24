@@ -8,6 +8,7 @@
 - avaliar estrategia especifica para modo geral REST com detalhamento amplo por `emission_date` acima de janelas de 42 dias sem custo e latencia excessivos
 - manter compatibilidade do contrato `exports` REST ao integrar com o repo de reports, evitando remover aliases legados cedo demais
 - decidir quando o repo de reports podera migrar de leitura legado `csv/xlsx` para leitura canonica `data_csv/data_xlsx/manifest_json`, agora com `runtime_mode` e `telemetry` comuns no topo
+- decidir quando o repo de reports podera migrar tambem os artefatos Playwright de `dados/estatisticas/relatorio_txt` para `data_xlsx/summary_xlsx/report_txt`
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

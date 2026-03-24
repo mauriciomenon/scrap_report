@@ -72,6 +72,13 @@ O projeto agora tem duas frentes operacionais distintas:
   - `telemetry.detail_count`
   - `telemetry.without_detail_count`
   - `manifest_json`
+- os artefatos Playwright agora tambem expõem aliases canonicos:
+  - `dados` -> `data_xlsx`
+  - `estatisticas` -> `summary_xlsx`
+  - `relatorio_txt` -> `report_txt`
+- `validate-contract` agora publica o mapa desses aliases por JSON:
+  - `contract.exports.playwright_reports`
+  - `contract.exports.rest_reports`
 - `exports` REST agora mantem aliases legados e chaves canonicas:
   - `csv` / `xlsx`
   - `data_csv` / `data_xlsx`
@@ -133,6 +140,9 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sam_api_iee3_contract_demo_v4.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v4.json)
   - [sam_api_contract_detail_v1.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_contract_detail_v1.json)
   - [sweep_rest_iee3_contract_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_contract_v3.json)
+  - [contract_v2.json](C:\Users\mauri\git\scrap_report\tmp\contract_v2.json)
+  - [report_contract_out.json](C:\Users\mauri\git\scrap_report\tmp\report_contract_out.json)
+  - [sam_api_iee3_contract_demo_v5.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v5.json)
 
 ## Riscos residuais reais
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
@@ -142,6 +152,7 @@ O projeto agora tem duas frentes operacionais distintas:
 - acima de 42 dias, o modo geral com detalhamento amplo por `emission_date` continua caro e ainda sem teto operacional provado
 - a camada REST ja demonstrou panorama e detalhe em lote usando a lista real de pendentes da `IEE3`
 - o contrato minimo comum de manifest REST agora esta alinhado para consumo futuro no repo de reports
+- o contrato de aliases de artefatos agora tambem esta publicavel por JSON, sem depender de parse de README
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 

@@ -203,6 +203,22 @@ Isto agora vale de forma uniforme para:
 - `sam-api-standalone`
 - `sweep-run --runtime rest`
 
+Aliases canonicos para artefatos Playwright e `report-from-excel`:
+- legados mantidos:
+  - `dados`
+  - `estatisticas`
+  - `relatorio_txt`
+- aliases canonicos:
+  - `data_xlsx`
+  - `summary_xlsx`
+  - `report_txt`
+
+Descoberta automatica de contrato:
+- `validate-contract` agora publica em JSON:
+  - `contract.schemas`
+  - `contract.exports.playwright_reports`
+  - `contract.exports.rest_reports`
+
 Contrato formal do manifest de `sweep-run`:
 - o payload agora e emitido com schema validado
 - campos obrigatorios:

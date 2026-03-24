@@ -135,6 +135,67 @@ Resultados reais:
   - `items[0].telemetry.detail_count=26`
   - `items[0].telemetry.without_detail_count=0`
 
+### Slice atual: aliases canonicos de artefatos e descoberta por `validate-contract`
+Escopo:
+- alinhar os artefatos Playwright ao mesmo modelo canonico de consumo
+- publicar o mapa de aliases por JSON em `validate-contract`
+
+Mudanca aplicada:
+- `reporting.artifacts_to_dict()` agora mantem:
+  - `dados`
+  - `estatisticas`
+  - `relatorio_txt`
+- e tambem expõe:
+  - `data_xlsx`
+  - `summary_xlsx`
+  - `report_txt`
+- `validate-contract` agora publica:
+  - `contract.exports.playwright_reports`
+  - `contract.exports.rest_reports`
+
+Quality gates do slice:
+```powershell
+uv run python -m py_compile src\scrap_report\contract.py src\scrap_report\cli.py src\scrap_report\reporting.py tests\test_contract.py tests\test_cli.py tests\test_reporting.py
+uv run ruff check src\scrap_report\contract.py src\scrap_report\cli.py src\scrap_report\reporting.py tests\test_contract.py tests\test_cli.py tests\test_reporting.py
+uv run ty check src
+uv run pytest -q tests\test_contract.py tests\test_cli.py tests\test_reporting.py tests\test_sam_api.py tests\test_sweep.py
+```
+
+Resultados:
+- `py_compile`: ok
+- `ruff`: ok
+- `ty`: ok
+- `pytest`: `115 passed`
+
+Smokes reais deste slice:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli validate-contract --output-json tmp\contract_v2.json
+uv run --python 3.13 python -m scrap_report.cli report-from-excel --excel tmp\report_contract_input.xlsx --output-dir tmp\report_contract_out --report-kind pendentes --output-json tmp\report_contract_out.json
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp\itaipu_root_ca_v2.pem --output-json tmp\sam_api_iee3_contract_demo_v5.json --output-csv tmp\sam_api_iee3_contract_demo_v5.csv --output-xlsx tmp\sam_api_iee3_contract_demo_v5.xlsx
+```
+
+Resultados reais:
+- `validate-contract`:
+  - `status=ok`
+  - `contract.exports.playwright_reports.dados=data_xlsx`
+  - `contract.exports.playwright_reports.estatisticas=summary_xlsx`
+  - `contract.exports.rest_reports.csv=data_csv`
+- `report-from-excel`:
+  - `status=ok`
+  - `reports.dados` presente
+  - `reports.estatisticas` presente
+  - `reports.relatorio_txt` presente
+  - `reports.data_xlsx` presente
+  - `reports.summary_xlsx` presente
+  - `reports.report_txt` presente
+- `sam-api-flow`:
+  - `status=ok`
+  - `runtime_mode=rest`
+  - `telemetry.record_count=39`
+  - `exports.data_csv` presente
+  - `exports.data_xlsx` presente
+  - `manifest_json` presente
+
 ### Exportacao real da CA raiz REST
 Comando:
 ```powershell
