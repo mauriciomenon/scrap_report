@@ -22,6 +22,8 @@ from .config import (
 )
 from .contract import (
     EXPORT_CONTRACTS,
+    MINIMUM_FIELDS_BY_FLOW,
+    PREFERRED_CONTRACTS,
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
     SCHEMA_VERSION,
@@ -864,6 +866,8 @@ def main(argv: list[str] | None = None) -> int:
                         for name, fields in SCHEMA_REQUIRED_FIELDS.items()
                     },
                     "exports": EXPORT_CONTRACTS,
+                    "preferred_contracts": PREFERRED_CONTRACTS,
+                    "minimum_fields_by_flow": MINIMUM_FIELDS_BY_FLOW,
                 },
             },
             args.output_json,

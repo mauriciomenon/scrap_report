@@ -2,6 +2,8 @@ import pytest
 
 from scrap_report.contract import (
     EXPORT_CONTRACTS,
+    MINIMUM_FIELDS_BY_FLOW,
+    PREFERRED_CONTRACTS,
     PRODUCER,
     SCHEMA_REQUIRED_FIELDS,
     SCHEMA_VERSION,
@@ -32,6 +34,10 @@ def test_contract_constants_present():
     assert "rest_reports" in EXPORT_CONTRACTS
     assert EXPORT_CONTRACTS["playwright_reports"]["dados"] == "data_xlsx"
     assert EXPORT_CONTRACTS["rest_reports"]["csv"] == "data_csv"
+    assert PREFERRED_CONTRACTS["sam_api"]["schema"] == "sam_api_result"
+    assert PREFERRED_CONTRACTS["sweep_run_rest"]["schema"] == "sweep_result"
+    assert MINIMUM_FIELDS_BY_FLOW["sam_api_flow"][0] == "status"
+    assert "manifest_json" in MINIMUM_FIELDS_BY_FLOW["sam_api_standalone"]
     assert "contract_info" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_result" in SCHEMA_REQUIRED_FIELDS
     assert "sam_api_flow_result" in SCHEMA_REQUIRED_FIELDS

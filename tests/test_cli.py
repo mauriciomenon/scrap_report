@@ -95,6 +95,11 @@ def test_validate_contract_command_writes_output_json(tmp_path: Path):
     assert '"dados": "data_xlsx"' in content
     assert '"rest_reports"' in content
     assert '"csv": "data_csv"' in content
+    assert '"preferred_contracts"' in content
+    assert '"sam_api_flow"' in content
+    assert '"schema": "sam_api_result"' in content
+    assert '"minimum_fields_by_flow"' in content
+    assert '"sweep_run_rest"' in content
 
 
 def test_secret_set_command_no_plaintext_leak(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch):

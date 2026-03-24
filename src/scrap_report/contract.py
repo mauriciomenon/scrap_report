@@ -23,6 +23,79 @@ EXPORT_CONTRACTS: dict[str, dict[str, str]] = {
     },
 }
 
+PREFERRED_CONTRACTS: dict[str, dict[str, str]] = {
+    "sam_api": {
+        "schema": "sam_api_result",
+        "export_contract": "rest_reports",
+    },
+    "sam_api_flow": {
+        "schema": "sam_api_result",
+        "export_contract": "rest_reports",
+    },
+    "sam_api_standalone": {
+        "schema": "sam_api_flow_result",
+        "export_contract": "rest_reports",
+    },
+    "sweep_run_rest": {
+        "schema": "sweep_result",
+        "export_contract": "rest_reports",
+    },
+    "report_from_excel": {
+        "schema": "report_result",
+        "export_contract": "playwright_reports",
+    },
+}
+
+MINIMUM_FIELDS_BY_FLOW: dict[str, list[str]] = {
+    "sam_api": [
+        "status",
+        "mode",
+        "runtime_mode",
+        "count",
+        "telemetry",
+        "exports",
+        "manifest_json",
+    ],
+    "sam_api_flow": [
+        "status",
+        "profile",
+        "mode",
+        "runtime_mode",
+        "count",
+        "telemetry",
+        "exports",
+        "manifest_json",
+        "summary",
+    ],
+    "sam_api_standalone": [
+        "status",
+        "profile",
+        "mode",
+        "runtime_mode",
+        "count",
+        "output_dir",
+        "telemetry",
+        "exports",
+        "manifest_json",
+        "summary",
+    ],
+    "sweep_run_rest": [
+        "status",
+        "report_kind",
+        "scope_mode",
+        "runtime_mode",
+        "item_count",
+        "success_count",
+        "failure_count",
+        "items",
+        "manifest_json",
+    ],
+    "report_from_excel": [
+        "status",
+        "reports",
+    ],
+}
+
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 SCHEMA_REQUIRED_FIELDS: dict[str, set[str]] = {
@@ -114,6 +187,10 @@ def validate_contract_definition() -> None:
         raise ValueError("SCHEMA_REQUIRED_FIELDS nao pode ser vazio")
     if not EXPORT_CONTRACTS:
         raise ValueError("EXPORT_CONTRACTS nao pode ser vazio")
+    if not PREFERRED_CONTRACTS:
+        raise ValueError("PREFERRED_CONTRACTS nao pode ser vazio")
+    if not MINIMUM_FIELDS_BY_FLOW:
+        raise ValueError("MINIMUM_FIELDS_BY_FLOW nao pode ser vazio")
 
 
 def validate_payload_schema(schema_name: str, payload: dict[str, Any]) -> None:
