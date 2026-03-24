@@ -66,6 +66,11 @@ O projeto agora tem duas frentes operacionais distintas:
   - `warnings`
   - `verify_tls`
   - `timeout_seconds`
+- `exports` REST agora mantem aliases legados e chaves canonicas:
+  - `csv` / `xlsx`
+  - `data_csv` / `data_xlsx`
+  - `summary_xlsx`, quando existir
+  - `manifest_json`, quando houver saida JSON
 - erro TLS agora aponta `--ca-file` ou `--ignore-https-errors`
 - `--ca-file` relativo agora e normalizado para caminho absoluto na CLI
 

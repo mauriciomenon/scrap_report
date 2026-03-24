@@ -347,6 +347,35 @@ Resultado:
   - [sam_api_detail-lote_dados_20260323_163945_358349.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_detail_demo\sam_api_detail-lote_dados_20260323_163945_358349.xlsx)
   - [sam_api_detail-lote_resumo_20260323_163945_358349.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_detail_demo\sam_api_detail-lote_resumo_20260323_163945_358349.xlsx)
 
+### Padronizacao de `exports` para futura juncao com repo de reports
+Mudanca:
+- `sam-api` e `sam-api-flow` agora expõem tanto:
+  - `csv` / `xlsx`
+  - quanto `data_csv` / `data_xlsx`
+- quando ha `output_json`, o payload passa a registrar tambem:
+  - `manifest_json`
+- o `sam-api-standalone` e o `sweep-run --runtime rest` passam a expor os aliases legados junto das chaves canonicas
+
+Smoke real:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_iee3_contract_demo_v2.json --output-csv tmp/sam_api_iee3_contract_demo_v2.csv --output-xlsx tmp/sam_api_iee3_contract_demo_v2.xlsx
+uv run --python 3.13 python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_iee3_contract_v1.json
+```
+
+Resultado:
+- [tmp\sam_api_iee3_contract_demo_v2.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v2.json)
+  - `exports.csv`
+  - `exports.xlsx`
+  - `exports.data_csv`
+  - `exports.data_xlsx`
+  - `exports.manifest_json`
+- [tmp\sweep_rest_iee3_contract_v1.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_contract_v1.json)
+  - `items[0].reports.csv`
+  - `items[0].reports.xlsx`
+  - `items[0].reports.data_csv`
+  - `items[0].reports.data_xlsx`
+  - `items[0].reports.summary_xlsx`
+
 ### Correcao de bug no `emission_date` do sweep REST
 - o `sweep-run --runtime rest` falhava cedo ao inferir `number_of_years` quando `emission_date` vinha em `YYYY-MM-DD`
 - causa real:

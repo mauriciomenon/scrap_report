@@ -313,6 +313,16 @@ uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_r
 - `xlsx` de dados
 - `xlsx` de resumo
 
+Contrato atual de `exports` na frente REST:
+- compatibilidade mantida com:
+  - `csv`
+  - `xlsx`
+- chaves canonicas para integracao com outro consumidor:
+  - `data_csv`
+  - `data_xlsx`
+  - `summary_xlsx`, quando existir
+  - `manifest_json`, quando houver saida JSON
+
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco
 - o payload publica `detail_batch_chunked` quando esse caminho for usado

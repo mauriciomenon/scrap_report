@@ -172,6 +172,16 @@ Os payloads REST agora carregam contexto operacional minimo obrigatorio:
 - `verify_tls`
 - `timeout_seconds`
 
+Contrato de `exports` para a frente REST:
+- aliases legados mantidos:
+  - `csv`
+  - `xlsx`
+- chaves canonicas para integracao futura:
+  - `data_csv`
+  - `data_xlsx`
+  - `summary_xlsx`, quando existir
+  - `manifest_json`, quando houver saida JSON
+
 Isto vale para:
 - `sam-api`
 - `sam-api-flow`
