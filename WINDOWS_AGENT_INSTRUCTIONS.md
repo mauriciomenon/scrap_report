@@ -364,6 +364,8 @@ Descoberta automatica de contrato:
   - `contract.schemas`
   - `contract.exports.playwright_reports`
   - `contract.exports.rest_reports`
+  - `contract.preferred_contracts`
+  - `contract.minimum_fields_by_flow`
 
 ### Limites operacionais REST
 - detalhe em lote usa chunking controlado acima de `500` SSAs por bloco

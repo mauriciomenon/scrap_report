@@ -79,6 +79,9 @@ O projeto agora tem duas frentes operacionais distintas:
 - `validate-contract` agora publica o mapa desses aliases por JSON:
   - `contract.exports.playwright_reports`
   - `contract.exports.rest_reports`
+- `validate-contract` agora publica tambem o mapa de consumo por fluxo:
+  - `contract.preferred_contracts`
+  - `contract.minimum_fields_by_flow`
 - `exports` REST agora mantem aliases legados e chaves canonicas:
   - `csv` / `xlsx`
   - `data_csv` / `data_xlsx`
@@ -141,8 +144,10 @@ O projeto agora tem duas frentes operacionais distintas:
   - [sam_api_contract_detail_v1.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_contract_detail_v1.json)
   - [sweep_rest_iee3_contract_v3.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_contract_v3.json)
   - [contract_v2.json](C:\Users\mauri\git\scrap_report\tmp\contract_v2.json)
+  - [contract_v3.json](C:\Users\mauri\git\scrap_report\tmp\contract_v3.json)
   - [report_contract_out.json](C:\Users\mauri\git\scrap_report\tmp\report_contract_out.json)
   - [sam_api_iee3_contract_demo_v5.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v5.json)
+  - [sam_api_iee3_contract_demo_v6.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_contract_demo_v6.json)
 
 ## Riscos residuais reais
 - a REST API nao depende mais exclusivamente de `--ignore-https-errors`; o caminho com CA exportada ficou validado
@@ -153,6 +158,7 @@ O projeto agora tem duas frentes operacionais distintas:
 - a camada REST ja demonstrou panorama e detalhe em lote usando a lista real de pendentes da `IEE3`
 - o contrato minimo comum de manifest REST agora esta alinhado para consumo futuro no repo de reports
 - o contrato de aliases de artefatos agora tambem esta publicavel por JSON, sem depender de parse de README
+- o contrato agora tambem declara por JSON qual schema cada fluxo deve usar e quais campos minimos o consumidor deve ler
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 

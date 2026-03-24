@@ -218,6 +218,8 @@ Descoberta automatica de contrato:
   - `contract.schemas`
   - `contract.exports.playwright_reports`
   - `contract.exports.rest_reports`
+  - `contract.preferred_contracts`
+  - `contract.minimum_fields_by_flow`
 
 Contrato formal do manifest de `sweep-run`:
 - o payload agora e emitido com schema validado
