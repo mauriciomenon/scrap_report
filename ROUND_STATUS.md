@@ -58,6 +58,63 @@
 - o `sweep-run --runtime rest` para `pendentes` nao exige credencial
 
 ## Evidencia operacional rodada 2026-03-23
+### Slice atual: pacote importavel para outros projetos
+Escopo:
+- alinhar metadados de pacote e entrypoint instalavel
+- expor discovery programatico por import
+- remover dependencia de Playwright na carga inicial de `scrap_report.cli`
+
+Mudanca aplicada:
+- `pyproject.toml` agora declara:
+  - `version = 0.1.17`
+  - `readme = README.md`
+  - script `scrap-report = scrap_report.cli:main`
+- `scrap_report` agora expõe:
+  - `__version__`
+  - `build_contract_catalog()`
+  - `validate_contract_definition()`
+  - `validate_payload_schema()`
+- `validate-contract` agora publica tambem:
+  - `contract.package.package_name`
+  - `contract.package.package_version`
+  - `contract.package.import_name`
+  - `contract.package.cli_entrypoint`
+  - `contract.package.module_entrypoint`
+- `scrap_report.cli` passou a usar wrappers lazy para os caminhos que antes puxavam Playwright na importacao
+
+Quality gates do slice:
+```powershell
+C:\Users\mauri\.pyenv\pyenv-win\versions\3.13.9\python.exe -m py_compile src\scrap_report\__init__.py src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+C:\Users\mauri\.local\bin\ruff.exe check src\scrap_report\__init__.py src\scrap_report\contract.py src\scrap_report\cli.py tests\test_contract.py tests\test_cli.py
+C:\Users\mauri\.local\bin\ty.exe check --python C:\Users\mauri\.pyenv\pyenv-win\versions\3.13.9\python.exe src\scrap_report\__init__.py src\scrap_report\contract.py src\scrap_report\cli.py
+C:\Users\mauri\.pyenv\pyenv-win\versions\3.13.9\python.exe -m pytest -q tests\test_contract.py -p no:cacheprovider
+```
+
+Resultados:
+- `py_compile`: ok
+- `ruff`: ok
+- `ty` focado nos arquivos alterados: ok
+- `pytest tests/test_contract.py`: `9 passed`
+- `pytest tests/test_cli.py`: bloqueado por `PermissionError` do sandbox no `tmp_path`
+- `ty check src`: bloqueado por baseline anterior em `reporting.py`, fora deste slice
+
+Smokes reais deste slice:
+```powershell
+$env:PYTHONPATH='src'; C:\Users\mauri\.pyenv\pyenv-win\versions\3.13.9\python.exe -c "import scrap_report; import scrap_report.cli; print(scrap_report.__version__)"
+$env:PYTHONPATH='src'; C:\Users\mauri\.pyenv\pyenv-win\versions\3.13.9\python.exe -m scrap_report.cli validate-contract --output-json tmp\contract_package_v1.json
+```
+
+Resultados reais:
+- `import scrap_report`: ok
+- `import scrap_report.cli`: ok
+- `scrap_report.__version__ = 0.1.17`
+- `validate-contract`: ok
+- artefato:
+  - `tmp\contract_package_v1.json`
+- tooling de review:
+  - `kluster_code_review_auto` no lote completo: timeout apos 120s
+  - retry menor em `cli.py`: erro `502`
+
 ### Quality gates do slice REST atual
 Comandos:
 ```powershell

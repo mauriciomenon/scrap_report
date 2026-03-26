@@ -14,6 +14,7 @@
   - primeiro `validate-contract`
   - depois `sam-api-flow`
   - depois `sweep-run --runtime rest`
+- refatorar o `main` monolitico de `cli.py` em handlers dedicados quando houver slice aprovado para cleanup estrutural
 - estabilizar export oficial de `derivadas_relacionadas` no fluxo Playwright
 - investigar fonte confiavel de `Emitida Em` em `aprovacao_emissao` antes de qualquer liberacao de `emission_date`
 - ampliar prova oficial de formatos nas telas ja liberadas:

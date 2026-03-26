@@ -86,6 +86,16 @@ O projeto agora tem duas frentes operacionais distintas:
   - qual schema consumir por fluxo
   - qual contrato de exports usar por fluxo
   - quais campos minimos o consumidor deve exigir
+- o pacote agora tambem esta pronto para import basico por outro projeto:
+  - `scrap_report.__version__`
+  - `scrap_report.build_contract_catalog()`
+  - entrypoint `scrap-report`
+- `validate-contract` agora expõe `contract.package` com:
+  - `package_name`
+  - `package_version`
+  - `import_name`
+  - `cli_entrypoint`
+  - `module_entrypoint`
 - `exports` REST agora mantem aliases legados e chaves canonicas:
   - `csv` / `xlsx`
   - `data_csv` / `data_xlsx`
@@ -164,6 +174,7 @@ O projeto agora tem duas frentes operacionais distintas:
 - o contrato de aliases de artefatos agora tambem esta publicavel por JSON, sem depender de parse de README
 - o contrato agora tambem declara por JSON qual schema cada fluxo deve usar e quais campos minimos o consumidor deve ler
 - com isso, o repo de reports ja pode decidir consumo por JSON sem precisar inferir pelo nome do comando
+- a importacao de `scrap_report` ficou leve e a importacao de `scrap_report.cli` deixou de depender do caminho Playwright na carga inicial
 - `derivadas_relacionadas` continua com export oficial instavel no fluxo Playwright
 - `aprovacao_emissao` continua sem base para liberar `emission_date`
 

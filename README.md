@@ -44,6 +44,11 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
   - `reprogramacoes`
 - janela padrao operacional: semana atual ate 4 semanas para tras
 - exemplo validado em `2026-03-16`: `202608 -> 202612`
+- pacote Python agora esta pronto para consumo externo basico:
+  - import name: `scrap_report`
+  - versao publica: `scrap_report.__version__`
+  - entrypoint instalavel: `scrap-report`
+  - discovery programatico: `scrap_report.build_contract_catalog()`
 
 ## Escopo entregue
 - login seguro com secret store do OS e fallback DPAPI no Windows
@@ -69,6 +74,19 @@ Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao exte
 - `src/scrap_report/cli.py`: comandos operacionais
 - `src/scrap_report/sam_api.py`: cliente REST e filtros operacionais sem Playwright
 - `src/scrap_report/contract.py`: contrato JSON externo dos comandos
+
+## Consumo como pacote
+Superficie publica minima:
+- `scrap_report.__version__`
+- `scrap_report.build_contract_catalog()`
+- `scrap_report.validate_contract_definition()`
+- `scrap_report.validate_payload_schema()`
+- `scrap_report.utc_now_iso()`
+
+Compatibilidade mantida:
+- `ScrapeConfig`
+- `PipelineResult`
+- `run_pipeline`
 
 ## Camada REST sem Playwright
 Objetivo:
@@ -215,6 +233,7 @@ Aliases canonicos para artefatos Playwright e `report-from-excel`:
 
 Descoberta automatica de contrato:
 - `validate-contract` agora publica em JSON:
+  - `contract.package`
   - `contract.schemas`
   - `contract.exports.playwright_reports`
   - `contract.exports.rest_reports`

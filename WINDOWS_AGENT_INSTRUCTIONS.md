@@ -19,6 +19,10 @@
 - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
 - existe um comando dedicado para exportar a CA raiz do host REST:
   - `sam-api-cert`
+- o repo agora expõe superficie minima de pacote para consumo externo:
+  - `scrap_report.__version__`
+  - `scrap_report.build_contract_catalog()`
+  - entrypoint `scrap-report`
 
 ## Uso mais simples
 ### 1. Sem argumentos
@@ -361,6 +365,7 @@ Aliases canonicos para artefatos Playwright e `report-from-excel`:
 
 Descoberta automatica de contrato:
 - `validate-contract` agora publica em JSON:
+  - `contract.package`
   - `contract.schemas`
   - `contract.exports.playwright_reports`
   - `contract.exports.rest_reports`
