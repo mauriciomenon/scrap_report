@@ -90,6 +90,12 @@ def test_validate_contract_command_writes_output_json(tmp_path: Path):
     assert '"schema_version": "1.0.0"' in content
     assert '"status": "ok"' in content
     assert '"contract"' in content
+    assert '"package"' in content
+    assert '"package_name": "scrap-report"' in content
+    assert '"package_version": "0.1.17"' in content
+    assert '"import_name": "scrap_report"' in content
+    assert '"cli_entrypoint": "scrap-report"' in content
+    assert '"module_entrypoint": "python -m scrap_report.cli"' in content
     assert '"exports"' in content
     assert '"playwright_reports"' in content
     assert '"dados": "data_xlsx"' in content

@@ -21,18 +21,14 @@ from .config import (
     report_kind_uses_excel_output,
 )
 from .contract import (
-    EXPORT_CONTRACTS,
-    MINIMUM_FIELDS_BY_FLOW,
-    PREFERRED_CONTRACTS,
     PRODUCER,
-    SCHEMA_REQUIRED_FIELDS,
     SCHEMA_VERSION,
+    build_contract_catalog,
     utc_now_iso,
     validate_contract_definition,
     validate_payload_schema,
 )
 from .file_ops import find_latest_xlsx, stage_download
-from .pipeline import run_pipeline, run_pipeline_from_local_download, run_report_only
 from .reporting import (
     artifacts_to_dict,
     build_sam_api_dataframe,
@@ -43,7 +39,6 @@ from .reporting import (
     sam_api_artifacts_to_dict,
 )
 from .redaction import assert_no_sensitive_fields
-from .scraper import SAMScraper
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
 from .sam_api import (
@@ -55,16 +50,86 @@ from .sam_api import (
     export_server_root_ca,
     query_sam_api_records,
 )
-from .sweep import (
-    SWEEP_PRESET_NAMES,
-    SWEEP_SCOPE_MODES,
-    SweepPlan,
-    SweepRunner,
-    SweepRuntimeConfig,
-    build_preset_plan,
-)
 
 AUTH_REQUIRED_COMMANDS = {"scrape", "pipeline", "ingest-latest", "windows-flow", "sweep-run"}
+SWEEP_SCOPE_CHOICES = ("emissor", "executor", "ambos", "nenhum")
+SWEEP_PRESET_CHOICES = (
+    "principal_emissor",
+    "principal_executor",
+    "principal_ambos",
+    "segundo_plano_emissor",
+    "segundo_plano_executor",
+    "segundo_plano_ambos",
+    "terceiro_plano_emissor",
+    "terceiro_plano_executor",
+    "terceiro_plano_ambos",
+    "prioritarios_emissor",
+    "prioritarios_executor",
+    "prioritarios_ambos",
+    "demais_emissor",
+    "demais_executor",
+    "demais_ambos",
+)
+
+
+def run_pipeline(*args: Any, **kwargs: Any) -> Any:
+    from .pipeline import run_pipeline as impl
+
+    return impl(*args, **kwargs)
+
+
+def run_pipeline_from_local_download(*args: Any, **kwargs: Any) -> Any:
+    from .pipeline import run_pipeline_from_local_download as impl
+
+    return impl(*args, **kwargs)
+
+
+def run_report_only(*args: Any, **kwargs: Any) -> Any:
+    from .pipeline import run_report_only as impl
+
+    return impl(*args, **kwargs)
+
+
+def SAMScraper(*args: Any, **kwargs: Any) -> Any:
+    from .scraper import SAMScraper as impl
+
+    return impl(*args, **kwargs)
+
+
+def _get_sweep_api() -> dict[str, Any]:
+    from .sweep import (
+        SWEEP_PRESET_NAMES,
+        SWEEP_SCOPE_MODES,
+        SweepPlan,
+        SweepRunner,
+        SweepRuntimeConfig,
+        build_preset_plan,
+    )
+
+    return {
+        "SWEEP_PRESET_NAMES": SWEEP_PRESET_NAMES,
+        "SWEEP_SCOPE_MODES": SWEEP_SCOPE_MODES,
+        "SweepPlan": SweepPlan,
+        "SweepRunner": SweepRunner,
+        "SweepRuntimeConfig": SweepRuntimeConfig,
+        "build_preset_plan": build_preset_plan,
+    }
+
+
+def SweepPlan(*args: Any, **kwargs: Any) -> Any:
+    return _get_sweep_api()["SweepPlan"](*args, **kwargs)
+
+
+def SweepRunner(*args: Any, **kwargs: Any) -> Any:
+    return _get_sweep_api()["SweepRunner"](*args, **kwargs)
+
+
+def SweepRuntimeConfig(*args: Any, **kwargs: Any) -> Any:
+    return _get_sweep_api()["SweepRuntimeConfig"](*args, **kwargs)
+
+
+def build_preset_plan(*args: Any, **kwargs: Any) -> Any:
+    return _get_sweep_api()["build_preset_plan"](*args, **kwargs)
 
 
 def _read_password_masked(prompt: str = "password: ") -> str:
@@ -261,13 +326,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sweep_run.add_argument(
         "--preset",
         default=None,
-        choices=SWEEP_PRESET_NAMES,
+        choices=SWEEP_PRESET_CHOICES,
         help="preset operacional de lote com janela automatica das ultimas 4 semanas",
     )
     sweep_run.add_argument(
         "--scope-mode",
         required=False,
-        choices=SWEEP_SCOPE_MODES,
+        choices=SWEEP_SCOPE_CHOICES,
         help="define se a varredura usa emissor, executor, ambos ou nenhum filtro de setor",
     )
     sweep_run.add_argument("--setores-emissor", nargs="+", default=())
@@ -858,17 +923,7 @@ def main(argv: list[str] | None = None) -> int:
         _emit_json(
             {
                 "status": "ok",
-                "contract": {
-                    "schema_version": SCHEMA_VERSION,
-                    "producer": PRODUCER,
-                    "schemas": {
-                        name: sorted(fields)
-                        for name, fields in SCHEMA_REQUIRED_FIELDS.items()
-                    },
-                    "exports": EXPORT_CONTRACTS,
-                    "preferred_contracts": PREFERRED_CONTRACTS,
-                    "minimum_fields_by_flow": MINIMUM_FIELDS_BY_FLOW,
-                },
+                "contract": build_contract_catalog(),
             },
             args.output_json,
             "contract_info",

@@ -6,6 +6,12 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+PACKAGE_NAME = "scrap-report"
+PACKAGE_VERSION = "0.1.17"
+IMPORT_NAME = "scrap_report"
+CLI_ENTRYPOINT = "scrap-report"
+MODULE_ENTRYPOINT = "python -m scrap_report.cli"
+
 SCHEMA_VERSION = "1.0.0"
 PRODUCER = "scrap_report.cli"
 
@@ -191,6 +197,29 @@ def validate_contract_definition() -> None:
         raise ValueError("PREFERRED_CONTRACTS nao pode ser vazio")
     if not MINIMUM_FIELDS_BY_FLOW:
         raise ValueError("MINIMUM_FIELDS_BY_FLOW nao pode ser vazio")
+
+
+def build_contract_catalog() -> dict[str, Any]:
+    """Retorna catalogo de discovery para consumo externo."""
+    validate_contract_definition()
+    return {
+        "package": {
+            "package_name": PACKAGE_NAME,
+            "package_version": PACKAGE_VERSION,
+            "import_name": IMPORT_NAME,
+            "cli_entrypoint": CLI_ENTRYPOINT,
+            "module_entrypoint": MODULE_ENTRYPOINT,
+        },
+        "schema_version": SCHEMA_VERSION,
+        "producer": PRODUCER,
+        "schemas": {
+            name: sorted(fields)
+            for name, fields in SCHEMA_REQUIRED_FIELDS.items()
+        },
+        "exports": EXPORT_CONTRACTS,
+        "preferred_contracts": PREFERRED_CONTRACTS,
+        "minimum_fields_by_flow": MINIMUM_FIELDS_BY_FLOW,
+    }
 
 
 def validate_payload_schema(schema_name: str, payload: dict[str, Any]) -> None:
