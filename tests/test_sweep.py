@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -13,6 +14,10 @@ from scrap_report.sweep import (
     build_preset_plan,
     expand_setor_targets,
 )
+
+
+def _manifest_payload(manifest: Any) -> dict[str, Any]:
+    return cast(dict[str, Any], manifest.to_payload())
 
 
 def test_expand_setor_targets_keeps_priority_order_and_dedupes():
@@ -175,7 +180,8 @@ def test_sweep_runner_keeps_order_and_collects_successes(tmp_path: Path):
     assert manifest.success_count == 2
     assert manifest.failure_count == 0
     assert manifest.runtime_mode == "playwright"
-    assert [item["setor_executor"] for item in manifest.to_payload()["items"]] == ["MEL4", "MEL3"]
+    payload = _manifest_payload(manifest)
+    assert [item["setor_executor"] for item in payload["items"]] == ["MEL4", "MEL3"]
 
 
 def test_sweep_runner_passes_numero_ssa_to_pipeline(tmp_path: Path):
@@ -212,7 +218,8 @@ def test_sweep_runner_passes_numero_ssa_to_pipeline(tmp_path: Path):
 
     assert manifest.status == "ok"
     assert seen["numero_ssa"] == "202603879"
-    assert manifest.to_payload()["items"][0]["numero_ssa"] == "202603879"
+    payload = _manifest_payload(manifest)
+    assert payload["items"][0]["numero_ssa"] == "202603879"
 
 
 def test_sweep_runner_continues_after_failure(tmp_path: Path):
@@ -251,7 +258,7 @@ def test_sweep_runner_continues_after_failure(tmp_path: Path):
     assert manifest.status == "partial"
     assert manifest.success_count == 1
     assert manifest.failure_count == 1
-    payload = manifest.to_payload()
+    payload = _manifest_payload(manifest)
     assert payload["items"][1]["status"] == "error"
     assert payload["items"][1]["error"] == "falha de teste"
 
@@ -389,7 +396,7 @@ def test_sweep_runner_rest_mode_exports_records_for_pendentes(tmp_path: Path):
         sam_api_artifacts_exporter=_fake_exporter,
     ).run(plan, runtime)
 
-    payload = manifest.to_payload()
+    payload = _manifest_payload(manifest)
     assert manifest.status == "ok"
     assert manifest.runtime_mode == "rest"
     assert payload["runtime_mode"] == "rest"
@@ -565,6 +572,8 @@ def test_build_preset_plan_executor_uses_recent_weeks():
     assert plan.scope_mode == "executor"
     assert plan.setores_executor == ("IEE3", "MEL4", "MEL3")
     assert plan.setores_emissor == ()
+    assert plan.emission_year_week_start is not None
+    assert plan.emission_year_week_end is not None
     assert len(plan.emission_year_week_start) == 6
     assert len(plan.emission_year_week_end) == 6
 

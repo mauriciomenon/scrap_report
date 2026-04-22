@@ -12,7 +12,7 @@
   - pacote importavel para consumo externo
 - pendencias reais abertas:
   - rodada Debian13 real estavel
-  - evidencia W11 real atualizada nesta copia
+  - preservar ou regenerar a evidencia W11 real nesta copia local
   - ampliar cobertura do menu `Relatorios`
   - ligar `data de emissao` nos pontos ainda abertos do sweep
   - preencher grupo `demais`
@@ -325,3 +325,17 @@
     - `operation timed out`
 - risco residual:
   - medio (fechamento cross-platform depende de executar o smoke Debian13 em host com conectividade estavel ao PyPI)
+
+## Slice 36 - baseline global do `ty` resolvido
+- executado:
+  - tipagem do provider Windows ajustada sem mudar comportamento
+  - testes atualizados para `Path`, payload tipado e stubs falsos compatíveis com o type checker
+  - regressao do teste Windows corrigida para aceitar separador `/` e `\\` no monkeypatch de `os.path.exists`
+- validacao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+  - `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
+- risco residual:
+  - medio (pendente somente smoke Debian13 real estavel e preservacao local da evidencia W11)

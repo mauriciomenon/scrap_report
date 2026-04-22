@@ -15,6 +15,42 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 36 - zerar baseline global do `ty`
+Escopo:
+- corrigir diagnosticos reais do `ty` em provider Windows e testes
+- manter runtime intacto e sem refactor transversal
+- registrar a verdade do slice nos docs de controle
+
+Arquivos alterados:
+- `src/scrap_report/secret_provider.py`
+- `tests/test_config_secrets.py`
+- `tests/test_scraper_contract.py`
+- `tests/test_secret_provider.py`
+- `tests/test_sweep.py`
+- `uv.lock`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- helpers internos adicionados no provider Windows para isolar `ctypes.windll` e `ctypes.WinError`
+- testes ajustados para tipos concretos esperados por `ty`
+- monkeypatch do teste Windows endurecido para `Path` com separador de host diferente
+- lockfile alinhado com a versao atual do pacote (`0.1.17`)
+
+Validacao:
+- `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
+- `uv run --project . ruff check .`: ok
+- `uv run --project . ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `201 passed`
+- `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
+
+Risco residual:
+- medio
+- permanece dependente de rodada Debian13 real com rede estavel
+- evidencia W11 historica nao esta preservada nesta copia local em `staging/`
+
 ## Slice DOC_SYNC - verdade atual dos docs de controle
 Escopo:
 - alinhar `PRE_RELEASE_STATUS.md`, `HANDOFF.md` e `CONVERSA_MIGRACAO_STATUS.md` ao estado atual do repo

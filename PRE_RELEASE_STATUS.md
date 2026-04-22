@@ -4,8 +4,8 @@
 - repo publico: sim
 - URL: `https://github.com/mauriciomenon/scrap_report`
 - branch operacional: `master`
-- commit de referencia desta doc: `6bb3059`
-- status de sync no momento desta atualizacao: `master` alinhado com `origin/master`
+- baseline antes do slice atual: `06761d6`
+- status de sync no inicio do slice atual: `master` alinhado com `origin/master`
 
 ## O que esta pronto hoje
 ### Runtime principal
@@ -66,6 +66,14 @@
   - parser PowerShell dos wrappers
   - smoke de encaminhamento com `uv` stub
 
+### Baseline global de tipagem
+- baseline anterior do slice: `06761d6`
+- validacao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+
 ## Resultado de prontidao
 ### Pronto para
 - uso operacional no Windows pelo launcher atual
@@ -88,6 +96,7 @@
 - grupo `demais` ainda nao foi preenchido
 - ainda faltam telas adicionais do menu `Relatorios`
 - smoke Debian13 real continua dependente de conectividade externa estavel
+- evidencia W11 real nao esta preservada nesta copia local em `staging/`, embora a rodada historica do script exista no controle
 
 ## Proximo gate recomendado
 1. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`

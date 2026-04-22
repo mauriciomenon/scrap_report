@@ -1,5 +1,7 @@
 import pytest
 
+from pathlib import Path
+
 from datetime import date
 
 from scrap_report.config import (
@@ -235,8 +237,8 @@ def test_cli_config_rejects_mixed_emission_date_and_year_week():
             setor_emissor="IEE3",
             setor_executor="MEL4",
             report_kind="pendentes",
-            download_dir="downloads",
-            staging_dir="staging",
+            download_dir=Path("downloads"),
+            staging_dir=Path("staging"),
             emission_year_week_start="202551",
             emission_year_week_end="202552",
             emission_date_start="25/12/2025",

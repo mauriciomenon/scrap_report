@@ -40,6 +40,22 @@ O projeto agora tem duas frentes operacionais distintas:
 - exporta a CA raiz apresentada pelo host REST
 - `--ca-file` e `--rest-ca-file` validados em chamadas reais
 
+## Estado tecnico do slice atual
+- baseline anterior do branch: `06761d6`
+- gates locais atuais:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+- ajuste fechado neste slice:
+  - baseline global do `ty check` zerado
+  - compatibilidade de testes Windows corrigida para `Path` com separador `/` ou `\\`
+- pendencia operacional ainda aberta:
+  - smoke Debian13 real com conectividade estavel ao PyPI
+- observacao de evidencia:
+  - `staging/smoke_evidence_windows11.json` nao esta presente nesta copia local
+  - a execucao historica do smoke W11 continua registrada em `CONVERSA_MIGRACAO_STATUS.md`
+
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
 - a fonte de verdade desta copia de trabalho e o repo local em `/Users/menon/git/scrap_report`

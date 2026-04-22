@@ -1,5 +1,6 @@
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from typing import Any, cast
 
 from scrap_report.config import ScrapeConfig
 from scrap_report.scraper import SAMLocators, SAMScraper
@@ -148,7 +149,7 @@ def test_derivadas_relacionadas_export_timeout_has_explicit_runtime_error(tmp_pa
     monkeypatch.setattr(scraper, "_wait_for_export_ready", lambda page, selector: None)
 
     with pytest.raises(RuntimeError, match="tela segue especial por export instavel"):
-        scraper._export_download(FakePage())
+        scraper._export_download(cast(Any, FakePage()))
 
 
 def test_empty_result_title_uses_all_when_filters_are_disabled(tmp_path):
@@ -267,7 +268,7 @@ def test_unsupported_report_kind_rejects_emission_date_selector(tmp_path):
         RuntimeError,
         match="nao suporta filtro por data de emissao validado; export atual nao entrega Emitida Em confiavel",
     ):
-        SAMScraper(cfg)._resolve_emission_date_filter_selector(page=None)  # type: ignore[arg-type]
+        SAMScraper(cfg)._resolve_emission_date_filter_selector(page=cast(Any, None))
 
 
 def test_unsupported_report_kind_rejects_numero_ssa_selector(tmp_path):
@@ -283,7 +284,7 @@ def test_unsupported_report_kind_rejects_numero_ssa_selector(tmp_path):
     )
 
     with pytest.raises(RuntimeError, match="nao suporta filtro numero_ssa validado"):
-        SAMScraper(cfg)._resolve_filter_selector(page=None, filter_name="numero_ssa")  # type: ignore[arg-type]
+        SAMScraper(cfg)._resolve_filter_selector(page=cast(Any, None), filter_name="numero_ssa")
 
 
 def test_aprovacao_emissao_accepts_numero_ssa_selector(tmp_path, monkeypatch):
@@ -306,7 +307,9 @@ def test_aprovacao_emissao_accepts_numero_ssa_selector(tmp_path, monkeypatch):
 
     monkeypatch.setattr(SAMScraper, "_resolve_selector", fake_resolve_selector)
 
-    selector = SAMScraper(cfg)._resolve_filter_selector(page=None, filter_name="numero_ssa")  # type: ignore[arg-type]
+    selector = SAMScraper(cfg)._resolve_filter_selector(
+        page=cast(Any, None), filter_name="numero_ssa"
+    )
 
     assert selector == "selector-ok"
     assert seen["stable_id"] == SAMLocators.FILTER["numero_ssa"]
@@ -332,7 +335,7 @@ def test_aprovacao_emissao_maps_executor_filter_to_divisao_emissora(tmp_path, mo
 
     monkeypatch.setattr(SAMScraper, "_resolve_selector", fake_resolve_selector)
 
-    selector = SAMScraper(cfg)._resolve_executor_filter_selector(page=None)  # type: ignore[arg-type]
+    selector = SAMScraper(cfg)._resolve_executor_filter_selector(page=cast(Any, None))
 
     assert selector == "selector-ok"
     assert seen["stable_id"] == SAMLocators.FILTER["divisao_emissora"]

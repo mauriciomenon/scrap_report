@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 
 class SecretProviderError(RuntimeError):
@@ -111,6 +112,24 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
     _SHELL_ORDER = ("pwsh", "powershell")
     _DPAPI_STORE_FILENAME = "windows_secrets_dpapi.json"
     _DPAPI_STORE_DIRNAME = "scrap_report"
+
+    @staticmethod
+    def _ctypes_windows_bindings() -> tuple[Any, Any]:
+        import ctypes
+
+        windll = getattr(ctypes, "windll", None)
+        if windll is None:
+            raise SecretBackendUnavailableError("dpapi indisponivel neste host")
+        return windll.crypt32, windll.kernel32
+
+    @staticmethod
+    def _raise_ctypes_windows_error() -> None:
+        import ctypes
+
+        winerror = getattr(ctypes, "WinError", None)
+        if winerror is None:
+            raise SecretProviderError("falha no DPAPI do Windows")
+        raise cast(Any, winerror)()
 
     def _resolve_powershell_executables(self) -> list[str]:
         executables: list[str] = []
@@ -264,8 +283,7 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         class DATA_BLOB(ctypes.Structure):
             _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
 
-        crypt32 = ctypes.windll.crypt32
-        kernel32 = ctypes.windll.kernel32
+        crypt32, kernel32 = WindowsCredentialManagerSecretProvider._ctypes_windows_bindings()
         crypt32.CryptProtectData.argtypes = [
             ctypes.POINTER(DATA_BLOB),
             wintypes.LPCWSTR,
@@ -285,7 +303,7 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         if not crypt32.CryptProtectData(
             ctypes.byref(in_blob), None, None, None, None, 0, ctypes.byref(out_blob)
         ):
-            raise ctypes.WinError()
+            WindowsCredentialManagerSecretProvider._raise_ctypes_windows_error()
         try:
             raw = ctypes.cast(
                 out_blob.pbData, ctypes.POINTER(ctypes.c_ubyte * out_blob.cbData)
@@ -302,8 +320,7 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         class DATA_BLOB(ctypes.Structure):
             _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
 
-        crypt32 = ctypes.windll.crypt32
-        kernel32 = ctypes.windll.kernel32
+        crypt32, kernel32 = WindowsCredentialManagerSecretProvider._ctypes_windows_bindings()
         crypt32.CryptUnprotectData.argtypes = [
             ctypes.POINTER(DATA_BLOB),
             ctypes.POINTER(wintypes.LPWSTR),
@@ -324,7 +341,7 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         if not crypt32.CryptUnprotectData(
             ctypes.byref(in_blob), ctypes.byref(description), None, None, None, 0, ctypes.byref(out_blob)
         ):
-            raise ctypes.WinError()
+            WindowsCredentialManagerSecretProvider._raise_ctypes_windows_error()
         try:
             raw = ctypes.cast(
                 out_blob.pbData, ctypes.POINTER(ctypes.c_ubyte * out_blob.cbData)

@@ -111,7 +111,9 @@ def test_windows_provider_fallback_pwsh_fail_then_powershell_ok(monkeypatch: pyt
     monkeypatch.setattr("shutil.which", fake_which)
     monkeypatch.setattr(
         "os.path.exists",
-        lambda path: path.lower().endswith("\\windowspowershell\\v1.0\\powershell.exe"),
+        lambda path: str(path).replace("/", "\\").lower().endswith(
+            "\\windowspowershell\\v1.0\\powershell.exe"
+        ),
     )
     monkeypatch.setattr(subprocess, "run", fake_run)
 
