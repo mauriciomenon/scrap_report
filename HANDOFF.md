@@ -71,7 +71,8 @@ O projeto agora tem duas frentes operacionais distintas:
   - `ty`: ok
   - `pytest`: `201 passed`
 - observacao:
-  - os alertas ainda podem aparecer na API do GitHub ate o reprocessamento do grafo apos push
+  - consulta atual `dependabot/alerts?state=open`: `[]`
+  - item de seguranca GitHub considerado fechado neste momento
 
 ## Slice Debian13 mais recente
 - baseline anterior do branch: `65d8ad3`

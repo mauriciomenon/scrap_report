@@ -380,3 +380,15 @@
 - risco residual:
   - medio
   - o gate W11 continua aberto ate a regeneracao ou recolocacao do artefato real
+
+## Slice 40 - fechamento real dos alertas GitHub
+- executado:
+  - consulta atual da API `dependabot/alerts?state=open`
+  - comparacao com `uv.lock` e metadata publicados
+- resultado:
+  - retorno atual: `[]`
+  - `pytest 9.0.3` e `Pygments 2.20.0` confirmados no lock
+  - item 1 da lista de pendencias considerado fechado
+- risco residual:
+  - baixo para dependencias
+  - pendencias reais seguem concentradas em Debian13 real e evidencia W11

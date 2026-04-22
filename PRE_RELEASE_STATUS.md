@@ -90,6 +90,7 @@
   - `ruff`: ok
   - `ty`: ok
   - `pytest`: `201 passed`
+  - `dependabot/alerts?state=open`: `[]`
 
 ## Resultado de prontidao
 ### Pronto para

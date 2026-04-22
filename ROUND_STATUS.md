@@ -87,8 +87,31 @@ Validacao:
 
 Risco residual:
 - baixo para o bloco de dependencias locais
-- o GitHub pode manter os alertas abertos ate reprocessar o grafo apos o push
+- consulta atual `dependabot/alerts?state=open`: `[]`
 - o bloqueio operacional maior continua sendo o smoke Debian13 real
+
+## Slice 40 - confirmar fechamento dos alertas GitHub
+Escopo:
+- validar se os alertas de Dependabot realmente fecharam no GitHub
+- alinhar os docs com o estado atual sem tocar runtime ou dependencias
+
+Arquivos alterados:
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- docs atualizados para refletir que a API atual de alertas abertos retorna `[]`
+- historico preservado com fechamento explicito do item 1
+
+Validacao:
+- `gh api ... /dependabot/alerts?state=open`: `[]`
+- `uv.lock`: `pytest 9.0.3`, `Pygments 2.20.0`
+
+Risco residual:
+- baixo para supply chain
+- permanecem abertos apenas os gates Debian13 real e evidencia W11
 
 ## Slice 38 - endurecer o smoke Debian13
 Escopo:
