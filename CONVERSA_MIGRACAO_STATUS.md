@@ -355,3 +355,17 @@
 - risco residual:
   - baixo para supply chain local deste repo
   - medio para release geral, pois o gate Debian13 real ainda segue aberto
+
+## Slice 38 - endurecimento do smoke Debian13
+- executado:
+  - preflight de conectividade com `https://pypi.org/simple/wheel/` adicionado ao `scripts/smoke_debian13.sh`
+  - `CROSS_PLATFORM_SMOKE.md` atualizado para tratar falha de PyPI como bloqueio externo
+  - roteiro completo executado localmente neste host macOS com evidencia consolidada gerada
+- validacao:
+  - `bash -n scripts/smoke_debian13.sh`: ok
+  - `bash scripts/smoke_debian13.sh`: ok
+  - evidencia: `staging/smoke_evidence_debian13.json`
+  - `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
+- risco residual:
+  - medio
+  - a rodada Debian13 real ainda permanece obrigatoria para fechar o gate cross-platform

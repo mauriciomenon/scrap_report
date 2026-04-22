@@ -6,6 +6,32 @@ cd "$ROOT_DIR"
 
 mkdir -p staging downloads
 
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python || true)}"
+if [[ -z "${PYTHON_BIN}" ]]; then
+  echo "[smoke] python interpreter nao encontrado para preflight de rede" >&2
+  exit 1
+fi
+
+"${PYTHON_BIN}" - <<'PY'
+from __future__ import annotations
+
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
+
+url = "https://pypi.org/simple/wheel/"
+
+try:
+    with urlopen(url, timeout=15) as response:  # noqa: S310
+        status = getattr(response, "status", 200)
+except (HTTPError, URLError, TimeoutError) as exc:
+    raise SystemExit(f"[smoke] pypi preflight failed for {url}: {exc}") from exc
+
+if int(status) >= 400:
+    raise SystemExit(f"[smoke] pypi preflight returned HTTP {status} for {url}")
+
+print(f"[smoke] pypi preflight ok: {url} (HTTP {status})")
+PY
+
 uv sync
 
 uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py

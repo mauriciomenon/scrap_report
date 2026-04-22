@@ -23,6 +23,10 @@
 uv sync
 ```
 
+observacao:
+- `scripts/smoke_debian13.sh` agora executa preflight automatico de conectividade com `https://pypi.org/simple/wheel/` antes do `uv sync`
+- se esse preflight falhar, tratar como bloqueio externo de rede/host, nao como falha do runtime do projeto
+
 2. validacao tecnica minima
 ```bash
 uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py
@@ -180,6 +184,7 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
 - ingest-latest:
 - observacoes:
   - pendente de execucao em host Debian 13 real
+  - o script agora falha cedo se nao houver acesso ao PyPI, com mensagem objetiva de preflight
 
 ### Windows 11
 - data/hora:

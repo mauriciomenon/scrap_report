@@ -73,6 +73,19 @@ O projeto agora tem duas frentes operacionais distintas:
 - observacao:
   - os alertas ainda podem aparecer na API do GitHub ate o reprocessamento do grafo apos push
 
+## Slice Debian13 mais recente
+- baseline anterior do branch: `65d8ad3`
+- mudanca aplicada:
+  - `scripts/smoke_debian13.sh` agora executa preflight de PyPI antes do `uv sync`
+  - `CROSS_PLATFORM_SMOKE.md` agora explicita esse bloqueio externo de rede
+- validacao local:
+  - `bash -n scripts/smoke_debian13.sh`: ok
+  - `bash scripts/smoke_debian13.sh`: ok neste host macOS
+  - evidencia gerada: `staging/smoke_evidence_debian13.json`
+- leitura correta da evidencia:
+  - confirma que o roteiro Debian continua executavel localmente
+  - nao substitui a rodada em host Debian13 real
+
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
 - a fonte de verdade desta copia de trabalho e o repo local em `/Users/menon/git/scrap_report`

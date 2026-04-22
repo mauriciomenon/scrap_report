@@ -90,6 +90,36 @@ Risco residual:
 - o GitHub pode manter os alertas abertos ate reprocessar o grafo apos o push
 - o bloqueio operacional maior continua sendo o smoke Debian13 real
 
+## Slice 38 - endurecer o smoke Debian13
+Escopo:
+- falhar cedo quando o host nao tiver conectividade minima com o PyPI
+- registrar essa regra no runbook cross-platform
+- manter a leitura correta: evidencias locais nao substituem host Debian13 real
+
+Arquivos alterados:
+- `scripts/smoke_debian13.sh`
+- `CROSS_PLATFORM_SMOKE.md`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- preflight HTTP para `https://pypi.org/simple/wheel/` antes do `uv sync`
+- mensagem de erro objetiva para bloqueio de rede/host
+- documentacao ajustada para diferenciar validacao local do gate Debian13 real
+
+Validacao:
+- `bash -n scripts/smoke_debian13.sh`: ok
+- `bash scripts/smoke_debian13.sh`: ok neste host atual
+- evidencia gerada: `staging/smoke_evidence_debian13.json`
+- `kluster_code_review_auto` em `scripts/smoke_debian13.sh`: clean
+- `kluster_code_review_auto` em `CROSS_PLATFORM_SMOKE.md`: clean
+
+Risco residual:
+- medio
+- o gate Debian13 continua aberto enquanto nao houver execucao em host Debian13 real
+
 ## Slice DOC_SYNC - verdade atual dos docs de controle
 Escopo:
 - alinhar `PRE_RELEASE_STATUS.md`, `HANDOFF.md` e `CONVERSA_MIGRACAO_STATUS.md` ao estado atual do repo

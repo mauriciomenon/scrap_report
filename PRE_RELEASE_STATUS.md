@@ -112,7 +112,7 @@
 - `data de emissao` ainda nao esta ligada ao runtime real do sweep
 - grupo `demais` ainda nao foi preenchido
 - ainda faltam telas adicionais do menu `Relatorios`
-- smoke Debian13 real continua dependente de conectividade externa estavel
+- smoke Debian13 real continua dependente de host Debian13 com conectividade externa estavel
 - evidencia W11 real nao esta preservada nesta copia local em `staging/`, embora a rodada historica do script exista no controle
 
 ## Proximo gate recomendado
