@@ -15,6 +15,32 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice DOC_SYNC - verdade atual dos docs de controle
+Escopo:
+- alinhar `PRE_RELEASE_STATUS.md`, `HANDOFF.md` e `CONVERSA_MIGRACAO_STATUS.md` ao estado atual do repo
+- explicitar que caminhos Windows em handoff sao contexto operacional, nao raiz universal desta copia
+- neutralizar contradicoes antigas sobre criacao do repo publico
+
+Arquivos alterados:
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- `PRE_RELEASE_STATUS.md` agora referencia `6bb3059` e sync com `origin/master`
+- `HANDOFF.md` agora separa repo local desta copia de referencias Windows
+- `CONVERSA_MIGRACAO_STATUS.md` agora abre com bloco `Current truth` e marca o restante como historico
+
+Validacao:
+- `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
+- `uv run --project . ruff check .`: ok
+- `uv run --project . ty check`: baseline vermelho fora do slice
+  - `ctypes.windll` e `ctypes.WinError` em `secret_provider.py`
+  - contratos de tipo em `tests/test_scraper_contract.py`, `tests/test_sweep.py` e `tests/test_config_secrets.py`
+- `uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py`: `107 passed`
+- `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
+
 ## Current truth do runtime
 ### Fluxo Playwright
 - `numero_ssa` validado para:

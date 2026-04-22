@@ -1,5 +1,26 @@
 # CONVERSA_MIGRACAO_STATUS
 
+## Current truth
+- fase atual: endurecimento e integracao avancada apos a extracao inicial
+- repo publico: sim
+- URL: `https://github.com/mauriciomenon/scrap_report`
+- branch operacional: `master`
+- estado de sync desta copia no momento da atualizacao: alinhado com `origin/master`
+- trilhas ativas hoje:
+  - Playwright operacional
+  - REST sem Playwright
+  - pacote importavel para consumo externo
+- pendencias reais abertas:
+  - rodada Debian13 real estavel
+  - evidencia W11 real atualizada nesta copia
+  - ampliar cobertura do menu `Relatorios`
+  - ligar `data de emissao` nos pontos ainda abertos do sweep
+  - preencher grupo `demais`
+
+## Historical snapshot
+- os blocos abaixo preservam o historico da migracao inicial e das rodadas subsequentes
+- entradas antigas que mencionam ausencia de repo publico ou estado pre-release devem ser lidas como contexto historico, nao como verdade atual
+
 ## Status
 - fase: implementacao inicial concluida
 - estrategia: patch minimo, modular, sem UI
@@ -196,7 +217,7 @@
 - pendencia mantida: execucao real em host Windows 11
 
 ## Resposta consolidada ao status geral
-- repositorio publico ainda nao criado
+- repositorio publico ainda nao criado neste ponto historico
 - extracao da funcionalidade solicitada concluida no escopo local/offline
 - integracao modular com baixo acoplamento implementada
 - linter e testes focados passaram

@@ -1,9 +1,11 @@
 # HANDOFF
 
 ## Estado atual do branch
-- repo: `C:\Users\mauri\git\scrap_report`
+- repo local desta copia: `/Users/menon/git/scrap_report`
+- repo operacional Windows de referencia: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
 - remoto: `origin/master`
+- HEAD desta copia no momento do sync documental: `6bb3059`
 - baseline Playwright antes da trilha REST: `b893356`
 - baseline REST em tres niveis: `81fb0c6`
 - endurecimento operacional REST: `f1c846a`
@@ -37,6 +39,11 @@ O projeto agora tem duas frentes operacionais distintas:
 - `sam-api-cert`
 - exporta a CA raiz apresentada pelo host REST
 - `--ca-file` e `--rest-ca-file` validados em chamadas reais
+
+## Nota de contexto
+- os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
+- a fonte de verdade desta copia de trabalho e o repo local em `/Users/menon/git/scrap_report`
+- o branch atual desta copia esta sincronizado com `origin/master`
 
 ## REST, resumo curto
 ### Nivel 1

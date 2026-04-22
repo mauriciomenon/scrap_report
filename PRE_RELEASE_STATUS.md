@@ -4,7 +4,8 @@
 - repo publico: sim
 - URL: `https://github.com/mauriciomenon/scrap_report`
 - branch operacional: `master`
-- commit de referencia desta doc: `3a8da8e`
+- commit de referencia desta doc: `6bb3059`
+- status de sync no momento desta atualizacao: `master` alinhado com `origin/master`
 
 ## O que esta pronto hoje
 ### Runtime principal
@@ -71,6 +72,10 @@
 - execucao unitaria e `both`
 - execucao em lote por preset pelo mesmo launcher
 - integracao externa via json de pipeline e manifest de lote
+- consumo externo como pacote Python com:
+  - `scrap_report.__version__`
+  - `scrap_report.build_contract_catalog()`
+  - entrypoint `scrap-report`
 
 ### Ainda nao pronto para
 - declarar cobertura total do menu `Relatorios`
