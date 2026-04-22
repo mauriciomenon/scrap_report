@@ -51,6 +51,45 @@ Risco residual:
 - permanece dependente de rodada Debian13 real com rede estavel
 - evidencia W11 historica nao esta preservada nesta copia local em `staging/`
 
+## Slice 37 - harden de dependencias `dev`
+Escopo:
+- corrigir os 2 alertas abertos do GitHub Security com patch minimo
+- manter runtime do pacote intacto
+- registrar a triagem objetiva como `dev-only`
+
+Arquivos alterados:
+- `pyproject.toml`
+- `uv.lock`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- `pytest` elevado para `>=9.0.3`
+- `Pygments` adicionado no grupo `dev` com `>=2.20.0`
+- `uv.lock` regenerado com `pytest 9.0.3` e `Pygments 2.20.0`
+- docs atualizados com a classificacao `dev-only`
+
+Triagem:
+- `BUG_REAL`: `GHSA-6w46-j5rx-g56g` em `pytest < 9.0.3`
+- `BUG_REAL`: `GHSA-5239-wwwm-4pmq` em `Pygments < 2.20.0`
+- impacto real no repo: grupo `dev`, sem exposicao no runtime publicado
+
+Validacao:
+- `uv tree --project . --group dev`: `pytest 9.0.3`, `Pygments 2.20.0`
+- `uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py`: ok
+- `uv run --project . ruff check .`: ok
+- `uv run --project . ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `201 passed`
+- `kluster_code_review_auto` em `pyproject.toml`: clean
+- `kluster_code_review_auto` em `pyproject.toml;uv.lock`: clean
+
+Risco residual:
+- baixo para o bloco de dependencias locais
+- o GitHub pode manter os alertas abertos ate reprocessar o grafo apos o push
+- o bloqueio operacional maior continua sendo o smoke Debian13 real
+
 ## Slice DOC_SYNC - verdade atual dos docs de controle
 Escopo:
 - alinhar `PRE_RELEASE_STATUS.md`, `HANDOFF.md` e `CONVERSA_MIGRACAO_STATUS.md` ao estado atual do repo

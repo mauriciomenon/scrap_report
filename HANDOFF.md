@@ -56,6 +56,23 @@ O projeto agora tem duas frentes operacionais distintas:
   - `staging/smoke_evidence_windows11.json` nao esta presente nesta copia local
   - a execucao historica do smoke W11 continua registrada em `CONVERSA_MIGRACAO_STATUS.md`
 
+## Harden de dependencias mais recente
+- baseline anterior do branch: `ce76125`
+- triagem objetiva:
+  - alerta medium em `pytest` e alerta low em `Pygments`
+  - ambos restritos ao grupo `dev`
+  - sem impacto no runtime distribuido
+- mitigacao aplicada:
+  - `pytest` atualizado para `9.0.3`
+  - `Pygments` atualizado para `2.20.0`
+- validacao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+- observacao:
+  - os alertas ainda podem aparecer na API do GitHub ate o reprocessamento do grafo apos push
+
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
 - a fonte de verdade desta copia de trabalho e o repo local em `/Users/menon/git/scrap_report`

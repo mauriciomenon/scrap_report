@@ -339,3 +339,19 @@
   - `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
 - risco residual:
   - medio (pendente somente smoke Debian13 real estavel e preservacao local da evidencia W11)
+
+## Slice 37 - harden de dependencias `dev`
+- executado:
+  - triagem objetiva dos 2 alertas abertos do GitHub Security
+  - confirmacao de que `pytest` e `Pygments` entram so pelo grupo `dev`
+  - upgrade minimo aplicado para `pytest 9.0.3` e `Pygments 2.20.0`
+- validacao:
+  - `uv tree --project . --group dev`: ok
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+  - `kluster_code_review_auto`: clean (0 issues), chat_id `rreu0jm276r`
+- risco residual:
+  - baixo para supply chain local deste repo
+  - medio para release geral, pois o gate Debian13 real ainda segue aberto

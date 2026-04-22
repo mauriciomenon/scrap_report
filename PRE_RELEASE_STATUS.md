@@ -74,6 +74,23 @@
   - `ty`: ok
   - `pytest`: `201 passed`
 
+### Harden de dependencias de desenvolvimento
+- baseline anterior do slice: `ce76125`
+- vulnerabilidades tratadas:
+  - `pytest < 9.0.3` (`GHSA-6w46-j5rx-g56g`, medium)
+  - `Pygments < 2.20.0` (`GHSA-5239-wwwm-4pmq`, low)
+- escopo real:
+  - grupo `dev`
+  - sem impacto no runtime publicado do pacote
+- mitigacao aplicada:
+  - `pytest>=9.0.3`
+  - `Pygments>=2.20.0`
+- validacao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty`: ok
+  - `pytest`: `201 passed`
+
 ## Resultado de prontidao
 ### Pronto para
 - uso operacional no Windows pelo launcher atual
@@ -99,8 +116,10 @@
 - evidencia W11 real nao esta preservada nesta copia local em `staging/`, embora a rodada historica do script exista no controle
 
 ## Proximo gate recomendado
-1. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
-2. validar manifest, bruto staged e derivados ponta a ponta
-3. decidir se o proximo slice prioriza:
+1. executar a rodada Debian13 real com conectividade estavel
+2. regenerar ou recolocar a evidencia W11 em `staging/`
+3. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
+4. validar manifest, bruto staged e derivados ponta a ponta
+5. decidir se o proximo slice prioriza:
    - `data de emissao` no sweep
    - novas telas do menu `Relatorios`
