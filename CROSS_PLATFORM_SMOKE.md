@@ -199,6 +199,8 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
 - ingest-latest:
 - observacoes:
   - pendente de execucao em host Windows 11 real
+  - o arquivo `staging/smoke_evidence_windows11.json` nao esta preservado nesta copia local
+  - a rodada so fecha quando esse artefato for regenerado no host W11 e recolocado aqui
 
 ## Notas
 - o E2E com acesso SAM nao faz parte deste smoke de portabilidade

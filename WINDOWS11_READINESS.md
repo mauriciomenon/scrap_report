@@ -57,6 +57,13 @@ uv run --project . python -m scrap_report.cli validate-contract --output-json st
 powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1
 ```
 
+5. preservar a evidencia nesta copia do repo:
+```powershell
+Get-Content staging/smoke_evidence_windows11.json -Raw
+```
+- se o arquivo existir no host W11, copiar `staging/smoke_evidence_windows11.json` de volta para esta copia local do repo
+- nao substituir por JSON manual ou aproximado; somente pelo artefato gerado pelo script oficial
+
 ## Criterios de aceite W11
 1. `secret test` retorna `status: ok`
 2. `secret get` retorna `secret_found: true` sem mostrar segredo
@@ -70,4 +77,5 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1
 2. arquivos:
   - `staging/scan_secrets.json`
   - `staging/contract_info.json`
+  - `staging/smoke_evidence_windows11.json`
 3. data/hora e versao de Python/uv

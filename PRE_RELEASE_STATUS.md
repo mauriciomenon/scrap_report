@@ -113,7 +113,8 @@
 - grupo `demais` ainda nao foi preenchido
 - ainda faltam telas adicionais do menu `Relatorios`
 - smoke Debian13 real continua dependente de host Debian13 com conectividade externa estavel
-- evidencia W11 real nao esta preservada nesta copia local em `staging/`, embora a rodada historica do script exista no controle
+- evidencia W11 real nao esta preservada nesta copia local em `staging/`
+- a rodada historica do smoke W11 existe no controle, mas o gate atual exige regenerar ou recolocar o artefato real
 
 ## Proximo gate recomendado
 1. executar a rodada Debian13 real com conectividade estavel

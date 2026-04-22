@@ -120,6 +120,38 @@ Risco residual:
 - medio
 - o gate Debian13 continua aberto enquanto nao houver execucao em host Debian13 real
 
+## Slice 39 - fechar a verdade da evidencia W11
+Escopo:
+- confirmar se `smoke_evidence_windows11.json` ainda existe em algum local recuperavel
+- evitar qualquer fabricacao manual de evidencia
+- deixar a instrucao operacional explicita para regeneracao no host W11
+
+Arquivos alterados:
+- `WINDOWS11_READINESS.md`
+- `WINDOWS_AGENT_INSTRUCTIONS.md`
+- `CROSS_PLATFORM_SMOKE.md`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- runbooks atualizados para exigir o retorno do artefato real `staging/smoke_evidence_windows11.json`
+- docs de controle atualizados para refletir que o arquivo nao esta nesta copia local
+
+Diagnostico:
+- busca local no repo: sem arquivo
+- busca em `~/git`: sem arquivo
+- busca em `~/Downloads`: sem arquivo
+
+Validacao:
+- nenhuma edicao de runtime
+- integridade de status preservada: sem JSON fabricado
+
+Risco residual:
+- medio
+- a rodada W11 continua aberta ate o artefato ser regenerado ou recolocado
+
 ## Slice DOC_SYNC - verdade atual dos docs de controle
 Escopo:
 - alinhar `PRE_RELEASE_STATUS.md`, `HANDOFF.md` e `CONVERSA_MIGRACAO_STATUS.md` ao estado atual do repo

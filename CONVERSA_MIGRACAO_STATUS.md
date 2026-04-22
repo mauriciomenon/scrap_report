@@ -369,3 +369,14 @@
 - risco residual:
   - medio
   - a rodada Debian13 real ainda permanece obrigatoria para fechar o gate cross-platform
+
+## Slice 39 - status real da evidencia W11
+- executado:
+  - busca local no repo, em `~/git` e em `~/Downloads` para recuperar `smoke_evidence_windows11.json`
+  - atualizacao dos runbooks para exigir o retorno do artefato real gerado no host W11
+- resultado:
+  - arquivo nao encontrado nesta copia
+  - nenhuma tentativa de reconstruir JSON manualmente foi feita
+- risco residual:
+  - medio
+  - o gate W11 continua aberto ate a regeneracao ou recolocacao do artefato real

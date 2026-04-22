@@ -86,6 +86,17 @@ O projeto agora tem duas frentes operacionais distintas:
   - confirma que o roteiro Debian continua executavel localmente
   - nao substitui a rodada em host Debian13 real
 
+## Estado atual da evidencia W11
+- busca local executada em:
+  - repo atual
+  - `~/git`
+  - `~/Downloads`
+- resultado:
+  - `smoke_evidence_windows11.json` nao encontrado
+- leitura correta:
+  - a rodada historica W11 permanece documentada
+  - o artefato precisa ser regenerado no host Windows 11 e recolocado em `staging/`
+
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
 - a fonte de verdade desta copia de trabalho e o repo local em `/Users/menon/git/scrap_report`

@@ -40,8 +40,24 @@ Comportamento padrao:
 - pede senha com mascara quando o secret ainda nao existir
 - roda `both` por padrao
 - gera dois JSONs:
-  - `staging/pipeline_online_windows_pendentes.json`
-  - `staging/pipeline_online_windows_executadas.json`
+- `staging/pipeline_online_windows_pendentes.json`
+- `staging/pipeline_online_windows_executadas.json`
+
+## Evidencia obrigatoria do smoke W11
+Depois de rodar o smoke oficial:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1
+```
+
+o operador deve preservar e devolver exatamente este arquivo:
+```powershell
+Get-Content staging/smoke_evidence_windows11.json -Raw
+```
+
+Regras:
+- o destino esperado nesta copia de trabalho e `staging/smoke_evidence_windows11.json`
+- nao vale reconstruir o JSON manualmente
+- se o arquivo nao existir, considerar a rodada W11 como nao concluida
 
 ## Modo unitario com parametros
 ### 1. Ambos os filtros
