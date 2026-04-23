@@ -1,3 +1,9 @@
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import scrap_report
 import pytest
 
@@ -86,6 +92,32 @@ def test_public_package_surface_exposes_version_and_contract_helpers():
     assert scrap_report.IMPORT_NAME == "scrap_report"
     assert callable(scrap_report.build_contract_catalog)
     assert "sam_api_flow" in scrap_report.MINIMUM_FIELDS_BY_FLOW
+
+
+def test_public_import_does_not_load_heavy_runtime_modules():
+    repo_root = Path(__file__).resolve().parents[1]
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(repo_root / "src")
+    code = (
+        "import json, sys; "
+        "before=set(sys.modules); "
+        "import scrap_report; "
+        "after=set(sys.modules); "
+        "loaded_roots=sorted({m.split('.')[0] for m in after-before}); "
+        "forbidden=('playwright','pandas','openpyxl'); "
+        "present=[m for m in forbidden if m in loaded_roots or m in sys.modules]; "
+        "print(json.dumps({'present': present}))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        check=True,
+        env=env,
+        text=True,
+    )
+    lines = [line for line in completed.stdout.splitlines() if line.strip()]
+    payload = json.loads(lines[-1])
+    assert payload["present"] == []
 
 
 def test_validate_payload_schema_sam_api_result_ok():

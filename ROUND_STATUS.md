@@ -15,6 +15,55 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 41 - gate de integracao com `reports` e higiene de artefatos temporarios
+Escopo:
+- reduzir ruido local de artefatos temporarios no `git status`
+- endurecer prova de consumo externo por import publico leve
+- publicar gate rapido de integracao por contrato JSON no README
+
+Arquivos alterados:
+- `.gitignore`
+- `tests/test_contract.py`
+- `README.md`
+- `ROUND_STATUS.md`
+- `HANDOFF.md`
+- `RECOVERY_BACKLOG.md`
+
+Mudanca aplicada:
+- `.gitignore` agora ignora artefatos temporarios locais de execucao:
+  - `downloads/`
+  - `output/`
+  - `tmp/`
+  - `.backups/`
+  - `%SystemDrive%/`
+  - `staging/rest_sweep/`
+  - `staging/consulta_ssa_print_*.pdf`
+- teste novo de contrato:
+  - `test_public_import_does_not_load_heavy_runtime_modules`
+  - valida em subprocesso que `import scrap_report` nao puxa `playwright`, `pandas` nem `openpyxl`
+- README ganhou bloco curto "Gate rapido para integracao com repo `reports`"
+  - gera contrato canonico via `validate-contract`
+  - lista chaves minimas obrigatorias
+  - valida import publico minimo
+
+Validacao:
+- `kluster review file tests/test_contract.py README.md`: bloqueado por DNS
+  - `lookup api.kluster.ai: getaddrinfow`
+- `kluster log`: bloqueado por DNS no mesmo host
+- `uv run --python 3.13 --no-sync python -c "import py_compile..."`: ok
+- `uv run --python 3.13 --no-sync ruff check .`: ok
+- `uv run --python 3.13 --no-sync ty check`: bloqueado
+  - `Acesso negado` em `.pytest-local/run` e `.pytest-tmp`
+  - ambiente local sem deps resolvidas (`pandas`, `playwright`, `pytest`) com DNS externo indisponivel
+- `uv run --python 3.13 --no-sync ty check src/scrap_report/contract.py src/scrap_report/__init__.py`: ok
+- `uv run --python 3.13 --no-sync pytest -q tests/test_contract.py`: `10 passed`
+- `uv run --python 3.13 --no-sync pytest -q tests/test_contract.py tests/test_cli.py -k "validate_contract or public_package_surface or public_import_does_not_load_heavy_runtime_modules"`: bloqueado por falta de `pandas` no ambiente local sem sync
+
+Risco residual:
+- medio
+- gate completo de `ty` e `pytest` integrado permanece dependente de ambiente com deps sincronizadas
+- Kluster permanece indisponivel enquanto DNS externo para `api.kluster.ai` estiver quebrado
+
 ## Slice 36 - zerar baseline global do `ty`
 Escopo:
 - corrigir diagnosticos reais do `ty` em provider Windows e testes

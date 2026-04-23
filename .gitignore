@@ -9,7 +9,13 @@ __pycache__/
 
 # Runtime artifacts
 staging/reports/
-downloads/*.xlsx
+downloads/
+output/
+tmp/
+.backups/
+%SystemDrive%/
+staging/rest_sweep/
+staging/consulta_ssa_print_*.pdf
 staging/*.xlsx
 staging/*.json
 

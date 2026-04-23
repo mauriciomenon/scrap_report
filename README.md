@@ -572,6 +572,32 @@ uv run --project . python -m scrap_report.cli secret setup --username "menon" --
 - o `pipeline` e o `sweep-run` retornam caminhos dos artefatos gerados
 - o manifest de lote consolida status por item, filtros aplicados e erros por item
 
+### Gate rapido para integracao com repo `reports`
+Objetivo:
+- validar de forma objetiva o contrato canonico antes de integrar consumidor externo
+
+Passo 1, gerar contrato canonico:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli validate-contract --output-json tmp/contract_for_reports.json
+```
+
+Passo 2, checar chaves minimas obrigatorias no JSON:
+- `contract.package`
+- `contract.exports.playwright_reports`
+- `contract.exports.rest_reports`
+- `contract.preferred_contracts`
+- `contract.minimum_fields_by_flow`
+
+Passo 3, validar import publico minimo:
+```powershell
+uv run --python 3.13 python -c "import scrap_report; print(scrap_report.__version__)"
+```
+
+Contrato de consumo recomendado:
+- decidir schema por fluxo com `contract.preferred_contracts`
+- exigir campos minimos por fluxo com `contract.minimum_fields_by_flow`
+- resolver aliases de artefato com `contract.exports`
+
 ## Limites conhecidos
 - `data de emissao` no sweep ainda e parcial por `report_kind`
 - `aprovacao_emissao` segue bloqueado para `emission_date` porque o export atual nao entrega `Emitida Em` confiavel

@@ -12,6 +12,23 @@
 - integracao REST no `sweep-run`: `e9460c9`
 - otimizacao REST mais recente: `2f61345`
 
+## Atualizacao local Windows 2026-04-23
+- HEAD local confirmado: `afdee46`
+- estado local nesta sessao:
+  - mudancas nao commitadas em `.gitignore`, docs e `tests/test_contract.py`
+- ajuste de higiene local:
+  - `.gitignore` cobre artefatos temporarios de execucao e backups locais
+- gate de integracao com repo `reports` endurecido:
+  - README com bloco curto de validacao por `validate-contract`
+  - teste novo para garantir import publico leve do pacote (`scrap_report`) sem carregar runtime pesado
+- evidencia de validacao desta sessao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty` completo: bloqueado por ambiente local sem deps sincronizadas e erro de permissao em dirs locais
+  - `ty` focado em contrato/public surface: ok
+  - `pytest` focado `tests/test_contract.py`: `10 passed`
+  - `kluster`: bloqueado por DNS externo (`api.kluster.ai`)
+
 ## Current truth
 O projeto agora tem duas frentes operacionais distintas:
 1. fluxo oficial com Playwright
