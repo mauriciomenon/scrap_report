@@ -32,5 +32,5 @@
   - `SSAs por Documento`
 - validar smoke Debian13 real em host com conectividade estavel ao PyPI
 - revisar naming e manifest consolidado para rotinas de agenda futuras
-- normalizar permissao local de `.pytest-local/run` e `.pytest-tmp` para remover erros recorrentes de leitura no `git status`, `ruff` e `ty`
+- validar se vale corrigir permissao real de `.pytest-local/run` e `.pytest-tmp`; ruido no `git status` foi mitigado no slice 43 via higiene de workspace e `.gitignore`
 - definir rotina de validacao offline com `uv --no-sync` e ambiente previamente sincronizado para nao bloquear quality gates quando DNS/PyPI estiver indisponivel

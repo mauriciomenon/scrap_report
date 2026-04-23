@@ -4,7 +4,7 @@
 - repo publico: sim
 - URL: `https://github.com/mauriciomenon/scrap_report`
 - branch operacional: `master`
-- baseline antes do slice atual: `06761d6`
+- baseline antes do slice atual: `f389671`
 - status de sync no inicio do slice atual: `master` alinhado com `origin/master`
 
 ## O que esta pronto hoje
@@ -92,6 +92,22 @@
   - `pytest`: `201 passed`
   - `dependabot/alerts?state=open`: `[]`
 
+### Higiene local e demonstrativo REST real `IEE3`
+- baseline anterior do slice: `f389671`
+- ajuste de higiene:
+  - `.gitignore` passou a ignorar `.pytest-local/` e `.pytest-tmp/`
+  - artefato local `%SystemDrive%/` removido do workspace
+- validacao:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty` (`src tests`): ok
+  - `pytest`: `202 passed`
+  - `sam-api-flow` panorama (`IEE3`): `status=ok`, `count=69`
+  - artifacts:
+    - [sam_api_iee3_pendentes_demo_20260423_130409.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.json)
+    - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
+    - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
+
 ## Resultado de prontidao
 ### Pronto para
 - uso operacional no Windows pelo launcher atual
@@ -102,6 +118,7 @@
   - `scrap_report.__version__`
   - `scrap_report.build_contract_catalog()`
   - entrypoint `scrap-report`
+- demonstrativo REST real de `pendentes` para `IEE3` atualizado em `2026-04-23` com 69 SSAs
 
 ### Ainda nao pronto para
 - declarar cobertura total do menu `Relatorios`

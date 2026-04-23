@@ -2,6 +2,8 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.pytest-local/
+.pytest-tmp/
 .ruff_cache/
 
 # Local OS files
@@ -13,7 +15,6 @@ downloads/
 output/
 tmp/
 .backups/
-%SystemDrive%/
 staging/rest_sweep/
 staging/consulta_ssa_print_*.pdf
 staging/*.xlsx

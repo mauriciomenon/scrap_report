@@ -598,6 +598,27 @@ Contrato de consumo recomendado:
 - exigir campos minimos por fluxo com `contract.minimum_fields_by_flow`
 - resolver aliases de artefato com `contract.exports`
 
+### Demonstrativo REST real rapido, lista de pendentes da `IEE3`
+Objetivo:
+- gerar lista real de SSAs pendentes para `IEE3` em formato pronto para consumo externo
+
+Comando:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_iee3_pendentes_demo_<timestamp>.json --output-csv tmp/sam_api_iee3_pendentes_demo_<timestamp>.csv --output-xlsx tmp/sam_api_iee3_pendentes_demo_<timestamp>.xlsx
+```
+
+Exemplo real validado em `2026-04-23`:
+- manifest:
+  - [sam_api_iee3_pendentes_demo_20260423_130409.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.json)
+- resumo:
+  - `status=ok`
+  - `count=69`
+  - `summary.by_emitter={"IEE3": 69}`
+  - primeiros SSAs: `202601253, 202601438, 202602000, 202602187, 202602521`
+- exportacoes:
+  - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
+  - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
+
 ## Limites conhecidos
 - `data de emissao` no sweep ainda e parcial por `report_kind`
 - `aprovacao_emissao` segue bloqueado para `emission_date` porque o export atual nao entrega `Emitida Em` confiavel

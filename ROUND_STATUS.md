@@ -1,12 +1,12 @@
 # ROUND_STATUS
 
 ## Sessao atual
-- data: `2026-03-23`
+- data: `2026-04-23`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- baseline runtime no inicio desta rodada: `f5c41d7`
+- baseline runtime no inicio desta rodada: `f389671`
 - runtime REST em edicao nesta rodada: concluido
-- doc sync pendente nesta rodada: sim
+- doc sync pendente nesta rodada: nao
 
 ## Snapshot executivo
 - repo publico existente: sim
@@ -14,6 +14,52 @@
 - runtime Playwright principal: estavel no baseline anterior
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
+
+## Slice 43 - higiene local e demonstrativo REST real `IEE3`
+Escopo:
+- reduzir ruido local de artefatos temporarios e warnings de status
+- validar gates tecnicos reais ponta a ponta apos ajuste de higiene
+- executar demonstrativo REST real com lista de SSAs pendentes para `IEE3`
+- sincronizar docs para juncao futura com repo `reports`
+
+Arquivos alterados:
+- `.gitignore`
+- `README.md`
+- `ROUND_STATUS.md`
+- `HANDOFF.md`
+- `PRE_RELEASE_STATUS.md`
+- `RECOVERY_BACKLOG.md`
+
+Mudanca aplicada:
+- `.gitignore` agora ignora:
+  - `.pytest-local/`
+  - `.pytest-tmp/`
+- removido artefato local literal `%SystemDrive%/` do workspace
+- demonstrativo REST real atualizado com artifacts timestampados da `IEE3`
+
+Validacao:
+- `kluster review file .gitignore`: 1 issue low inicial (`%SystemDrive%/`), corrigido no mesmo slice
+- `kluster review file .gitignore` (re-run): clean
+- `uv run --python 3.13 python -c "import pathlib, py_compile ..."`: ok
+- `uv run --python 3.13 ruff check .`: ok
+- `uv run --python 3.13 ty check src tests`: ok
+- `uv run --python 3.13 --with pytest python -m pytest -q`: `202 passed`
+- demonstrativo REST real:
+  - comando:
+    - `uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 1 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_iee3_pendentes_demo_20260423_130409.json --output-csv tmp/sam_api_iee3_pendentes_demo_20260423_130409.csv --output-xlsx tmp/sam_api_iee3_pendentes_demo_20260423_130409.xlsx`
+  - resultado:
+    - `status=ok`
+    - `count=69`
+    - `summary.by_emitter={"IEE3": 69}`
+    - primeiros SSAs: `202601253, 202601438, 202602000, 202602187, 202602521, 202603000, 202603208, 202603281, 202603516, 202603522, 202603708, 202603856, 202603857, 202603966, 202603971`
+    - artifacts:
+      - [tmp\sam_api_iee3_pendentes_demo_20260423_130409.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.json)
+      - [tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
+      - [tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
+
+Risco residual:
+- baixo para higiene local e contrato de docs
+- medio para fechamento de release cross-platform enquanto Debian13 real e evidencia W11 nao forem fechados
 
 ## Slice 41 - gate de integracao com `reports` e higiene de artefatos temporarios
 Escopo:

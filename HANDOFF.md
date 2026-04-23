@@ -12,6 +12,32 @@
 - integracao REST no `sweep-run`: `e9460c9`
 - otimizacao REST mais recente: `2f61345`
 
+## Atualizacao local Windows 2026-04-23, slice 43
+- HEAD local confirmado no inicio do slice: `f389671`
+- objetivo:
+  - fechar higiene local de artefatos temporarios sem tocar runtime
+  - validar gates reais completos
+  - atualizar demonstrativo REST real de SSAs pendentes para `IEE3`
+- mudanca aplicada:
+  - `.gitignore` agora ignora `.pytest-local/` e `.pytest-tmp/`
+  - artefato local literal `%SystemDrive%/` removido do workspace
+- evidencias reais:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty` (`src tests`): ok
+  - `pytest -q`: `202 passed`
+  - `sam-api-flow` real (`IEE3`):
+    - `status=ok`
+    - `count=69`
+    - `summary.by_emitter={"IEE3": 69}`
+    - artifacts:
+      - [sam_api_iee3_pendentes_demo_20260423_130409.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.json)
+      - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
+      - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
+- kluster:
+  - `.gitignore`: 1 issue low inicial (`%SystemDrive%/`), corrigido
+  - `.gitignore` revalidado: clean
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:
@@ -73,12 +99,12 @@ O projeto agora tem duas frentes operacionais distintas:
 - `--ca-file` e `--rest-ca-file` validados em chamadas reais
 
 ## Estado tecnico do slice atual
-- baseline anterior do branch: `06761d6`
+- baseline anterior do branch: `f389671`
 - gates locais atuais:
   - `py_compile`: ok
   - `ruff`: ok
   - `ty`: ok
-  - `pytest`: `201 passed`
+  - `pytest`: `202 passed`
 - ajuste fechado neste slice:
   - baseline global do `ty check` zerado
   - compatibilidade de testes Windows corrigida para `Path` com separador `/` ou `\\`
