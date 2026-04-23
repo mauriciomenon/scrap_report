@@ -4,7 +4,7 @@
 - data: `2026-04-23`
 - pasta: `C:\Users\mauri\git\scrap_report`
 - branch: `master`
-- baseline runtime no inicio desta rodada: `f389671`
+- baseline runtime no inicio desta rodada: `b3c8be6`
 - runtime REST em edicao nesta rodada: concluido
 - doc sync pendente nesta rodada: nao
 
@@ -14,6 +14,54 @@
 - runtime Playwright principal: estavel no baseline anterior
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
+
+## Slice 44 - fechamento do smoke cross-platform real
+Escopo:
+- fechar gate de evidencia real para Windows11 e Debian13
+- corrigir falha funcional do roteiro Debian13 sem tocar runtime
+- manter patch minimo e verificavel no script operacional
+
+Arquivos alterados:
+- `scripts/smoke_debian13.sh`
+- `ROUND_STATUS.md`
+- `HANDOFF.md`
+- `PRE_RELEASE_STATUS.md`
+- `CROSS_PLATFORM_SMOKE.md`
+- `README.md`
+
+Mudanca aplicada:
+- `scripts/smoke_debian13.sh`:
+  - selecao do xlsx staged agora le `staging/stage_result.json` em vez de `find|head`
+  - validacao explicita de existencia de `staged_path` antes do `pipeline --report-only`
+  - `ingest-latest` sem `--password` em linha de comando
+  - fallback transicional controlado por `SAM_PASSWORD` em env de processo + `--allow-transitional-plaintext`
+  - `platform_label` da evidencia ajustado para `debian13`
+  - remocao da duplicacao de pytest no bloco Python de evidencia
+
+Validacao:
+- `kluster review file scripts/smoke_debian13.sh`:
+  - rodada inicial: 3 issues (1 high + 2 low), corrigidos no mesmo slice
+  - rodada intermediaria: 4 issues (medium/low), reduzidos no mesmo slice
+  - rodada final: clean
+- smoke Windows11 real:
+  - `powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1`
+  - resultado: `done`
+  - evidencia:
+    - [staging\smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
+    - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
+    - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+- smoke Debian13 real (WSL Debian13):
+  - `bash scripts/smoke_debian13.sh`
+  - tentativa 1: bloqueio externo de DNS no preflight PyPI
+  - tentativa 2: `done`
+  - evidencia:
+    - [staging\smoke_evidence_debian13.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_debian13.json)
+    - `generated_at_utc=2026-04-23T17:52:22.288728+00:00`
+    - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+
+Risco residual:
+- baixo para o patch do script e para a evidencias de smoke
+- medio apenas para oscilacao eventual de DNS externo no preflight do PyPI
 
 ## Slice 43 - higiene local e demonstrativo REST real `IEE3`
 Escopo:

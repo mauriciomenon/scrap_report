@@ -619,6 +619,14 @@ Exemplo real validado em `2026-04-23`:
   - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
   - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
 
+### Status cross-platform smoke (`2026-04-23`)
+- Windows11:
+  - [smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
+  - checks chave: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+- Debian13:
+  - [smoke_evidence_debian13.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_debian13.json)
+  - checks chave: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+
 ## Limites conhecidos
 - `data de emissao` no sweep ainda e parcial por `report_kind`
 - `aprovacao_emissao` segue bloqueado para `emission_date` porque o export atual nao entrega `Emitida Em` confiavel

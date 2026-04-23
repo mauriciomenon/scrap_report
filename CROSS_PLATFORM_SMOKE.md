@@ -66,7 +66,8 @@ uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kin
 8. smoke `ingest-latest`
 ```bash
 cp "$LATEST_XLSX" downloads/Report_latest.xlsx
-uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --output-json staging/ingest_result.json
+SMOKE_TRANSITIONAL_PASSWORD="$(date +%s%N)"
+SAM_PASSWORD="${SMOKE_TRANSITIONAL_PASSWORD}" uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --allow-transitional-plaintext --output-json staging/ingest_result.json
 ```
 
 9. execucao automatizada opcional
@@ -130,7 +131,9 @@ uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kin
 8. smoke `ingest-latest`
 ```powershell
 Copy-Item -Path "$LATEST_XLSX" -Destination downloads/Report_latest.xlsx -Force
-uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --output-json staging/ingest_result.json
+$env:SAM_PASSWORD = [guid]::NewGuid().ToString("N")
+uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --allow-transitional-plaintext --output-json staging/ingest_result.json
+Remove-Item Env:SAM_PASSWORD
 ```
 
 9. execucao automatizada opcional
@@ -172,35 +175,37 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
   - execucao realizada em host local macOS
 
 ### Debian 13
-- data/hora:
-- py_compile:
-- ruff:
-- pytest:
-- validate-contract:
-- scan-secrets:
-- secret test:
-- stage:
-- pipeline --report-only:
-- ingest-latest:
+- data/hora: `2026-04-23T17:52:22.288728+00:00`
+- py_compile: ok
+- ruff: ok
+- pytest: ok (`108 passed`)
+- validate-contract: ok (`status: ok`)
+- scan-secrets: ok (`status: ok`, `findings_count: 0`)
+- secret test: ok (`backend_ready: true`)
+- stage: ok (`status: ok`)
+- pipeline --report-only: ok (`status: ok`, `telemetry` presente)
+- ingest-latest: ok (`status: ok`, `telemetry` presente)
+- evidencia:
+  - `staging/smoke_evidence_debian13.json`
 - observacoes:
-  - pendente de execucao em host Debian 13 real
-  - o script agora falha cedo se nao houver acesso ao PyPI, com mensagem objetiva de preflight
+  - validado em Debian GNU/Linux 13 (trixie) via WSL2
+  - preflight de PyPI pode falhar por DNS externo temporario; repetir a rodada quando isso ocorrer
 
 ### Windows 11
-- data/hora:
-- py_compile:
-- ruff:
-- pytest:
-- validate-contract:
-- scan-secrets:
-- secret test:
-- stage:
-- pipeline --report-only:
-- ingest-latest:
+- data/hora: `2026-04-23T16:14:20.9295303Z`
+- py_compile: ok
+- ruff: ok
+- pytest: ok (`108 passed`)
+- validate-contract: ok (`status: ok`)
+- scan-secrets: ok (`status: ok`, `findings_count: 0`)
+- secret test: ok (`backend_ready: true`)
+- stage: ok (`status: ok`)
+- pipeline --report-only: ok (`status: ok`, `telemetry` presente)
+- ingest-latest: ok (`status: ok`, `telemetry` presente)
+- evidencia:
+  - `staging/smoke_evidence_windows11.json`
 - observacoes:
-  - pendente de execucao em host Windows 11 real
-  - o arquivo `staging/smoke_evidence_windows11.json` nao esta preservado nesta copia local
-  - a rodada so fecha quando esse artefato for regenerado no host W11 e recolocado aqui
+  - gate W11 de smoke offline fechado nesta copia local
 
 ## Notas
 - o E2E com acesso SAM nao faz parte deste smoke de portabilidade

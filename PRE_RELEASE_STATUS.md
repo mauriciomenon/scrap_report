@@ -4,7 +4,7 @@
 - repo publico: sim
 - URL: `https://github.com/mauriciomenon/scrap_report`
 - branch operacional: `master`
-- baseline antes do slice atual: `f389671`
+- baseline antes do slice atual: `b3c8be6`
 - status de sync no inicio do slice atual: `master` alinhado com `origin/master`
 
 ## O que esta pronto hoje
@@ -108,6 +108,19 @@
     - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
     - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
 
+### Smoke cross-platform real (Windows11 + Debian13)
+- baseline anterior do slice: `b3c8be6`
+- smoke W11:
+  - `powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1`: ok
+  - evidencia: [smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
+  - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
+- smoke Debian13:
+  - `bash scripts/smoke_debian13.sh`: ok
+  - evidencia: [smoke_evidence_debian13.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_debian13.json)
+  - `generated_at_utc=2026-04-23T17:52:22.288728+00:00`
+- checks confirmados nas duas evidencias:
+  - `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+
 ## Resultado de prontidao
 ### Pronto para
 - uso operacional no Windows pelo launcher atual
@@ -124,21 +137,15 @@
 - declarar cobertura total do menu `Relatorios`
 - usar `data de emissao` no runtime real de sweep
 - agendamento sem definir politica operacional
-- fechamento cross-platform final sem nova rodada Debian13 real estavel
 
 ## Bloqueios e limites reais
 - `data de emissao` ainda nao esta ligada ao runtime real do sweep
 - grupo `demais` ainda nao foi preenchido
 - ainda faltam telas adicionais do menu `Relatorios`
-- smoke Debian13 real continua dependente de host Debian13 com conectividade externa estavel
-- evidencia W11 real nao esta preservada nesta copia local em `staging/`
-- a rodada historica do smoke W11 existe no controle, mas o gate atual exige regenerar ou recolocar o artefato real
 
 ## Proximo gate recomendado
-1. executar a rodada Debian13 real com conectividade estavel
-2. regenerar ou recolocar a evidencia W11 em `staging/`
-3. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
-4. validar manifest, bruto staged e derivados ponta a ponta
-5. decidir se o proximo slice prioriza:
+1. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
+2. validar manifest, bruto staged e derivados ponta a ponta
+3. decidir se o proximo slice prioriza:
    - `data de emissao` no sweep
    - novas telas do menu `Relatorios`

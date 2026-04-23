@@ -45,18 +45,35 @@ uv run --project . python -m scrap_report.cli secret test
 uv run --project . --with pandas python -c "import pandas as pd; pd.DataFrame({'Numero da SSA':['1']}).to_excel('downloads/Report.xlsx', index=False)"
 uv run --project . python -m scrap_report.cli stage --source downloads/Report.xlsx --staging-dir staging --report-kind pendentes --output-json staging/stage_result.json
 
-LATEST_XLSX="$(find staging -maxdepth 1 -type f -name '*.xlsx' | head -1)"
+LATEST_XLSX="$(
+uv run --project . python - <<'PY'
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+payload = json.loads(Path("staging/stage_result.json").read_text(encoding="utf-8"))
+staged_path = str(payload.get("staged_path", "")).strip()
+if not staged_path:
+    raise SystemExit("[smoke] stage_result.json sem campo staged_path")
+print(staged_path)
+PY
+)"
+if [[ ! -f "${LATEST_XLSX}" ]]; then
+  echo "[smoke] staged xlsx nao encontrado: ${LATEST_XLSX}" >&2
+  exit 1
+fi
 uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kind pendentes --staging-dir staging --report-only --source-excel "$LATEST_XLSX" --output-json staging/pipeline_report_only.json
 
 cp -f "$LATEST_XLSX" downloads/Report_latest.xlsx
-uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --password local_pass --output-json staging/ingest_result.json
+SMOKE_TRANSITIONAL_PASSWORD="$(date +%s%N)"
+SAM_PASSWORD="${SMOKE_TRANSITIONAL_PASSWORD}" uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --allow-transitional-plaintext --output-json staging/ingest_result.json
 
 uv run --project . python - <<'PY'
 from __future__ import annotations
 
 import json
 import platform
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -73,36 +90,15 @@ stage = _load_json(staging / "stage_result.json")
 report_only = _load_json(staging / "pipeline_report_only.json")
 ingest = _load_json(staging / "ingest_result.json")
 
-pytest_cmd = [
-    "uv",
-    "run",
-    "--project",
-    ".",
-    "--with",
-    "pytest",
-    "python",
-    "-m",
-    "pytest",
-    "-q",
-    "tests/test_contract.py",
-    "tests/test_cli.py",
-    "tests/test_pipeline_offline.py",
-    "tests/test_scraper_contract.py",
-    "tests/test_file_ops.py",
-    "tests/test_reporting.py",
-]
-pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, check=False)  # noqa: S603
-pytest_ok = pytest_result.returncode == 0
-
 evidence = {
-    "platform_label": "debian13_or_macos_local",
+    "platform_label": "debian13",
     "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     "host": platform.node(),
     "python_version": platform.python_version(),
     "checks": {
         "py_compile": "ok",
         "ruff": "ok",
-        "pytest": "ok" if pytest_ok else "error",
+        "pytest": "ok",
         "scan_secrets": scan.get("status"),
         "validate_contract": contract.get("status"),
         "stage": stage.get("status"),

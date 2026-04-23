@@ -38,6 +38,29 @@
   - `.gitignore`: 1 issue low inicial (`%SystemDrive%/`), corrigido
   - `.gitignore` revalidado: clean
 
+## Atualizacao local Windows 2026-04-23, slice 44
+- HEAD local confirmado no inicio do slice: `b3c8be6`
+- objetivo:
+  - fechar gate cross-platform com evidencia real de Windows11 e Debian13
+  - corrigir falha funcional do `smoke_debian13.sh` com patch minimo
+- mudanca aplicada:
+  - `scripts/smoke_debian13.sh` agora usa `staging/stage_result.json` para ler `staged_path` canonico
+  - `ingest-latest` no smoke Debian13 remove senha de argumento e usa fallback transicional por env de processo
+  - `platform_label` da evidencia Debian13 ajustado para `debian13`
+  - duplicacao de pytest no bloco de evidencia removida
+- evidencias reais:
+  - Windows11:
+    - [smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
+    - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
+    - checks chave: todos `ok`
+  - Debian13:
+    - [smoke_evidence_debian13.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_debian13.json)
+    - `generated_at_utc=2026-04-23T17:52:22.288728+00:00`
+    - checks chave: todos `ok`
+- kluster no script:
+  - primeira rodada com findings (high/medium/low), corrigidos no proprio slice
+  - rodada final: clean
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:
@@ -109,10 +132,10 @@ O projeto agora tem duas frentes operacionais distintas:
   - baseline global do `ty check` zerado
   - compatibilidade de testes Windows corrigida para `Path` com separador `/` ou `\\`
 - pendencia operacional ainda aberta:
-  - smoke Debian13 real com conectividade estavel ao PyPI
+  - nenhuma no bloco de smoke cross-platform offline
 - observacao de evidencia:
-  - `staging/smoke_evidence_windows11.json` nao esta presente nesta copia local
-  - a execucao historica do smoke W11 continua registrada em `CONVERSA_MIGRACAO_STATUS.md`
+  - `staging/smoke_evidence_windows11.json` presente e validado
+  - `staging/smoke_evidence_debian13.json` presente e validado
 
 ## Harden de dependencias mais recente
 - baseline anterior do branch: `ce76125`
@@ -133,28 +156,24 @@ O projeto agora tem duas frentes operacionais distintas:
   - item de seguranca GitHub considerado fechado neste momento
 
 ## Slice Debian13 mais recente
-- baseline anterior do branch: `65d8ad3`
+- baseline anterior do branch: `b3c8be6`
 - mudanca aplicada:
-  - `scripts/smoke_debian13.sh` agora executa preflight de PyPI antes do `uv sync`
-  - `CROSS_PLATFORM_SMOKE.md` agora explicita esse bloqueio externo de rede
-- validacao local:
-  - `bash -n scripts/smoke_debian13.sh`: ok
-  - `bash scripts/smoke_debian13.sh`: ok neste host macOS
+  - roteiro usa `staged_path` canonico vindo de `stage_result.json`
+  - `ingest-latest` sem senha em argumento; fallback transicional por env de processo
+  - `platform_label` da evidencia ficou especifico para Debian13
+- validacao local em Debian13 real (WSL):
+  - `bash scripts/smoke_debian13.sh`: ok
   - evidencia gerada: `staging/smoke_evidence_debian13.json`
-- leitura correta da evidencia:
-  - confirma que o roteiro Debian continua executavel localmente
-  - nao substitui a rodada em host Debian13 real
+  - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+- observacao:
+  - houve uma tentativa com falha de DNS no preflight PyPI, seguida por reexecucao verde
 
 ## Estado atual da evidencia W11
-- busca local executada em:
-  - repo atual
-  - `~/git`
-  - `~/Downloads`
-- resultado:
-  - `smoke_evidence_windows11.json` nao encontrado
+- resultado atual:
+  - `staging/smoke_evidence_windows11.json` encontrado e valido
+  - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
 - leitura correta:
-  - a rodada historica W11 permanece documentada
-  - o artefato precisa ser regenerado no host Windows 11 e recolocado em `staging/`
+  - gate W11 de smoke offline ficou fechado nesta copia local
 
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina
