@@ -1,8 +1,622 @@
 Metadata-Version: 2.4
 Name: scrap-report
-Version: 0.1.0
-Summary: Pipeline modular para scraping SAM e entrega de xlsx
+Version: 0.1.17
+Summary: Ferramentas para scraping SAM, manifests JSON e exportacao operacional
 Requires-Python: >=3.11
+Description-Content-Type: text/markdown
 Requires-Dist: playwright>=1.45.0
 Requires-Dist: pandas>=2.2.0
 Requires-Dist: openpyxl>=3.1.0
+
+# scrap_report
+
+Extracao modular de artefatos do SAM com foco em xlsx e pdf para integracao externa, operacao Windows e varredura em lote.
+
+## Current truth
+- branch operacional: `master`
+- launcher Windows oficial: `EXECUTAR_SCRAP_WINDOWS.ps1`
+- launcher visual para duplo clique: `EXECUTAR_SCRAP_WINDOWS.cmd`
+- wrapper legado mantido: `scripts/main_windows.ps1`
+- fluxo Windows unitario: `windows-flow`
+- fluxo Windows em lote por preset: `sweep-run`
+- `numero_ssa` validado no runtime para:
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_emissao`
+- modo recomendado para recorte multi-setor do mesmo relatorio:
+  - um pedido unico
+  - expansao automatica em um arquivo por setor
+  - um manifest unico com status por item
+- camada REST sem Playwright disponivel em tres niveis:
+  - API interna reutilizavel
+  - comando opinativo `sam-api-flow`
+  - fluxo totalmente independente `sam-api-standalone`
+- integracao concreta no fluxo do produto:
+  - `sweep-run --runtime rest`
+  - suportado neste ciclo para `report_kind=pendentes`
+  - validado para:
+    - um setor
+    - varios setores
+    - geral sem detalhamento
+    - geral com detalhamento por `year_week`
+    - geral com detalhamento por `emission_date` validado ate `42 dias`
+  - no runtime REST do sweep, `username` e `password` nao sao obrigatorios
+- caminho TLS operacional sem `--ignore-https-errors`:
+  - `sam-api-cert` exporta a CA raiz apresentada pelo host REST
+  - `--ca-file` validado em chamadas reais
+- `data de emissao` validada no runtime para:
+  - `executadas`
+  - `pendentes`
+  - `pendentes_execucao`
+  - `consulta_ssa`
+  - `consulta_ssa_print`
+  - `aprovacao_cancelamento`
+  - `reprogramacoes`
+- janela padrao operacional: semana atual ate 4 semanas para tras
+- exemplo validado em `2026-03-16`: `202608 -> 202612`
+- pacote Python agora esta pronto para consumo externo basico:
+  - import name: `scrap_report`
+  - versao publica: `scrap_report.__version__`
+  - entrypoint instalavel: `scrap-report`
+  - discovery programatico: `scrap_report.build_contract_catalog()`
+
+## Escopo entregue
+- login seguro com secret store do OS e fallback DPAPI no Windows
+- navegacao real nas telas do SAM via Playwright
+- export de xlsx e pdf conforme a tela
+- staging de artefatos com naming estavel
+- geracao de relatorios derivados quando o formato for suportado
+- varredura em lote por grupos de setores e presets operacionais
+
+## Fora do escopo atual
+- dashboard ou GUI propria
+- agendamento
+- paralelismo no sweep
+- criacao de script novo para cada variacao operacional
+
+## Estrutura do projeto
+- `src/scrap_report/config.py`: defaults, validacao e grupos de setores
+- `src/scrap_report/scraper.py`: automacao Playwright das telas SAM
+- `src/scrap_report/file_ops.py`: naming e staging de downloads
+- `src/scrap_report/reporting.py`: parser e artefatos derivados
+- `src/scrap_report/pipeline.py`: execucao unitaria de scrape + stage + reports
+- `src/scrap_report/sweep.py`: planejamento, runner e presets de lote
+- `src/scrap_report/cli.py`: comandos operacionais
+- `src/scrap_report/sam_api.py`: cliente REST e filtros operacionais sem Playwright
+- `src/scrap_report/contract.py`: contrato JSON externo dos comandos
+
+## Consumo como pacote
+Superficie publica minima:
+- `scrap_report.__version__`
+- `scrap_report.build_contract_catalog()`
+- `scrap_report.validate_contract_definition()`
+- `scrap_report.validate_payload_schema()`
+- `scrap_report.utc_now_iso()`
+
+Compatibilidade mantida:
+- `ScrapeConfig`
+- `PipelineResult`
+- `run_pipeline`
+
+## Camada REST sem Playwright
+Objetivo:
+- consultar a `SAM_SMA_API` diretamente, sem navegador, sem login e sem staging do pipeline classico
+
+Endpoints atualmente usados:
+- geral por faixa de localizacao:
+  - `GetPendingSSAsByLocalizationRange`
+- detalhado por numero de SSA:
+  - `GetSSABySSANumber`
+
+Os tres niveis hoje sao:
+1. API interna reutilizavel
+- funcoes em `sam_api.py`
+- uso por codigo Python e por outras camadas da CLI
+
+2. comando operacional opinativo
+- `sam-api-flow`
+- pensado para uso humano direto com perfis:
+  - `panorama`
+  - `detail-lote`
+
+3. fluxo totalmente independente
+- `sam-api-standalone`
+- gera:
+  - manifest proprio
+  - `csv`
+  - `xlsx`
+  - resumo `xlsx`
+- nao usa Playwright
+- nao usa o staging do pipeline antigo
+
+### Filtros REST atualmente suportados
+- `--executor-sector` repetivel
+- `--emitter-sector` repetivel
+- `--ssa-number` repetivel
+- `--ssa-number-file`
+- `--localization-contains`
+- `--year-week-start`
+- `--year-week-end`
+- `--emission-date-start`
+- `--emission-date-end`
+- `--limit`
+
+### Exportacao REST atualmente suportada
+- `json`
+- `csv`
+- `xlsx`
+- resumo `xlsx` no modo independente
+
+### Regra operacional de lote REST
+- detalhamento em lote agora usa chunking controlado acima de `500` SSAs por bloco
+- o payload continua expondo `detail_batch_chunked` quando a consulta passa desse limite
+- SSAs repetidas agora sao deduplicadas antes do detalhamento
+- o payload expoe `ssa_numbers_deduped` quando a entrada repetida e reduzida
+- isso evita trabalho repetido inutil e remove custo duplicado por SSA repetida
+- isso evita falha seca do comando, mas nao elimina o custo linear do enriquecimento detalhado para SSAs unicas
+- consultas grandes seguem exigindo criterio operacional
+
+### TLS e certificados na REST
+- com `verify_tls=true`, a API hoje falha com:
+  - `CERTIFICATE_VERIFY_FAILED`
+  - `self-signed certificate in certificate chain`
+- o repo agora suporta `--ca-file` para cadeia customizada
+- a trilha operacional validada neste ciclo foi:
+  1. exportar a CA raiz do host com `sam-api-cert`
+  2. reutilizar o PEM exportado em `--ca-file`
+- no ambiente atual, `--ignore-https-errors` deixou de ser a unica opcao operacional
+- ele permanece como fallback, nao como caminho obrigatorio
+- isso aparece explicitamente em `warnings` e em `verify_tls=false` no payload/manifests
+- a mensagem de erro agora aponta a saida operacional correta:
+  - `forneca --ca-file ou use --ignore-https-errors quando permitido`
+
+### Integracao REST no `sweep-run`
+- o `sweep-run` agora aceita `--runtime rest`
+- escopo validado neste ciclo:
+  - `report_kind=pendentes`
+- modos validados:
+  - um setor com detalhamento
+  - varios setores com detalhamento
+  - geral sem detalhamento
+- no runtime REST do sweep:
+  - `username` e `password` nao sao obrigatorios
+  - `--rest-ca-file` e o caminho recomendado para TLS estrito
+- limite ainda aberto:
+  - geral com detalhamento amplo por `emission_date` continua caro
+  - janelas ate `42 dias` ficaram verdes com timeout de shell maior
+  - o gargalo remanescente agora e custo e latencia para janelas acima de `42 dias`
+- artefatos gerados nesse modo:
+  - `csv`
+  - `xlsx`
+  - resumo `xlsx`
+- caminho base atual:
+  - `staging/rest_sweep/<report_kind>/item_<nnn>/`
+- o modo Playwright continua sendo o padrao para os demais `report_kind`
+
+### Manifest REST
+Os payloads REST agora carregam contexto operacional minimo obrigatorio:
+- `filters`
+- `warnings`
+- `verify_tls`
+- `timeout_seconds`
+- `runtime_mode`
+- `telemetry`
+- `manifest_json`
+
+Contrato de `exports` para a frente REST:
+- aliases legados mantidos:
+  - `csv`
+  - `xlsx`
+- chaves canonicas para integracao futura:
+  - `data_csv`
+  - `data_xlsx`
+  - `summary_xlsx`, quando existir
+  - `manifest_json`, quando houver saida JSON
+
+Isto vale para:
+- `sam-api`
+- `sam-api-flow`
+- `sam-api-standalone`
+
+Telemetria minima comum nos manifests REST:
+- `runtime_mode`
+- `telemetry.record_count`
+- `telemetry.detail_count`
+- `telemetry.without_detail_count`
+- `manifest_json`
+
+Isto agora vale de forma uniforme para:
+- `sam-api`
+- `sam-api-flow`
+- `sam-api-standalone`
+- `sweep-run --runtime rest`
+
+Aliases canonicos para artefatos Playwright e `report-from-excel`:
+- legados mantidos:
+  - `dados`
+  - `estatisticas`
+  - `relatorio_txt`
+- aliases canonicos:
+  - `data_xlsx`
+  - `summary_xlsx`
+  - `report_txt`
+
+Descoberta automatica de contrato:
+- `validate-contract` agora publica em JSON:
+  - `contract.package`
+  - `contract.schemas`
+  - `contract.exports.playwright_reports`
+  - `contract.exports.rest_reports`
+  - `contract.preferred_contracts`
+  - `contract.minimum_fields_by_flow`
+
+Uso recomendado pelo consumidor:
+- `contract.preferred_contracts` diz qual schema e qual contrato de exports usar por fluxo
+- `contract.minimum_fields_by_flow` diz o conjunto minimo de campos que o consumidor deve exigir
+
+Contrato formal do manifest de `sweep-run`:
+- o payload agora e emitido com schema validado
+- campos obrigatorios:
+  - `status`
+  - `report_kind`
+  - `scope_mode`
+  - `runtime_mode`
+  - `item_count`
+  - `success_count`
+  - `failure_count`
+  - `items`
+  - `manifest_json`
+- isso reduz adaptador futuro para o repo de reports no consumo do lote REST
+
+## Report kinds suportados
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `aprovacao_emissao`
+- `aprovacao_cancelamento`
+- `derivadas_relacionadas`
+- `reprogramacoes`
+
+## Estado validado em ambiente real
+### Fluxos com export e conteudo validado
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `consulta_ssa`
+- `consulta_ssa_print`
+- `aprovacao_cancelamento`
+- `reprogramacoes`
+- `aprovacao_emissao` baseline com `numero_ssa`
+
+### Casos especiais explicitados
+- `aprovacao_emissao`
+  - `numero_ssa` validado
+  - `setor_executor` e alias de runtime para `divisao_emissora`
+  - `emission_date` segue bloqueado porque o export atual nao entrega `Emitida Em` confiavel
+- `derivadas_relacionadas`
+  - parser derivado proprio validado
+  - export oficial segue instavel no fluxo Playwright
+
+## Matriz atual de `data de emissao`
+
+| report_kind | status | formatos validados na tela | motivo do bloqueio quando aplicavel |
+| --- | --- | --- | --- |
+| `executadas` | suportado | `YYYY-MM-DD` | |
+| `pendentes` | suportado | `DD/MM/YYYY`, `YYYY-MM-DD`, `DDMMYYYY` | |
+| `pendentes_execucao` | suportado | `DD/MM/YYYY`, `YYYY-MM-DD`, `DDMMYYYY` | |
+| `consulta_ssa` | suportado | `DD/MM/YYYY`, `YYYY-MM-DD`, `DDMMYYYY` | |
+| `consulta_ssa_print` | suportado | `DD/MM/YYYY` | pdf validado com `numero_ssa + data`; data errada gera sem resultados |
+| `aprovacao_cancelamento` | suportado | `DD/MM/YYYY` | |
+| `reprogramacoes` | suportado | `DD/MM/YYYY` | |
+| `aprovacao_emissao` | bloqueado | nenhum liberado | export atual nao entrega `Emitida Em` confiavel |
+| `derivadas_relacionadas` | bloqueado | nenhum liberado | export instavel mesmo sem filtro de data |
+
+## Matriz atual de filtros gerais
+
+| report_kind | runtime geral | `numero_ssa` | `emission_year_week` | `emission_date` | observacao |
+| --- | --- | --- | --- | --- | --- |
+| `pendentes` | sim | nao | sim | sim | fluxo geral estavel |
+| `executadas` | sim | nao | sim | sim | fluxo geral estavel |
+| `pendentes_execucao` | sim | nao | sim | sim | fluxo geral estavel |
+| `consulta_ssa` | sim | sim | sim | sim | combinacao `numero_ssa + data` validada |
+| `consulta_ssa_print` | parcial | sim | sim | sim | export PDF proprio |
+| `aprovacao_emissao` | parcial | sim | sim | nao | alias `setor_executor -> divisao_emissora` |
+| `aprovacao_cancelamento` | sim | nao | sim | sim | fluxo geral estavel |
+| `derivadas_relacionadas` | parcial | nao | sim | nao | parser especial e export oficial instavel |
+| `reprogramacoes` | sim | nao | sim | sim | fluxo geral estavel |
+
+Regra global de formato:
+- `MM/DD/YYYY` e rejeitado cedo no runtime com erro explicito
+- formatos aceitos pelo parser central:
+  - `DD/MM/YYYY`
+  - `DDMMYYYY`
+  - `YYYY-MM-DD`
+
+## Filtros de setor
+O sistema suporta quatro modos logicos:
+- apenas emissor
+- apenas executor
+- ambos
+- nenhum
+
+Tokens para nao filtrar um lado:
+- `ALL`
+- `*`
+- vazio
+
+Exemplos:
+- apenas executor: `--setor MEL4 --setor-emissor ALL`
+- apenas emissor: `--setor ALL --setor-emissor IEE3`
+- ambos: `--setor MEL4 --setor-emissor IEE3`
+- nenhum: `--setor ALL --setor-emissor ALL`
+
+## Pedido unico multi-setor
+Para relatorios do mesmo tipo com varios setores emissores ou executores, o padrao recomendado agora e:
+- fazer um pedido unico
+- informar a lista de setores
+- deixar o sistema expandir internamente para um item por setor
+- receber um manifest unico e um arquivo por setor
+
+Isto nao significa:
+- um unico export do SAM com varios setores no mesmo campo
+
+Isto significa:
+- uma unica chamada operacional
+- varias execucoes internas controladas
+- um artefato staged e um derivado por setor
+- um manifest unico com `item_count`, `success_count`, `failure_count` e telemetria por item
+
+Vantagens praticas:
+- evita repetir comando manualmente para cada setor
+- preserva rastreabilidade por setor
+- isola erro por item sem matar o lote inteiro
+- encaixa melhor em rotinas operacionais amplas
+
+Relatorios validados neste modo:
+- `pendentes`
+- `executadas`
+- `pendentes_execucao`
+- `reprogramacoes`
+
+Exemplo real validado para `IEE1 IEE2 IEE3 IEE4`:
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_pendentes_eval.json
+```
+
+Resultado esperado nesse modo:
+- `item_count = 4`
+- um item para `IEE1`
+- um item para `IEE2`
+- um item para `IEE3`
+- um item para `IEE4`
+- um arquivo staged e um derivado por item bem sucedido
+
+## Grupos de setores atuais
+- principal: `IEE3`, `MEL4`, `MEL3`
+- segundo_plano: `IEE1`, `IEE2`, `IEE4`
+- terceiro_plano: `MEL1`, `MEL2`, `IEQ1`, `IEQ2`, `IEQ3`, `ILA1`, `ILA2`, `ILA3`
+- prioritarios: uniao de `principal`, `segundo_plano` e `terceiro_plano`
+- demais: reservado para preenchimento futuro
+
+## Uso rapido no Windows
+### 1. Launcher sem argumentos
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.cmd
+```
+
+### 2. Launcher PowerShell equivalente
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1
+```
+
+### 3. Execucao unitaria com filtros explicitos
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Setor "MEL4" -SetorEmissor "IEE3" -ReportKind pendentes
+```
+
+### 4. Execucao em lote com preset
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind pendentes
+```
+
+### 5. Execucao em lote com preset para os dois relatorios principais
+```powershell
+.\EXECUTAR_SCRAP_WINDOWS.ps1 -Username "menon" -Preset "principal_executor" -ReportKind both
+```
+
+## Presets de lote
+Scopes disponiveis por grupo:
+- `_emissor`
+- `_executor`
+- `_ambos`
+
+Grupos disponiveis:
+- `principal`
+- `segundo_plano`
+- `terceiro_plano`
+- `prioritarios`
+- `demais`
+
+Exemplos validos:
+- `principal_emissor`
+- `principal_executor`
+- `principal_ambos`
+- `prioritarios_executor`
+- `terceiro_plano_ambos`
+
+Regra importante:
+- `-Preset` nao pode ser combinado com `-Setor` nem `-SetorEmissor`
+
+## CLI principal
+### windows-flow unitario
+```powershell
+uv run --project . python -m scrap_report.cli windows-flow --username "menon" --setor MEL4 --setor-emissor IEE3 --report-kind pendentes --output-json staging/pipeline_pendentes.json
+```
+
+### sweep-run manual
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --scope-mode executor --setores-executor MEL4 MEL3 --year-week-start 202608 --year-week-end 202612 --output-json staging/sweep_manual.json
+```
+
+### sweep-run com runtime REST
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_pendentes.json
+```
+
+### sweep-run REST com varios setores
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode emissor --setores-emissor IEE1 IEE3 --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_varios_setores.json
+```
+
+### sweep-run REST geral sem detalhamento
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_sem_detalhe.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --year-week-start 202608 --year-week-end 202612 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_year_week.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-02-23 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_1d.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-01 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_7d.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-03-22 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_28d.json
+```
+
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --report-kind pendentes --scope-mode nenhum --emission-date-start 2026-02-23 --emission-date-end 2026-04-05 --runtime rest --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json staging/sweep_rest_geral_emission_date_42d.json
+```
+
+### sweep-run multi-setor em um pedido
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind executadas --scope-mode emissor --setores-emissor IEE1 IEE2 IEE3 IEE4 --ignore-https-errors --output-json staging/sweep_iee1_iee4_executadas_eval.json
+```
+
+### sweep-run com preset
+```powershell
+uv run --project . python -m scrap_report.cli sweep-run --username "menon" --report-kind pendentes --preset principal_executor --output-json staging/sweep_principal_executor.json
+```
+
+### pipeline report-only
+```powershell
+uv run --project . python -m scrap_report.cli pipeline --report-only --source-excel staging/pendentes_arquivo.xlsx --report-kind pendentes --staging-dir staging --output-json staging/pipeline_report_only.json
+```
+
+### sam-api tecnico
+```powershell
+uv run --project . python -m scrap_report.cli sam-api --start-localization-code A000A000 --end-localization-code Z999Z999 --number-of-years 1 --executor-sector MAM1 --limit 3 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_search.json
+```
+
+### sam-api-flow opinativo
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-flow --profile panorama --executor-sector MAM1 --number-of-years 1 --limit 20 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_flow.json --output-csv tmp/sam_api_flow.csv --output-xlsx tmp/sam_api_flow.xlsx
+```
+
+### sam-api-standalone independente
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_standalone --output-json tmp/sam_api_standalone_manifest.json
+```
+
+### sam-api-cert para gerar o PEM da CA raiz
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-cert --output tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_cert_v2.json
+```
+
+### sam-api-standalone com dedupe automatico
+```powershell
+uv run --project . python -m scrap_report.cli sam-api-standalone --profile detail-lote --ssa-number 202602521 --ssa-number 202602521 --ca-file tmp/itaipu_root_ca_v2.pem --output-dir tmp/sam_api_standalone_dedupe --output-json tmp/sam_api_standalone_dedupe.json
+```
+
+### Resultado esperado no fluxo independente
+- um manifest JSON proprio
+- um `csv` de dados
+- um `xlsx` de dados
+- um `xlsx` de resumo
+- sem dependencia do pipeline Playwright
+
+## Fluxo de segredo
+- comandos com auth resolvem credencial antes da operacao
+- ordem de resolucao:
+  - `--prompt-password`
+  - `--password`
+  - secret store do OS
+  - fallback DPAPI por usuario no Windows quando necessario
+  - `SAM_PASSWORD` apenas em modo transicional permitido
+- politica fail-closed mantida quando configurada
+
+Provisionamento recomendado:
+```powershell
+uv run --project . python -m scrap_report.cli secret setup --username "menon" --secret-service scrap_report.sam
+```
+
+## Artefatos gerados
+### Fluxo unitario xlsx
+- bruto staged: `staging/*.xlsx`
+- derivados: `staging/reports/*.xlsx`
+- manifest json: caminho informado em `--output-json`
+
+### Fluxo `consulta_ssa_print`
+- pdf staged em `staging/*.pdf`
+- `reports = {}` por desenho
+
+### Fluxo `derivadas_relacionadas`
+- xlsx bruto staged quando o export oficial entrega download
+- xlsx derivado normalizado por parser proprio
+- estatisticas
+
+## Ordenacao e preservacao de dados
+- a ordem fonte do export SAM e preservada por padrao
+- o sweep preserva a ordem de expansao do plano
+- falha de um item em lote nao aborta os demais; o manifest final registra `ok`, `partial` ou `error`
+
+## Integracao externa
+- o contrato JSON inclui `schema_version`, `generated_at` e `producer`
+- o `pipeline` e o `sweep-run` retornam caminhos dos artefatos gerados
+- o manifest de lote consolida status por item, filtros aplicados e erros por item
+
+### Gate rapido para integracao com repo `reports`
+Objetivo:
+- validar de forma objetiva o contrato canonico antes de integrar consumidor externo
+
+Passo 1, gerar contrato canonico:
+```powershell
+uv run --python 3.13 python -m scrap_report.cli validate-contract --output-json tmp/contract_for_reports.json
+```
+
+Passo 2, checar chaves minimas obrigatorias no JSON:
+- `contract.package`
+- `contract.exports.playwright_reports`
+- `contract.exports.rest_reports`
+- `contract.preferred_contracts`
+- `contract.minimum_fields_by_flow`
+
+Passo 3, validar import publico minimo:
+```powershell
+uv run --python 3.13 python -c "import scrap_report; print(scrap_report.__version__)"
+```
+
+Contrato de consumo recomendado:
+- decidir schema por fluxo com `contract.preferred_contracts`
+- exigir campos minimos por fluxo com `contract.minimum_fields_by_flow`
+- resolver aliases de artefato com `contract.exports`
+
+## Limites conhecidos
+- `data de emissao` no sweep ainda e parcial por `report_kind`
+- `aprovacao_emissao` segue bloqueado para `emission_date` porque o export atual nao entrega `Emitida Em` confiavel
+- `derivadas_relacionadas` segue bloqueado por instabilidade de export no fluxo oficial
+- `demais_*` existe como preset, mas hoje depende de preencher o grupo `demais`
+- ainda faltam algumas telas adicionais do menu `Relatorios`
+
+## Referencias operacionais
+- `WINDOWS_AGENT_INSTRUCTIONS.md`: guia operacional Windows atual
+- `HANDOFF.md`: snapshot de estado atual do branch
+- `ROUND_STATUS.md`: historico recente por slice
+- `RECOVERY_BACKLOG.md`: pendencias reais fora do slice atual

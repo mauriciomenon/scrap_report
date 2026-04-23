@@ -1,0 +1,2 @@
+[console_scripts]
+scrap-report = scrap_report.cli:main
