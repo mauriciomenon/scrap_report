@@ -200,13 +200,16 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         return bool(results) and all(proc.returncode == code for _, proc in results)
 
     def _set_secret_via_credential_manager(self, service: str, username: str, secret: str) -> None:
+        service_ps = service.replace("'", "''")
+        username_ps = username.replace("'", "''")
+        secret_ps = secret.replace("'", "''")
         script = (
             "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 11 }; "
             "Import-Module CredentialManager -ErrorAction Stop; "
             "if (-not (Get-Command New-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
-            f"try {{ New-StoredCredential -Target '{service}' -UserName '{username}' -Password '{secret}' -Type Generic -Persist Enterprise | Out-Null; exit 0 }} "
+            f"try {{ New-StoredCredential -Target '{service_ps}' -UserName '{username_ps}' -Password '{secret_ps}' -Type Generic -Persist Enterprise | Out-Null; exit 0 }} "
             "catch { "
-            f"try {{ New-StoredCredential -Target '{service}' -UserName '{username}' -Password '{secret}' -Type Generic -Persist LocalMachine | Out-Null; exit 0 }} "
+            f"try {{ New-StoredCredential -Target '{service_ps}' -UserName '{username_ps}' -Password '{secret_ps}' -Type Generic -Persist LocalMachine | Out-Null; exit 0 }} "
             "catch { exit 16 } "
             "}"
         )
@@ -218,14 +221,16 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
         raise SecretProviderError("falha ao gravar credencial no windows vault")
 
     def _get_secret_via_credential_manager(self, service: str, username: str) -> str:
+        service_ps = service.replace("'", "''")
+        username_ps = username.replace("'", "''")
         script = (
             "if (-not (Get-Module -ListAvailable -Name CredentialManager)) { exit 11 }; "
             "Import-Module CredentialManager -ErrorAction Stop; "
             "if (-not (Get-Command Get-StoredCredential -ErrorAction SilentlyContinue)) { exit 14 }; "
-            f"$c = Get-StoredCredential -Target '{service}'; "
+            f"$c = Get-StoredCredential -Target '{service_ps}'; "
             "if ($null -eq $c) { exit 12 }; "
             "if ($c.UserName -ne "
-            f"'{username}'"
+            f"'{username_ps}'"
             ") { exit 13 }; "
             "if ($c.Password -is [System.Security.SecureString]) { "
             "$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($c.Password); "
@@ -402,6 +407,8 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
             return False
 
     def set_secret(self, service: str, username: str, secret: str) -> None:
+        if not secret.strip():
+            raise SecretProviderError("secret vazio nao permitido")
         cm_error: SecretProviderError | None = None
         try:
             self._set_secret_via_credential_manager(service, username, secret)
@@ -466,6 +473,8 @@ class LinuxSecretServiceProvider(SecretProvider):
             raise SecretBackendUnavailableError("backend secret-service indisponivel") from exc
 
     def set_secret(self, service: str, username: str, secret: str) -> None:
+        if not secret.strip():
+            raise SecretProviderError("secret vazio nao permitido")
         proc = self._run(
             ["store", "--label", service, "service", service, "username", username],
             input_secret=secret,

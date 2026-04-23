@@ -8,6 +8,7 @@ from scrap_report.secret_provider import (
     MemorySecretProvider,
     SecretBackendUnavailableError,
     SecretNotFoundError,
+    SecretProviderError,
     WindowsCredentialManagerSecretProvider,
     build_secret_provider,
 )
@@ -139,6 +140,46 @@ def test_windows_provider_set_secret_module_missing(monkeypatch: pytest.MonkeyPa
     assert called["dpapi"] is True
 
 
+def test_windows_provider_set_secret_escapes_single_quotes(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    captured: dict[str, str] = {}
+
+    def fake_run(script: str):
+        captured["script"] = script
+        return [("pwsh", subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""))]
+
+    monkeypatch.setattr(provider, "_run_ps_with_fallback", fake_run)
+    provider._set_secret_via_credential_manager("svc'o", "user'o", "pa'ss")
+    assert "-Target 'svc''o'" in captured["script"]
+    assert "-UserName 'user''o'" in captured["script"]
+    assert "-Password 'pa''ss'" in captured["script"]
+
+
+def test_windows_provider_get_secret_escapes_single_quotes(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    captured: dict[str, str] = {}
+
+    def fake_run(script: str):
+        captured["script"] = script
+        return [
+            (
+                "pwsh",
+                subprocess.CompletedProcess(args=[], returncode=0, stdout="secret123\n", stderr=""),
+            )
+        ]
+
+    monkeypatch.setattr(provider, "_run_ps_with_fallback", fake_run)
+    assert provider._get_secret_via_credential_manager("svc'o", "user'o") == "secret123"
+    assert "-Target 'svc''o'" in captured["script"]
+    assert "$c.UserName -ne 'user''o'" in captured["script"]
+
+
+def test_windows_provider_set_secret_rejects_blank():
+    provider = WindowsCredentialManagerSecretProvider()
+    with pytest.raises(SecretProviderError, match="secret vazio nao permitido"):
+        provider.set_secret("svc", "user1", "   ")
+
+
 def test_windows_provider_get_secret_fallback_to_dpapi(monkeypatch: pytest.MonkeyPatch):
     provider = WindowsCredentialManagerSecretProvider()
 
@@ -155,3 +196,14 @@ def test_windows_provider_without_shell(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(provider, "_test_credential_manager_backend", lambda: False)
     monkeypatch.setattr(provider, "_test_dpapi_backend", lambda: True)
     assert provider.test_backend() is True
+
+
+def test_linux_provider_set_secret_rejects_blank(monkeypatch: pytest.MonkeyPatch):
+    provider = LinuxSecretServiceProvider()
+
+    def fail_run(*_args, **_kwargs):
+        raise AssertionError("nao deve executar secret-tool para secret vazio")
+
+    monkeypatch.setattr(subprocess, "run", fail_run)
+    with pytest.raises(SecretProviderError, match="secret vazio nao permitido"):
+        provider.set_secret("svc", "user1", "   ")
