@@ -29,6 +29,21 @@
   - `pytest` focado `tests/test_contract.py`: `10 passed`
   - `kluster`: bloqueado por DNS externo (`api.kluster.ai`)
 
+## Atualizacao local Windows 2026-04-23, slice REST 42
+- objetivo:
+  - endurecer o bloqueio intencional do `sweep-run --runtime rest` fora de `pendentes`
+- mudanca:
+  - regra de suporte REST no sweep saiu de hardcode e foi centralizada em `REST_SWEEP_SUPPORTED_REPORT_KINDS`
+  - `sweep.py` e teste de rejeicao em `tests/test_sweep.py` agora leem a mesma fonte de verdade
+- comportamento:
+  - permanece igual ao baseline: somente `report_kind=pendentes` no runtime REST do sweep
+- evidencias do slice:
+  - `py_compile`: ok
+  - `ruff`: ok
+  - `ty` focado (`config.py`, `sweep.py`): ok
+  - `pytest` focado de sweep: bloqueado por falta de `pandas` no ambiente local
+  - `kluster`: executou e apontou apenas itens preexistentes fora do escopo do slice
+
 ## Current truth
 O projeto agora tem duas frentes operacionais distintas:
 1. fluxo oficial com Playwright

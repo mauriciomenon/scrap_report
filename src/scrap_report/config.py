@@ -31,6 +31,7 @@ REPORT_KINDS = (
     "derivadas_relacionadas",
     "reprogramacoes",
 )
+REST_SWEEP_SUPPORTED_REPORT_KINDS = ("pendentes",)
 VALIDATED_FILTER_CAPABILITIES = {
     "pendentes": frozenset(
         {"setor_emissor", "setor_executor", "emission_year_week", "emission_date"}

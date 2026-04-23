@@ -64,6 +64,37 @@ Risco residual:
 - gate completo de `ty` e `pytest` integrado permanece dependente de ambiente com deps sincronizadas
 - Kluster permanece indisponivel enquanto DNS externo para `api.kluster.ai` estiver quebrado
 
+## Slice 42 - endurecer bloqueio REST fora de `pendentes`
+Escopo:
+- manter comportamento atual sem ampliar suporte REST para novos `report_kind`
+- remover hardcode solto e centralizar a regra em constante de configuracao
+- evitar regressao por divergencia de mensagem/critico em testes
+
+Arquivos alterados:
+- `src/scrap_report/config.py`
+- `src/scrap_report/sweep.py`
+- `tests/test_sweep.py`
+- `ROUND_STATUS.md`
+- `HANDOFF.md`
+
+Mudanca aplicada:
+- nova constante: `REST_SWEEP_SUPPORTED_REPORT_KINDS=("pendentes",)`
+- `SweepRunner._run_rest_item` agora usa a constante para validar suporte REST
+- mensagem de erro no item do sweep passa a refletir a constante central
+- teste de rejeicao para `executadas` atualizado para validar mensagem baseada na constante
+
+Validacao:
+- `kluster review file src/scrap_report/config.py`: 5 issues preexistentes, fora de escopo deste slice
+- `kluster review file src/scrap_report/config.py src/scrap_report/sweep.py tests/test_sweep.py`: 4 issues preexistentes, fora de escopo deste slice
+- `uv run --python 3.13 --no-sync python -c "import py_compile..."`: ok
+- `uv run --python 3.13 --no-sync ruff check src/scrap_report/config.py src/scrap_report/sweep.py tests/test_sweep.py`: ok
+- `uv run --python 3.13 --no-sync ty check src/scrap_report/config.py src/scrap_report/sweep.py`: ok
+- `uv run --python 3.13 --no-sync pytest -q tests/test_sweep.py -k "rest_mode_rejects_unsupported_report_kind or rest_mode_exports_records_for_pendentes"`: bloqueado por ambiente local sem `pandas`
+
+Risco residual:
+- baixo para comportamento funcional do slice (regra continua identica)
+- medio para gate local de testes enquanto `pandas` nao estiver disponivel no ambiente desta maquina
+
 ## Slice 36 - zerar baseline global do `ty`
 Escopo:
 - corrigir diagnosticos reais do `ty` em provider Windows e testes

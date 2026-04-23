@@ -8,6 +8,7 @@ from typing import Iterable, Sequence
 
 from .config import (
     EMISSION_DATE_SUPPORTED_REPORT_KINDS,
+    REST_SWEEP_SUPPORTED_REPORT_KINDS,
     ScrapeConfig,
     SETOR_PRIORITY_GROUPS,
     build_recent_emission_year_week_window,
@@ -522,7 +523,7 @@ class SweepRunner:
         report_kind: str,
         runtime: SweepRuntimeConfig,
     ) -> SweepItemResult:
-        if report_kind != "pendentes":
+        if report_kind not in REST_SWEEP_SUPPORTED_REPORT_KINDS:
             return SweepItemResult(
                 index=item.index,
                 runtime_mode=runtime.runtime_mode,
@@ -536,7 +537,9 @@ class SweepRunner:
                 emission_date_end=spec.emission_date_end,
                 status="error",
                 error=(
-                    "runtime rest no sweep suporta apenas report_kind=pendentes; "
+                    "runtime rest no sweep suporta apenas report_kind="
+                    + ",".join(REST_SWEEP_SUPPORTED_REPORT_KINDS)
+                    + "; "
                     "SAM_SMA_API atual expone consulta geral de pendentes e detalhe por SSA"
                 ),
             )
