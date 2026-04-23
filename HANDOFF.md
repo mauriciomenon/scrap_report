@@ -76,6 +76,36 @@
   - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`
   - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=3` (fixtures de teste)
 
+## Atualizacao local Windows 2026-04-23, slices 46-47
+- objetivo:
+  - fechar o falso negativo estrutural em `scan-secrets` (diretorios e multiline simples)
+  - consolidar padroes sensiveis compartilhados entre scanner e redacao
+  - endurecer redacao sem alterar contrato externo da CLI
+- mudanca aplicada:
+  - novo modulo `src/scrap_report/sensitive_patterns.py` para centralizar keywords/padroes
+  - `src/scrap_report/secret_scan.py` com:
+    - normalizacao de roots e dedupe de candidatos
+    - leitura em stream
+    - janela multiline curta (2 linhas) para casos de atribuicao quebrada
+  - `src/scrap_report/redaction.py` com:
+    - mascaramento de bearer, atribuicao sensivel e keyword standalone
+    - validacao iterativa de payload com protecao contra ciclo
+  - testes atualizados em `tests/test_secret_scan.py` e `tests/test_redaction.py`
+- evidencias reais:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` (focado): `15 passed`
+  - `uv run --python 3.13 pytest -q`: `214 passed`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=4` (fixtures de teste)
+- kluster:
+  - ciclo iterativo com eliminacao de findings `HIGH`
+  - ultimo estado ainda com findings `MEDIUM/LOW` de qualidade/performance ampla, sem bloqueador funcional confirmado
+- risco residual:
+  - scanner multiline limitado a janela de 2 linhas (tradeoff explicito)
+  - backlog de melhoria estrutural de performance/arquitetura permanece nao bloqueante
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:

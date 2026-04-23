@@ -15,6 +15,47 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 47 - hardening final do scanner e redacao de secrets
+Escopo:
+- fechar o falso negativo estrutural de `scan-secrets` para diretorios e multiline simples
+- endurecer `redaction.py` sem refatoracao ampla
+- validar novamente com gates tecnicos completos e kluster
+
+Arquivos alterados:
+- `src/scrap_report/sensitive_patterns.py` (novo)
+- `src/scrap_report/secret_scan.py`
+- `src/scrap_report/redaction.py`
+- `tests/test_secret_scan.py`
+- `tests/test_redaction.py`
+
+Mudanca aplicada:
+- scanner com normalizacao de roots, dedupe de candidatos e detecao multiline em janela curta
+- leitura de arquivo em stream no scanner, evitando carga integral em memoria
+- padroes sensiveis compartilhados em modulo unico
+- redacao com cobertura para bearer, atribuicao sensivel e keyword standalone
+- validacao de campos sensiveis com travessia iterativa e protecao de ciclo
+
+Validacao:
+- kluster (iterativo no slice):
+  - rodada inicial: findings `HIGH/MEDIUM/LOW`
+  - rodadas intermediarias: `HIGH` eliminado
+  - rodada final: findings `MEDIUM/LOW` de qualidade/performance ampla, sem bloqueador funcional confirmado
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `15 passed`
+  - `uv run --python 3.13 pytest -q`: `214 passed`
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=4` (fixtures de teste intencionais)
+
+Risco residual:
+- baixo para runtime principal
+- baixo para scanner no modo default
+- medio nao bloqueante para melhorias amplas de arquitetura/performance sugeridas pelo kluster
+- suporte multiline permanece deliberadamente limitado a janela curta de 2 linhas
+
 ## Slice 45 - varredura de furos grandes e hardening de secrets scan
 Escopo:
 - executar varredura geral de risco alto no codigo e no fluxo operacional
@@ -51,6 +92,46 @@ Validacao:
 Risco residual:
 - baixo para runtime principal
 - baixo/medio para uso manual do scanner com `tests` incluido (fixtures intencionais continuam sinalizados)
+
+## Slice 46 - fechamento do falso negativo estrutural + redacao robusta
+Escopo:
+- corrigir falso negativo estrutural do `scan-secrets` para diretorios
+- endurecer redacao para evitar vazamento acidental em atribuicoes sensiveis
+- revalidar com kluster e gates locais completos
+
+Arquivos alterados:
+- `src/scrap_report/sensitive_patterns.py` (novo)
+- `src/scrap_report/secret_scan.py`
+- `src/scrap_report/redaction.py`
+- `tests/test_secret_scan.py`
+- `tests/test_redaction.py`
+
+Mudanca aplicada:
+- scanner agora varre diretorio de forma recursiva com leitura em stream, sem depender de leitura integral de arquivo
+- padroes sensiveis compartilhados em modulo unico para reduzir drift entre scanner e redacao
+- redacao cobre:
+  - `Bearer <token>` -> `Bearer ***`
+  - `key=value` sensivel -> `key=***`
+  - keyword sensivel standalone -> `keyword ***`
+
+Validacao:
+- kluster (iterativo no slice):
+  - rodada inicial: encontrou issues `HIGH/MEDIUM/LOW`
+  - rodadas intermediarias: eliminados `HIGH` e `MEDIUM`
+  - rodada final: somente `LOW` nao bloqueantes
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check ...`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q`: `210 passed`
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=4` (fixtures de teste intencionais)
+
+Risco residual:
+- baixo para runtime atual
+- baixo para scanner default
+- medio nao bloqueante em qualidade/performance fina apontada por kluster (somente `LOW`)
 
 ## Slice 44 - fechamento do smoke cross-platform real
 Escopo:
