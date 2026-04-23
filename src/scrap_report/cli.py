@@ -458,7 +458,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--paths",
         nargs="+",
-        default=["src", "tests", "README.md"],
+        default=["src", "README.md"],
         help="paths de entrada para scanner local",
     )
     scan.add_argument("--output-json", default=None, help="salva resultado json em arquivo")

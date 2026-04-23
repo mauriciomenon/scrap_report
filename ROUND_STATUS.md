@@ -15,6 +15,43 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 45 - varredura de furos grandes e hardening de secrets scan
+Escopo:
+- executar varredura geral de risco alto no codigo e no fluxo operacional
+- corrigir falso negativo critico do comando `scan-secrets` em diretorios
+- endurecer redacao para evitar vazamento de valor sensivel em logs
+
+Arquivos alterados:
+- `src/scrap_report/secret_scan.py`
+- `src/scrap_report/redaction.py`
+- `src/scrap_report/cli.py`
+- `scripts/smoke_windows11.ps1`
+- `scripts/smoke_debian13.sh`
+- `tests/test_secret_scan.py`
+- `tests/test_redaction.py`
+- `tests/test_cli.py`
+
+Mudanca aplicada:
+- `scan_paths` agora varre diretorios de forma recursiva e evita reprocessar arquivo duplicado
+- padroes do scanner endurecidos para reduzir ruido operacional de fixture curta
+- `scan-secrets` default ajustado para `src` e `README.md` (evita erro permanente por fixtures de `tests`)
+- scripts de smoke W11/Debian13 alinhados para o mesmo escopo de scanner
+- `redact_text` agora mascara atribuicoes sensiveis e bearer token antes da redacao por palavra-chave
+
+Validacao:
+- gates globais:
+  - `uv run --python 3.13 python -m compileall -q src tests scripts`: ok
+  - `uv run --python 3.13 ruff check src tests scripts`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q`: `208 passed`
+- evidencias focadas:
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok, findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error, findings_count=3` (fixtures de teste intencionais)
+
+Risco residual:
+- baixo para runtime principal
+- baixo/medio para uso manual do scanner com `tests` incluido (fixtures intencionais continuam sinalizados)
+
 ## Slice 44 - fechamento do smoke cross-platform real
 Escopo:
 - fechar gate de evidencia real para Windows11 e Debian13

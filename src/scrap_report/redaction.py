@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 SENSITIVE_KEYWORDS = (
@@ -14,6 +15,11 @@ SENSITIVE_KEYWORDS = (
     "bearer",
 )
 
+SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b(password|passwd|secret|token|api[_-]?key|authorization)\b(\s*[:=]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+)
+BEARER_TOKEN_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._-]+")
+
 ALLOWED_SAFE_KEYS = {
     "secret_set",
     "secret_found",
@@ -22,7 +28,8 @@ ALLOWED_SAFE_KEYS = {
 
 
 def redact_text(value: str) -> str:
-    text = value
+    text = BEARER_TOKEN_PATTERN.sub("Bearer ***", value)
+    text = SENSITIVE_ASSIGNMENT_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)}***", text)
     for keyword in SENSITIVE_KEYWORDS:
         text = text.replace(keyword, "***")
         text = text.replace(keyword.upper(), "***")

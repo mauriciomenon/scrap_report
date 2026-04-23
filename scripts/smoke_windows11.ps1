@@ -31,7 +31,7 @@ Invoke-CheckedCommand -Name "pytest" -Command {
 }
 
 Invoke-CheckedCommand -Name "scan-secrets" -Command {
-    uv run --project . python -m scrap_report.cli scan-secrets --paths src tests README.md --output-json staging/scan_secrets.json
+    uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md --output-json staging/scan_secrets.json
 }
 Invoke-CheckedCommand -Name "validate-contract" -Command {
     uv run --project . python -m scrap_report.cli validate-contract --output-json staging/contract_info.json

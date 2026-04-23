@@ -61,6 +61,21 @@
   - primeira rodada com findings (high/medium/low), corrigidos no proprio slice
   - rodada final: clean
 
+## Atualizacao local Windows 2026-04-23, slice 45
+- objetivo:
+  - varredura geral atras de furos grandes
+  - hardening do scanner local de secrets e da redacao de logs
+- mudanca aplicada:
+  - `secret_scan.py` agora varre diretorios recursivamente e evita duplicidade
+  - padroes de detecao ajustados para reduzir ruido de fixture curta
+  - `cli.py` default de `scan-secrets` ajustado para `src` + `README.md`
+  - scripts `smoke_windows11.ps1` e `smoke_debian13.sh` alinhados ao novo escopo
+  - `redaction.py` agora mascara atribuicoes sensiveis e bearer token
+- evidencia:
+  - `uv run --python 3.13 pytest -q`: `208 passed`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=3` (fixtures de teste)
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:

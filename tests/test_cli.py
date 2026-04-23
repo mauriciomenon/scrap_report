@@ -199,7 +199,7 @@ def test_secret_setup_interactive_no_plaintext_leak(
 
 def test_scan_secrets_command_finds_issue(tmp_path: Path):
     bad = tmp_path / "bad.py"
-    bad.write_text("api_key='123'\n", encoding="utf-8")
+    bad.write_text("api_key='1234567890ab'\n", encoding="utf-8")
     code = main(["scan-secrets", "--paths", str(bad)])
     assert code == 1
 

@@ -5,7 +5,7 @@ from scrap_report.secret_scan import scan_paths
 
 def test_scan_paths_finds_inline_secret(tmp_path: Path):
     file = tmp_path / "sample.py"
-    file.write_text("password='abc123'\n", encoding="utf-8")
+    file.write_text("password='abc12345'\n", encoding="utf-8")
     findings = scan_paths([file])
     assert len(findings) == 1
     assert findings[0].rule == "inline_password_key"
@@ -16,4 +16,15 @@ def test_scan_paths_no_findings_for_safe_file(tmp_path: Path):
     file.write_text("value = 'ok'\n", encoding="utf-8")
     findings = scan_paths([file])
     assert findings == []
+
+
+def test_scan_paths_scans_directories_recursively(tmp_path: Path):
+    nested = tmp_path / "nested" / "deep"
+    nested.mkdir(parents=True)
+    file = nested / "leak.py"
+    file.write_text("api_key='abc123456789'\n", encoding="utf-8")
+    findings = scan_paths([tmp_path])
+    assert len(findings) == 1
+    assert findings[0].rule == "api_key_inline"
+    assert findings[0].path.endswith("leak.py")
 
