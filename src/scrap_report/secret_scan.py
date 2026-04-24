@@ -77,29 +77,24 @@ def _iter_match_rules(scan_text: str) -> Iterator[tuple[str, int]]:
 
 
 def _iter_line_findings(lines: Iterator[str]) -> Iterator[tuple[int, str, str]]:
-    seen_findings: set[tuple[int, str, str]] = set()
     pending_windows: list[tuple[int, str, str, int]] = []
+    recent_excerpts: dict[int, str] = {}
     for line_number, line in enumerate(lines, start=1):
         current_excerpt = line.strip()[:200]
+        recent_excerpts[line_number] = current_excerpt
+        stale_before = line_number - (MAX_MULTILINE_FOLLOWUP_LINES + 3)
+        for stale_line in [item for item in recent_excerpts if item < stale_before]:
+            del recent_excerpts[stale_line]
         for rule, _ in _iter_match_rules(line):
-            finding_key = (line_number, rule, current_excerpt)
-            if finding_key in seen_findings:
-                continue
-            seen_findings.add(finding_key)
             yield line_number, rule, current_excerpt
 
         next_pending_windows: list[tuple[int, str, str, int]] = []
         for anchor_line, anchor_excerpt, pending_text, remaining_lines in pending_windows:
             multiline_text = f"{pending_text}{line}"
-            boundary = len(pending_text)
             for rule, match_start in _iter_match_rules(multiline_text):
-                if match_start >= boundary:
-                    continue
-                finding_key = (anchor_line, rule, anchor_excerpt)
-                if finding_key in seen_findings:
-                    continue
-                seen_findings.add(finding_key)
-                yield anchor_line, rule, anchor_excerpt
+                match_line = anchor_line + multiline_text[:match_start].count("\n")
+                match_excerpt = recent_excerpts.get(match_line, current_excerpt)
+                yield match_line, rule, match_excerpt
             if remaining_lines > 1:
                 next_pending_windows.append(
                     (anchor_line, anchor_excerpt, multiline_text, remaining_lines - 1)

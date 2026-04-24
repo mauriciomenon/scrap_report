@@ -15,6 +15,39 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 50 - correcao do HIGH do kluster no multiline scanner
+Escopo:
+- corrigir issue HIGH apontada pelo kluster em `_iter_line_findings`
+- manter patch minimo sem alterar contrato de saida
+
+Arquivos alterados:
+- `src/scrap_report/secret_scan.py`
+
+Mudanca aplicada:
+- removido dedupe local sem limite em `_iter_line_findings`
+- dedupe efetivo mantido em `_record_finding` no nivel de `_scan_file`
+- multiline agora calcula `match_line` e `match_excerpt` sem descartar match valido por `boundary`
+
+Validacao:
+- kluster:
+  - rodada 1 apos slice 49: `Review 69eb799f87f9165e6e4b9cc8` (1 HIGH, 1 MEDIUM, 2 LOW)
+  - rodada 2 apos patch: `Review 69eb7a6bab084ce82073baa3` (somente 1 LOW)
+- gates tecnicos:
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures intencionais)
+
+Risco residual:
+- baixo no escopo do scanner tocado
+- baixo/medio para melhoria estrutural (LOW do kluster)
+- medio no gate global ate normalizar ambiente Playwright/asyncio do host
+
 ## Slice 49 - reduzir falso negativo multiline sem refatoracao ampla
 Escopo:
 - ampliar captura multiline do scanner de 2 para ate 4 linhas totais por janela

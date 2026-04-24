@@ -157,6 +157,31 @@
   - baixo para runtime tocado
   - medio operacional por indisponibilidade de kluster via DNS
 
+## Atualizacao local Windows 2026-04-24, slice 50
+- objetivo:
+  - fechar issue HIGH do kluster no caminho multiline de `secret_scan.py`
+- mudanca aplicada:
+  - removido `seen_findings` local de `_iter_line_findings` (crescimento sem limite)
+  - dedupe mantido no nivel de `_scan_file` com `_record_finding`
+  - ajuste de `match_excerpt` para linha real do match multiline
+- validacao:
+  - kluster antes do patch:
+    - `Review 69eb799f87f9165e6e4b9cc8`
+    - 1 HIGH + 1 MEDIUM + 2 LOW
+  - kluster apos o patch:
+    - `Review 69eb7a6bab084ce82073baa3`
+    - somente 1 LOW
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- risco residual:
+  - sem HIGH/MEDIUM no kluster para o escopo alterado
+  - permanece LOW de qualidade estrutural no gerador multiline
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:
