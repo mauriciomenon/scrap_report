@@ -547,6 +547,16 @@ Provisionamento recomendado:
 uv run --project . python -m scrap_report.cli secret setup --username "menon" --secret-service scrap_report.sam
 ```
 
+Smoke com usuario valido e opcao de salvar secret:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1 -PromptUsername -SetupSecret
+powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1 -SmokeUsername "menon" -SetupSecret
+```
+```bash
+bash scripts/smoke_debian13.sh --prompt-username --setup-secret
+bash scripts/smoke_debian13.sh --smoke-username menon --setup-secret
+```
+
 ## Artefatos gerados
 ### Fluxo unitario xlsx
 - bruto staged: `staging/*.xlsx`
@@ -618,6 +628,19 @@ Exemplo real validado em `2026-04-23`:
 - exportacoes:
   - [sam_api_iee3_pendentes_demo_20260423_130409.csv](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.csv)
   - [sam_api_iee3_pendentes_demo_20260423_130409.xlsx](C:\Users\mauri\git\scrap_report\tmp\sam_api_iee3_pendentes_demo_20260423_130409.xlsx)
+
+Exemplo real adicional validado em `2026-04-24`:
+- `sam-api-flow` (`limit=50`):
+  - [sam_api_flow_iee3_live_20260424_152745.json](C:\Users\mauri\git\scrap_report\tmp\sam_api_flow_iee3_live_20260424_152745.json)
+  - `status=ok`
+  - `count=50`
+  - primeiros SSAs: `202501442, 202501671, 202501915, 202501916, 202502257`
+- `sweep-run --runtime rest` para `pendentes` em `IEE3`:
+  - [sweep_rest_iee3_pendentes_live_20260424_152745.json](C:\Users\mauri\git\scrap_report\tmp\sweep_rest_iee3_pendentes_live_20260424_152745.json)
+  - `status=ok`
+  - `item_count=1`
+  - `success_count=1`
+  - `record_count=119` no item unico
 
 ### Status cross-platform smoke (`2026-04-23`)
 - Windows11:

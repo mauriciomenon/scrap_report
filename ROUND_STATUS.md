@@ -1534,3 +1534,67 @@ Resultado:
    - resolver confianca de certificado para a REST
    - reduzir custo linear do detalhe em lote
 2. ou voltar para as pendencias do fluxo Playwright
+
+## Slice 52 - smoke com username valido e opcao de salvar secret
+Timestamp inicio: 2026-04-24T15:38:00-03:00
+
+Objetivo:
+- habilitar caminho operacional para digitar usuario valido e salvar secret nos scripts de smoke
+- manter caminho default atual sem quebrar automacao existente
+- atualizar docs com comandos e evidencia REST real mais recente
+
+Arquivos alterados:
+- `scripts/smoke_windows11.ps1`
+- `scripts/smoke_debian13.sh`
+- `CROSS_PLATFORM_SMOKE.md`
+- `README.md`
+
+Mudancas aplicadas:
+- `smoke_windows11.ps1`:
+  - novos parametros: `-SmokeUsername`, `-PromptUsername`, `-SetupSecret`, `-SecretService`
+  - leitura opcional de `SMOKE_SETUP_SECRET` com variavel booleana interna (`ShouldSetupSecret`)
+  - validacao de tokens para `SmokeUsername` e `SecretService`
+  - `secret setup` opcional e `secret get` condicional quando setup for solicitado
+  - evidencia JSON agora inclui `inputs.smoke_username`, `inputs.secret_service`, `inputs.setup_secret`
+  - `Read-RequiredJson` endurecido para rejeitar raiz JSON em array
+- `smoke_debian13.sh`:
+  - novas flags: `--smoke-username`, `--prompt-username`, `--setup-secret`, `--secret-service`
+  - modo seguro opcional: `secret setup/get` + `ingest-latest --secure-required`
+  - modo default preservado: fallback transicional com `--allow-transitional-plaintext`
+  - `py_compile` trocado por `compileall -q src tests`
+  - evidencia JSON passou a ler `inputs` via env vars para evitar interpolacao shell no bloco Python
+- docs:
+  - `CROSS_PLATFORM_SMOKE.md` atualizado com comandos dos dois modos (transicional e seguro)
+  - `README.md` atualizado com comandos de smoke para usuario valido e demonstrativo REST de 2026-04-24
+
+Evidencia REST real do dia:
+- `sam-api-cert`: `status=ok`, cadeia exportada para `tmp/itaipu_root_ca_v2.pem`
+- `sam-api-flow` IEE3:
+  - comando: `uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 2 --limit 50 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_flow_iee3_live_20260424_152745.json --output-csv tmp/sam_api_flow_iee3_live_20260424_152745.csv --output-xlsx tmp/sam_api_flow_iee3_live_20260424_152745.xlsx`
+  - `status=ok`, `count=50`
+- `sweep-run` REST IEE3 pendentes:
+  - comando: `uv run --python 3.13 python -m scrap_report.cli sweep-run --runtime rest --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_iee3_pendentes_live_20260424_152745.json`
+  - `status=ok`, `item_count=1`, `success_count=1`, `record_count=119`
+
+Kluster (obrigatorio apos edicao):
+- `Review: 69ebc3064ea1da958e1ac9a2`
+  - 5 achados
+  - corrigidos no slice: inconsistencia de gate de secret e robustez de compilacao no Debian
+- `Review: 69ebc33e50b51ca1da54a24b`
+  - 4 achados
+  - corrigidos no slice: bug de atribuicao em parametro switch no PowerShell e endurecimento de parse JSON
+- `Review: 69ebc3624ea1da958e1ace56`
+  - 6 achados
+  - corrigidos no slice: sanitizacao de tokens PowerShell, robustez de env var setup e remocao de interpolacao shell em bloco Python
+- `Review: 69ebc3934ea1da958e1ad0c9`
+  - 5 achados restantes
+  - nao bloqueantes neste slice:
+    - recomendacoes de refatoracao ampla/monolitica dos scripts
+    - observacao sobre fallback transicional no Debian (ja documentado como modo default legado)
+    - observacao de precheck de socket (sem impacto funcional imediato no fluxo atual)
+
+Risco residual:
+- baixo: fallback transicional Debian continua disponivel por compatibilidade operacional
+- medio: debt estrutural de duplicacao entre scripts (fora do escopo deste slice)
+
+Timestamp fim: pendente

@@ -63,16 +63,27 @@ LATEST_XLSX="$(ls -1t staging/*.xlsx | head -1)"
 uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kind pendentes --staging-dir staging --report-only --source-excel "$LATEST_XLSX" --output-json staging/pipeline_report_only.json
 ```
 
-8. smoke `ingest-latest`
+8. smoke `ingest-latest` (modo transicional default)
 ```bash
 cp "$LATEST_XLSX" downloads/Report_latest.xlsx
 SMOKE_TRANSITIONAL_PASSWORD="$(date +%s%N)"
 SAM_PASSWORD="${SMOKE_TRANSITIONAL_PASSWORD}" uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --allow-transitional-plaintext --output-json staging/ingest_result.json
 ```
 
+8b. smoke `ingest-latest` (modo seguro com usuario valido salvo no cofre)
+```bash
+SMOKE_USERNAME="menon"
+uv run --project . python -m scrap_report.cli secret setup --username "${SMOKE_USERNAME}" --secret-service scrap_report.sam
+uv run --project . python -m scrap_report.cli secret get --username "${SMOKE_USERNAME}" --secret-service scrap_report.sam
+cp "$LATEST_XLSX" downloads/Report_latest.xlsx
+uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "${SMOKE_USERNAME}" --secret-service scrap_report.sam --secure-required --output-json staging/ingest_result.json
+```
+
 9. execucao automatizada opcional
 ```bash
 bash scripts/smoke_debian13.sh
+bash scripts/smoke_debian13.sh --smoke-username menon --setup-secret
+bash scripts/smoke_debian13.sh --prompt-username --setup-secret
 ```
 10. evidencia consolidada gerada automaticamente
 ```bash
@@ -128,7 +139,7 @@ $LATEST_XLSX = (Get-ChildItem staging -Filter *.xlsx | Sort-Object LastWriteTime
 uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kind pendentes --staging-dir staging --report-only --source-excel "$LATEST_XLSX" --output-json staging/pipeline_report_only.json
 ```
 
-8. smoke `ingest-latest`
+8. smoke `ingest-latest` (modo transicional default)
 ```powershell
 Copy-Item -Path "$LATEST_XLSX" -Destination downloads/Report_latest.xlsx -Force
 $env:SAM_PASSWORD = [guid]::NewGuid().ToString("N")
@@ -136,9 +147,20 @@ uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --repor
 Remove-Item Env:SAM_PASSWORD
 ```
 
+8b. smoke `ingest-latest` (modo seguro com usuario valido salvo no cofre)
+```powershell
+$SMOKE_USERNAME = "menon"
+uv run --project . python -m scrap_report.cli secret setup --username "$SMOKE_USERNAME" --secret-service scrap_report.sam
+uv run --project . python -m scrap_report.cli secret get --username "$SMOKE_USERNAME" --secret-service scrap_report.sam
+Copy-Item -Path "$LATEST_XLSX" -Destination downloads/Report_latest.xlsx -Force
+uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SMOKE_USERNAME" --secret-service scrap_report.sam --secure-required --output-json staging/ingest_result.json
+```
+
 9. execucao automatizada opcional
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1
+powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1 -SmokeUsername menon -SetupSecret
+powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1 -PromptUsername -SetupSecret
 ```
 10. evidencia consolidada gerada automaticamente
 ```powershell

@@ -1,3 +1,10 @@
+param(
+    [string]$SmokeUsername = $env:SMOKE_USERNAME,
+    [switch]$PromptUsername,
+    [switch]$SetupSecret,
+    [string]$SecretService = "scrap_report.sam"
+)
+
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
@@ -64,7 +71,11 @@ function Read-RequiredJson {
     if (-not (Test-Path -LiteralPath $Path)) {
         throw "[smoke] step failed: $Name (missing file: $Path)"
     }
-    return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $parsedJson = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ($parsedJson -is [System.Array]) {
+        throw "[smoke] step failed: $Name (expected JSON object, got array root)"
+    }
+    return $parsedJson
 }
 
 New-Item -ItemType Directory -Path staging -Force | Out-Null
@@ -73,9 +84,36 @@ New-Item -ItemType Directory -Path downloads -Force | Out-Null
 Invoke-NetworkPrecheck
 Invoke-CheckedCommand -Name "uv sync" -Command { uv sync }
 
-$SmokeUsername = $env:SMOKE_USERNAME
+$ShouldSetupSecret = $SetupSecret.IsPresent
+$setupSecretRaw = $env:SMOKE_SETUP_SECRET
+if (-not $ShouldSetupSecret -and -not [string]::IsNullOrWhiteSpace($setupSecretRaw)) {
+    $setupSecretValue = $setupSecretRaw.Trim()
+    if ($setupSecretValue -in @("1", "true", "TRUE", "yes", "YES", "y", "Y", "on", "ON")) {
+        $ShouldSetupSecret = $true
+    }
+}
+
+if ($PromptUsername.IsPresent -or [string]::IsNullOrWhiteSpace($SmokeUsername)) {
+    $inputUsername = Read-Host "smoke username"
+    if (-not [string]::IsNullOrWhiteSpace($inputUsername)) {
+        $SmokeUsername = $inputUsername.Trim()
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($SmokeUsername)) {
     $SmokeUsername = "smoke_user"
+}
+if ($SmokeUsername -notmatch "^[A-Za-z0-9._-]+$") {
+    throw "[smoke] invalid smoke username token: use only letters, numbers, dot, underscore, dash"
+}
+if ($SecretService -notmatch "^[A-Za-z0-9._:-]+$") {
+    throw "[smoke] invalid secret service token: use only letters, numbers, dot, underscore, dash, colon"
+}
+
+if ($ShouldSetupSecret) {
+    Invoke-CheckedCommand -Name "secret setup" -Command {
+        uv run --project . python -m scrap_report.cli secret setup --username "$SmokeUsername" --secret-service "$SecretService"
+    }
 }
 
 Invoke-CheckedCommand -Name "py_compile" -Command {
@@ -95,8 +133,13 @@ Invoke-CheckedCommand -Name "validate-contract" -Command {
 Invoke-CheckedCommand -Name "secret test" -Command {
     uv run --project . python -m scrap_report.cli secret test
 }
-Invoke-CheckedCommand -Name "secret get" -Command {
-    uv run --project . python -m scrap_report.cli secret get --username "$SmokeUsername"
+if ($ShouldSetupSecret) {
+    Invoke-CheckedCommand -Name "secret get" -Command {
+        uv run --project . python -m scrap_report.cli secret get --username "$SmokeUsername" --secret-service "$SecretService"
+    }
+}
+else {
+    Write-Host "[smoke] secret setup nao solicitado; validacao final de credencial fica no ingest-latest secure-required"
 }
 
 Invoke-CheckedCommand -Name "make sample xlsx" -Command {
@@ -117,7 +160,7 @@ Invoke-CheckedCommand -Name "pipeline report-only" -Command {
 
 Copy-Item -Path "$LATEST_XLSX" -Destination downloads/Report_latest.xlsx -Force
 Invoke-CheckedCommand -Name "ingest-latest" -Command {
-    uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SmokeUsername" --secure-required --output-json staging/ingest_result.json
+    uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SmokeUsername" --secret-service "$SecretService" --secure-required --output-json staging/ingest_result.json
 }
 
 $scan = Read-RequiredJson -Path "staging/scan_secrets.json" -Name "scan-secrets output"
@@ -130,6 +173,11 @@ $evidence = [ordered]@{
   platform_label = "windows11_real"
   generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
   host = $env:COMPUTERNAME
+  inputs = [ordered]@{
+    smoke_username = $SmokeUsername
+    secret_service = $SecretService
+    setup_secret = $ShouldSetupSecret
+  }
   checks = [ordered]@{
     py_compile = "ok"
     ruff = "ok"

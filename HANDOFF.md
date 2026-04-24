@@ -473,3 +473,42 @@ O projeto agora tem duas frentes operacionais distintas:
    - ampliacao do `sweep-run` REST para outros `report_kind`
    - operacionalizar rotacao/manutencao da CA exportada
    - ou voltar para as pendencias do fluxo Playwright
+
+## Atualizacao local Windows 2026-04-24, slice 52
+- objetivo:
+  - habilitar fluxo de smoke com entrada de usuario valido e opcao de salvar secret
+  - manter comportamento default atual sem quebra
+  - atualizar docs com comandos operacionais e evidencia REST do dia
+- arquivos alterados:
+  - `scripts/smoke_windows11.ps1`
+  - `scripts/smoke_debian13.sh`
+  - `CROSS_PLATFORM_SMOKE.md`
+  - `README.md`
+  - `ROUND_STATUS.md`
+  - `HANDOFF.md`
+- mudancas:
+  - Windows smoke agora aceita:
+    - `-SmokeUsername`
+    - `-PromptUsername`
+    - `-SetupSecret`
+    - `-SecretService`
+  - Debian smoke agora aceita:
+    - `--smoke-username`
+    - `--prompt-username`
+    - `--setup-secret`
+    - `--secret-service`
+  - ambos preservam modo default
+  - ambos suportam modo seguro com secret store via setup explicito
+  - evidencia dos smokes agora inclui bloco `inputs`
+  - Debian trocou `py_compile` por `compileall -q src tests`
+- evidencias REST reais atualizadas:
+  - `tmp/sam_api_flow_iee3_live_20260424_152745.json` (`status=ok`, `count=50`)
+  - `tmp/sweep_rest_iee3_pendentes_live_20260424_152745.json` (`status=ok`, `record_count=119`)
+- kluster (apos edicao):
+  - revisoes executadas:
+    - `69ebc3064ea1da958e1ac9a2`
+    - `69ebc33e50b51ca1da54a24b`
+    - `69ebc3624ea1da958e1ace56`
+    - `69ebc3934ea1da958e1ad0c9`
+  - itens de alto/medio com patch minimo foram tratados no proprio slice
+  - restaram apenas itens de refatoracao ampla e aviso do fallback transicional Debian
