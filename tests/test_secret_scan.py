@@ -47,6 +47,14 @@ def test_scan_paths_detects_multiline_assignment(tmp_path: Path):
     assert findings[0].rule == "api_key_inline"
 
 
+def test_scan_paths_detects_multiline_assignment_across_three_lines(tmp_path: Path):
+    file = tmp_path / "multi_three_lines.yaml"
+    file.write_text("api_key:\n  'abcde\n  1234567890'\n", encoding="utf-8")
+    findings = scan_paths([file])
+    assert len(findings) == 1
+    assert findings[0].rule == "api_key_inline"
+
+
 def test_scan_paths_is_deterministic_by_path_order(tmp_path: Path):
     dir_b = tmp_path / "b_dir"
     dir_a = tmp_path / "a_dir"

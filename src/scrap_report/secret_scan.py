@@ -35,6 +35,7 @@ MULTILINE_TRIGGER_PATTERN = re.compile(
     rf"(?:SAM_PASSWORD|{PASSWORD_KEYWORD_PATTERN}|{API_KEY_KEYWORD_PATTERN})\s*[:=]\s*$",
     re.IGNORECASE,
 )
+MAX_MULTILINE_FOLLOWUP_LINES = 3
 
 
 @dataclass(slots=True)
@@ -77,8 +78,7 @@ def _iter_match_rules(scan_text: str) -> Iterator[tuple[str, int]]:
 
 def _iter_line_findings(lines: Iterator[str]) -> Iterator[tuple[int, str, str]]:
     seen_findings: set[tuple[int, str, str]] = set()
-    previous_line = ""
-    previous_line_number = 1
+    pending_windows: list[tuple[int, str, str, int]] = []
     for line_number, line in enumerate(lines, start=1):
         current_excerpt = line.strip()[:200]
         for rule, _ in _iter_match_rules(line):
@@ -88,22 +88,29 @@ def _iter_line_findings(lines: Iterator[str]) -> Iterator[tuple[int, str, str]]:
             seen_findings.add(finding_key)
             yield line_number, rule, current_excerpt
 
-        previous_content = previous_line.rstrip("\r\n")
-        if previous_line and MULTILINE_TRIGGER_PATTERN.search(previous_content):
-            multiline_text = f"{previous_line}{line}"
-            boundary = len(previous_line)
-            previous_excerpt = previous_line.strip()[:200]
+        next_pending_windows: list[tuple[int, str, str, int]] = []
+        for anchor_line, anchor_excerpt, pending_text, remaining_lines in pending_windows:
+            multiline_text = f"{pending_text}{line}"
+            boundary = len(pending_text)
             for rule, match_start in _iter_match_rules(multiline_text):
                 if match_start >= boundary:
                     continue
-                finding_key = (previous_line_number, rule, previous_excerpt)
+                finding_key = (anchor_line, rule, anchor_excerpt)
                 if finding_key in seen_findings:
                     continue
                 seen_findings.add(finding_key)
-                yield previous_line_number, rule, previous_excerpt
+                yield anchor_line, rule, anchor_excerpt
+            if remaining_lines > 1:
+                next_pending_windows.append(
+                    (anchor_line, anchor_excerpt, multiline_text, remaining_lines - 1)
+                )
+        pending_windows = next_pending_windows
 
-        previous_line = line
-        previous_line_number = line_number
+        current_content = line.rstrip("\r\n")
+        if MULTILINE_TRIGGER_PATTERN.search(current_content):
+            pending_windows.append(
+                (line_number, current_excerpt, line, MAX_MULTILINE_FOLLOWUP_LINES)
+            )
 
 
 def _normalize_scan_roots(paths: list[Path]) -> list[Path]:

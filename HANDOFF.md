@@ -134,6 +134,29 @@
   - medio operacional enquanto DNS externo impedir kluster e fallback de deps
   - sem indicio de regressao funcional no escopo alterado
 
+## Atualizacao local Windows 2026-04-24, slice 49
+- objetivo:
+  - reduzir falso negativo multiline no scanner sem ampliar escopo de arquitetura
+- mudanca aplicada:
+  - `src/scrap_report/secret_scan.py`:
+    - janela multiline ampliada para ate 4 linhas totais por trigger
+  - `tests/test_secret_scan.py`:
+    - novo teste de regressao em 3 linhas
+- validacao:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- kluster:
+  - `kluster review file src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - bloqueado por DNS: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- risco residual:
+  - baixo para runtime tocado
+  - medio operacional por indisponibilidade de kluster via DNS
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:

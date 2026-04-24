@@ -15,6 +15,45 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 49 - reduzir falso negativo multiline sem refatoracao ampla
+Escopo:
+- ampliar captura multiline do scanner de 2 para ate 4 linhas totais por janela
+- manter contrato de saida do `scan-secrets`
+- reforcar teste de regressao do comportamento multiline
+
+Arquivos alterados:
+- `src/scrap_report/secret_scan.py`
+- `tests/test_secret_scan.py`
+
+Mudanca aplicada:
+- `secret_scan.py`:
+  - adicionado `MAX_MULTILINE_FOLLOWUP_LINES = 3`
+  - `_iter_line_findings` agora mantem janelas pendentes para triggers multiline
+  - captura multiline evoluiu de 2 para ate 4 linhas sem alterar schema de finding
+- `tests/test_secret_scan.py`:
+  - adicionado `test_scan_paths_detects_multiline_assignment_across_three_lines`
+
+Validacao:
+- kluster (obrigatorio):
+  - `kluster review file src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - resultado: bloqueado por DNS
+  - erro: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures intencionais)
+
+Risco residual:
+- baixo no escopo do scanner tocado
+- medio operacional por bloqueio DNS do kluster
+- medio no gate global ate normalizar ambiente Playwright/asyncio do host
+
 ## Slice 48 - estabilidade deterministica de scanner + cache real em redacao
 Escopo:
 - reduzir variacao cross-platform do `scan-secrets` com ordem deterministica de arquivos
