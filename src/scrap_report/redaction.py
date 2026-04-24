@@ -41,6 +41,16 @@ SAFE_KEY_COMPONENT_PATTERN = re.compile(
 )
 
 
+@lru_cache(maxsize=512)
+def _is_effectively_safe_key(key_l: str) -> bool:
+    if key_l in ALLOWED_SAFE_KEYS:
+        return True
+    if not SAFE_KEY_COMPONENT_PATTERN.search(key_l):
+        return False
+    scrubbed = SAFE_KEY_COMPONENT_PATTERN.sub(" ", key_l)
+    return not bool(SENSITIVE_KEY_COMPONENT_PATTERN.search(scrubbed))
+
+
 def redact_text(value: str) -> str:
     def _replace_assignment(match: re.Match[str]) -> str:
         return f"{match.group('assign_key')}{match.group('assign_sep')}***"
@@ -57,15 +67,6 @@ def redact_text(value: str) -> str:
 
 def assert_no_sensitive_fields(payload: dict[str, Any]) -> None:
     max_depth = 128
-
-    @lru_cache(maxsize=128)
-    def _is_effectively_safe_key(key_l: str) -> bool:
-        if key_l in ALLOWED_SAFE_KEYS:
-            return True
-        if not SAFE_KEY_COMPONENT_PATTERN.search(key_l):
-            return False
-        scrubbed = SAFE_KEY_COMPONENT_PATTERN.sub(" ", key_l)
-        return not bool(SENSITIVE_KEY_COMPONENT_PATTERN.search(scrubbed))
 
     stack: list[tuple[Any, str, int]] = [(payload, "root", 0)]
     visited_nodes: set[int] = set()

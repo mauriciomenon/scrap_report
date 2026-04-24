@@ -46,3 +46,15 @@ def test_scan_paths_detects_multiline_assignment(tmp_path: Path):
     assert len(findings) == 1
     assert findings[0].rule == "api_key_inline"
 
+
+def test_scan_paths_is_deterministic_by_path_order(tmp_path: Path):
+    dir_b = tmp_path / "b_dir"
+    dir_a = tmp_path / "a_dir"
+    dir_b.mkdir()
+    dir_a.mkdir()
+    (dir_b / "b_leak.py").write_text("password='abc12345'\n", encoding="utf-8")
+    (dir_a / "a_leak.py").write_text("password='abc12345'\n", encoding="utf-8")
+    findings = scan_paths([tmp_path])
+    names = [Path(item.path).name for item in findings]
+    assert names == ["a_leak.py", "b_leak.py"]
+

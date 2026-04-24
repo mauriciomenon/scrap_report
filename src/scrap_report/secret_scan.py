@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -134,9 +135,14 @@ def _iter_scan_candidates(path: Path) -> Iterator[Path]:
             yield path
         return
 
-    for item in path.rglob("*"):
-        if item.is_file() and item.suffix.lower() in SUPPORTED_SCAN_SUFFIXES:
-            yield item
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        files.sort()
+        root_path = Path(root)
+        for file_name in files:
+            item = root_path / file_name
+            if item.suffix.lower() in SUPPORTED_SCAN_SUFFIXES:
+                yield item
 
 
 def _scan_file(candidate: Path) -> list[SecretFinding]:

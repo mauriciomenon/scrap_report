@@ -106,6 +106,34 @@
   - scanner multiline limitado a janela de 2 linhas (tradeoff explicito)
   - backlog de melhoria estrutural de performance/arquitetura permanece nao bloqueante
 
+## Atualizacao local Windows 2026-04-24, slice 48
+- objetivo:
+  - deixar `scan-secrets` com ordem deterministica de varredura entre ambientes
+  - transformar cache de validacao de chave sensivel em cache real de modulo
+- mudanca aplicada:
+  - `src/scrap_report/redaction.py`:
+    - `_is_effectively_safe_key` movido para modulo com `@lru_cache(maxsize=512)`
+    - removido cache recriado a cada chamada
+  - `src/scrap_report/secret_scan.py`:
+    - troca de `rglob` para `os.walk` com `dirs/files` ordenados
+  - `tests/test_secret_scan.py`:
+    - adicionado `test_scan_paths_is_deterministic_by_path_order`
+- validacao:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `16 passed`
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - fallback `uv run --python 3.12 pytest -q`: bloqueado por DNS (`numpy` wheel, os error 11003)
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- kluster:
+  - duas tentativas no slice, ambas bloqueadas por DNS
+  - erro objetivo: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- risco residual:
+  - medio operacional enquanto DNS externo impedir kluster e fallback de deps
+  - sem indicio de regressao funcional no escopo alterado
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:

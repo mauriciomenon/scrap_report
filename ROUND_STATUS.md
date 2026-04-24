@@ -15,6 +15,52 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 48 - estabilidade deterministica de scanner + cache real em redacao
+Escopo:
+- reduzir variacao cross-platform do `scan-secrets` com ordem deterministica de arquivos
+- remover cache inefetivo em `assert_no_sensitive_fields` sem refatoracao ampla
+- manter patch minimo e verificavel
+
+Arquivos alterados:
+- `src/scrap_report/redaction.py`
+- `src/scrap_report/secret_scan.py`
+- `tests/test_secret_scan.py`
+
+Mudanca aplicada:
+- `redaction.py`:
+  - `_is_effectively_safe_key` movido para escopo de modulo com `@lru_cache(maxsize=512)`
+  - removido cache interno por chamada em `assert_no_sensitive_fields`
+- `secret_scan.py`:
+  - varredura de diretorio agora usa `os.walk` com `dirs.sort()` e `files.sort()` para ordem deterministica
+- `tests/test_secret_scan.py`:
+  - novo teste `test_scan_paths_is_deterministic_by_path_order`
+
+Validacao:
+- kluster (obrigatorio):
+  - comando:
+    - `kluster review file src/scrap_report/redaction.py src/scrap_report/secret_scan.py --mode deep`
+    - `kluster review file src/scrap_report/redaction.py src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - resultado:
+    - bloqueado por ambiente em ambas tentativas
+    - erro: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `16 passed`
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106 no host)
+  - tentativa fallback `uv run --python 3.12 pytest -q`:
+    - bloqueada por DNS para baixar wheel (`numpy`, os error 11003)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures de teste intencionais)
+
+Risco residual:
+- baixo para runtime tocado no slice
+- medio operacional enquanto DNS externo bloquear kluster e fallback de dependencias
+- suite completa continua dependente de resolver ambiente `asyncio` no Python 3.13 deste host
+
 ## Slice 47 - hardening final do scanner e redacao de secrets
 Escopo:
 - fechar o falso negativo estrutural de `scan-secrets` para diretorios e multiline simples
