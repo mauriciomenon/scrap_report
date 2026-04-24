@@ -182,6 +182,32 @@
   - sem HIGH/MEDIUM no kluster para o escopo alterado
   - permanece LOW de qualidade estrutural no gerador multiline
 
+## Atualizacao local Windows 2026-04-24, slice 51
+- objetivo:
+  - endurecer `smoke_windows11.ps1` para precheck real de ambiente e seguranca de credencial
+  - fechar findings HIGH/CRITICAL do kluster no script
+- mudanca aplicada:
+  - adicionado `Invoke-NetworkPrecheck` (socket + DNS)
+  - adicionado `Read-RequiredJson` com guarda de arquivo obrigatorio
+  - `py_compile` migrado para `compileall -q src tests`
+  - `LATEST_XLSX` agora vem de `stage_result.json` (`staged_path`)
+  - removido uso de `--password` e de `--allow-transitional-plaintext` no `ingest-latest`
+  - adicionado `secret get --username "$SmokeUsername"` antes de `ingest-latest`
+  - `ingest-latest` agora usa `--secure-required`
+- validacao:
+  - kluster no script terminou clean:
+    - `Review 69ebb43d50b51ca1da53be9e` -> sem issues
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo em shell com login: `216 passed`
+  - `& scripts/smoke_windows11.ps1`:
+    - precheck rodou
+    - fluxo chegou ate `secret get`
+    - falha clara por secret ausente para `smoke_user` (esperado com `--secure-required`)
+- licao operacional importante:
+  - no host atual, o contexto de shell impacta os erros de rede/socket.
+  - com shell sem login foram observados erros intermitentes de DNS/socket.
+  - com shell de login (profile carregado), os gates completos ficaram estaveis nesta rodada.
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:

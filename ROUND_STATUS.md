@@ -15,6 +15,55 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 51 - hardening do smoke windows11 + destravamento de gates no shell correto
+Escopo:
+- endurecer `scripts/smoke_windows11.ps1` com falha cedo de ambiente e remocao de credencial em CLI
+- fechar findings HIGH/CRITICAL do kluster no script
+- validar gate completo em shell com profile/login
+
+Arquivos alterados:
+- `scripts/smoke_windows11.ps1`
+
+Mudanca aplicada:
+- adicionado `Invoke-NetworkPrecheck` (socket + DNS)
+- adicionado `Read-RequiredJson` para leitura segura de artefatos
+- `py_compile` trocado para `compileall -q src tests` em chamada unica
+- `pipeline report-only` passou a usar `staged_path` de `stage_result.json` (fonte canonica)
+- `ingest-latest`:
+  - removido `--password` em linha de comando
+  - removido `--allow-transitional-plaintext`
+  - adicionado `secret get` preflight + `--secure-required`
+- erros de parser e guardas adicionais corrigidos no script
+
+Validacao:
+- kluster no script (progressao):
+  - `69ebb2b74ea1da958e19cec8`: 1 HIGH + 1 MEDIUM + 1 LOW
+  - `69ebb2d08a818de8a3dab292`: 1 MEDIUM
+  - `69ebb2f08a818de8a3dab4dc`: 1 MEDIUM
+  - `69ebb30850b51ca1da53a919`: 1 MEDIUM
+  - `69ebb31d8a818de8a3dab841`: 1 CRITICAL + 1 HIGH + 1 MEDIUM
+  - `69ebb34b50b51ca1da53ae29`: 2 MEDIUM
+  - `69ebb36d8a818de8a3dabe28`: 1 MEDIUM
+  - `69ebb39950b51ca1da53b382`: 1 MEDIUM
+  - `69ebb3b68a818de8a3dac34b`: 1 HIGH + 2 MEDIUM + 1 LOW
+  - `69ebb3f950b51ca1da53ba11`: 1 MEDIUM
+  - `69ebb43d50b51ca1da53be9e`: clean
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo no shell com login: `216 passed`
+- smoke windows11 script:
+  - executado via `& scripts/smoke_windows11.ps1`
+  - chegou ate `secret get` e falhou com mensagem clara por secret ausente para `smoke_user`
+  - comportamento esperado apos endurecimento de seguranca
+
+Risco residual:
+- baixo para runtime principal (nenhum arquivo `src/` alterado neste slice)
+- baixo para script smoke no ponto de seguranca (sem credencial em CLI)
+- medio operacional: execucao de smoke completo depende de secret seguro preexistente para o usuario de teste
+
 ## Slice 50 - correcao do HIGH do kluster no multiline scanner
 Escopo:
 - corrigir issue HIGH apontada pelo kluster em `_iter_line_findings`
