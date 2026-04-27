@@ -1,0 +1,31 @@
+HANDOFF.md
+  76083249acf95c1c 314-315,317
+CROSS_PLATFORM_SMOKE.md
+  76083249acf95c1c 200,218
+PRE_RELEASE_STATUS.md
+  76083249acf95c1c 121-123
+CONVERSA_MIGRACAO_STATUS.md
+  76083249acf95c1c 427-443
+ROUND_STATUS.md
+  76083249acf95c1c 603-643
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "43daf82d1368034864eff1967337a628ec6d7e68",
+  "prompts": {
+    "76083249acf95c1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cf1c0-b1ab-7770-8e68-3cd99e07b80f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "mauriciomenon",
+      "messages": [],
+      "total_additions": 66,
+      "total_deletions": 3,
+      "accepted_lines": 3819,
+      "overriden_lines": 2
+    }
+  }
+}
