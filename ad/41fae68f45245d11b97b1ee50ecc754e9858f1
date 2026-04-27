@@ -1,0 +1,29 @@
+CONVERSA_MIGRACAO_STATUS.md
+  76083249acf95c1c 394-409
+HANDOFF.md
+  76083249acf95c1c 180,182,206-209,212,217-218,220-221
+ROUND_STATUS.md
+  76083249acf95c1c 408-435
+PRE_RELEASE_STATUS.md
+  76083249acf95c1c 115,118-122,146,149-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "ad41fae68f45245d11b97b1ee50ecc754e9858f1",
+  "prompts": {
+    "76083249acf95c1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cf1c0-b1ab-7770-8e68-3cd99e07b80f",
+        "model": "gpt-5.4"
+      },
+      "human_author": "mauriciomenon",
+      "messages": [],
+      "total_additions": 688,
+      "total_deletions": 23,
+      "accepted_lines": 724,
+      "overriden_lines": 0
+    }
+  }
+}
