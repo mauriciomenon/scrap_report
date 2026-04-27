@@ -1,0 +1,27 @@
+src/scrap_report.egg-info/SOURCES.txt
+  76083249acf95c1c 17,37
+src/scrap_report.egg-info/PKG-INFO
+  76083249acf95c1c 560-569,621-661
+tests/test_secret_provider.py
+  76083249acf95c1c 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "0a2d759db506b2eccf99c1a45bca6f61568e42d7",
+  "prompts": {
+    "76083249acf95c1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019cf1c0-b1ab-7770-8e68-3cd99e07b80f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "mauriciomenon",
+      "messages": [],
+      "total_additions": 766,
+      "total_deletions": 1,
+      "accepted_lines": 3808,
+      "overriden_lines": 0
+    }
+  }
+}
