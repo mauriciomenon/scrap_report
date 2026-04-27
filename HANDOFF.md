@@ -177,9 +177,9 @@ O projeto agora tem duas frentes operacionais distintas:
   - baseline global do `ty check` zerado
   - compatibilidade de testes Windows corrigida para `Path` com separador `/` ou `\\`
 - pendencia operacional ainda aberta:
-  - nenhuma no bloco de smoke cross-platform offline
+  - preservar ou regenerar `staging/smoke_evidence_windows11.json` nesta copia local
 - observacao de evidencia:
-  - `staging/smoke_evidence_windows11.json` presente e validado
+  - `staging/smoke_evidence_windows11.json` ausente nesta copia local; existe apenas referencia historica da rodada W11
   - `staging/smoke_evidence_debian13.json` presente e validado
 
 ## Harden de dependencias mais recente
@@ -203,22 +203,22 @@ O projeto agora tem duas frentes operacionais distintas:
 ## Slice Debian13 mais recente
 - baseline anterior do branch: `b3c8be6`
 - mudanca aplicada:
-  - roteiro usa `staged_path` canonico vindo de `stage_result.json`
-  - `ingest-latest` sem senha em argumento; fallback transicional por env de processo
-  - `platform_label` da evidencia ficou especifico para Debian13
-- validacao local em Debian13 real (WSL):
+  - rerun completo em Debian13 real via VMware Fusion como usuario `menon`
+  - ownership correto confirmado para `.venv`, `staging` e `downloads`
+  - clone errado em `/root/scrap_report` removido
+- validacao em Debian13 real:
   - `bash scripts/smoke_debian13.sh`: ok
   - evidencia gerada: `staging/smoke_evidence_debian13.json`
+  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
   - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
-- observacao:
-  - houve uma tentativa com falha de DNS no preflight PyPI, seguida por reexecucao verde
 
 ## Estado atual da evidencia W11
 - resultado atual:
-  - `staging/smoke_evidence_windows11.json` encontrado e valido
-  - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
+  - `staging/smoke_evidence_windows11.json` nao esta nesta copia local
+  - a rodada historica W11 continua documentada
 - leitura correta:
-  - gate W11 de smoke offline ficou fechado nesta copia local
+  - o gate operacional W11 ja foi exercitado historicamente
+  - o artefato precisa ser regenerado ou recolocado para voltar a ficar presente nesta copia local
 
 ## Nota de contexto
 - os caminhos Windows abaixo sao referencia de operacao e evidencias reais de outra maquina

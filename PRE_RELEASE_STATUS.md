@@ -112,13 +112,14 @@
 - baseline anterior do slice: `b3c8be6`
 - smoke W11:
   - `powershell -ExecutionPolicy Bypass -File scripts/smoke_windows11.ps1`: ok
-  - evidencia: [smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
+  - evidencia historica: [smoke_evidence_windows11.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_windows11.json)
   - `generated_at_utc=2026-04-23T16:14:20.9295303Z`
 - smoke Debian13:
-  - `bash scripts/smoke_debian13.sh`: ok
-  - evidencia: [smoke_evidence_debian13.json](C:\Users\mauri\git\scrap_report\staging\smoke_evidence_debian13.json)
-  - `generated_at_utc=2026-04-23T17:52:22.288728+00:00`
-- checks confirmados nas duas evidencias:
+  - `bash scripts/smoke_debian13.sh`: ok em Debian13 real via VMware Fusion
+  - usuario operacional validado: `menon`
+  - evidencia local atual: `staging/smoke_evidence_debian13.json`
+  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+- checks confirmados:
   - `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
 
 ## Resultado de prontidao
@@ -142,10 +143,12 @@
 - `data de emissao` ainda nao esta ligada ao runtime real do sweep
 - grupo `demais` ainda nao foi preenchido
 - ainda faltam telas adicionais do menu `Relatorios`
+- `staging/smoke_evidence_windows11.json` nao esta preservado nesta copia local, embora a rodada historica W11 esteja documentada
 
 ## Proximo gate recomendado
-1. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
-2. validar manifest, bruto staged e derivados ponta a ponta
-3. decidir se o proximo slice prioriza:
+1. regenerar ou recolocar `staging/smoke_evidence_windows11.json`
+2. executar uma rodada real de `sweep-run` com preset em `pendentes` ou `executadas`
+3. validar manifest, bruto staged e derivados ponta a ponta
+4. decidir se o proximo slice prioriza:
    - `data de emissao` no sweep
    - novas telas do menu `Relatorios`

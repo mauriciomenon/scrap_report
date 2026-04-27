@@ -11,7 +11,6 @@
   - REST sem Playwright
   - pacote importavel para consumo externo
 - pendencias reais abertas:
-  - rodada Debian13 real estavel
   - preservar ou regenerar a evidencia W11 real nesta copia local
   - ampliar cobertura do menu `Relatorios`
   - ligar `data de emissao` nos pontos ainda abertos do sweep
@@ -392,3 +391,19 @@
 - risco residual:
   - baixo para dependencias
   - pendencias reais seguem concentradas em Debian13 real e evidencia W11
+
+## Slice 41 - Debian13 real refeito como `menon`
+- executado:
+  - conexao SSH assumida com o usuario `menon`
+  - rerun completo do smoke em `/home/menon/scrap_report`
+  - ownership correto confirmado para `.venv`, `staging` e `downloads`
+  - clone incorreto em `/root/scrap_report` removido
+- validacao:
+  - preflight PyPI: `200`
+  - `bash scripts/smoke_debian13.sh`: ok
+  - `pytest`: `108 passed`
+  - evidencia: `staging/smoke_evidence_debian13.json`
+  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+- risco residual:
+  - baixo para o gate Debian13
+  - pendencia real aberta agora fica concentrada na evidencia W11 nesta copia local

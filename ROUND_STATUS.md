@@ -405,6 +405,34 @@ Risco residual:
 - baixo para supply chain
 - permanecem abertos apenas os gates Debian13 real e evidencia W11
 
+## Slice 41 - refazer Debian13 real com usuario correto
+Escopo:
+- rerodar o smoke Debian13 real como `menon`, sem usar `root` para o repo
+- confirmar ownership correto dos artefatos e da `.venv`
+- remover o clone incorreto criado em `/root/scrap_report`
+
+Arquivos alterados:
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- docs atualizados para refletir que o Debian13 real foi validado via VMware Fusion como `menon`
+- docs atualizados para refletir que o artefato W11 continua ausente nesta copia local
+
+Validacao remota:
+- SSH como `menon`: ok
+- preflight PyPI: `200`
+- `bash scripts/smoke_debian13.sh`: ok
+- `pytest`: `108 passed`
+- ownership: `.venv`, `staging`, `downloads` -> `menon:menon`
+- `sudo rm -rf /root/scrap_report`: ok
+
+Risco residual:
+- baixo para Debian13
+- permanece aberta apenas a preservacao ou regeneracao da evidencia W11 nesta copia local
+
 ## Slice 38 - endurecer o smoke Debian13
 Escopo:
 - falhar cedo quando o host nao tiver conectividade minima com o PyPI
