@@ -83,7 +83,7 @@ PY
 uv sync
 
 uv run --project . python -m compileall -q src tests
-uv run --project . ruff check .
+uv run --project . --with ruff ruff check .
 uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py
 
 uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md --output-json staging/scan_secrets.json
