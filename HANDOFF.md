@@ -106,6 +106,108 @@
   - scanner multiline limitado a janela de 2 linhas (tradeoff explicito)
   - backlog de melhoria estrutural de performance/arquitetura permanece nao bloqueante
 
+## Atualizacao local Windows 2026-04-24, slice 48
+- objetivo:
+  - deixar `scan-secrets` com ordem deterministica de varredura entre ambientes
+  - transformar cache de validacao de chave sensivel em cache real de modulo
+- mudanca aplicada:
+  - `src/scrap_report/redaction.py`:
+    - `_is_effectively_safe_key` movido para modulo com `@lru_cache(maxsize=512)`
+    - removido cache recriado a cada chamada
+  - `src/scrap_report/secret_scan.py`:
+    - troca de `rglob` para `os.walk` com `dirs/files` ordenados
+  - `tests/test_secret_scan.py`:
+    - adicionado `test_scan_paths_is_deterministic_by_path_order`
+- validacao:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `16 passed`
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - fallback `uv run --python 3.12 pytest -q`: bloqueado por DNS (`numpy` wheel, os error 11003)
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- kluster:
+  - duas tentativas no slice, ambas bloqueadas por DNS
+  - erro objetivo: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- risco residual:
+  - medio operacional enquanto DNS externo impedir kluster e fallback de deps
+  - sem indicio de regressao funcional no escopo alterado
+
+## Atualizacao local Windows 2026-04-24, slice 49
+- objetivo:
+  - reduzir falso negativo multiline no scanner sem ampliar escopo de arquitetura
+- mudanca aplicada:
+  - `src/scrap_report/secret_scan.py`:
+    - janela multiline ampliada para ate 4 linhas totais por trigger
+  - `tests/test_secret_scan.py`:
+    - novo teste de regressao em 3 linhas
+- validacao:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- kluster:
+  - `kluster review file src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - bloqueado por DNS: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- risco residual:
+  - baixo para runtime tocado
+  - medio operacional por indisponibilidade de kluster via DNS
+
+## Atualizacao local Windows 2026-04-24, slice 50
+- objetivo:
+  - fechar issue HIGH do kluster no caminho multiline de `secret_scan.py`
+- mudanca aplicada:
+  - removido `seen_findings` local de `_iter_line_findings` (crescimento sem limite)
+  - dedupe mantido no nivel de `_scan_file` com `_record_finding`
+  - ajuste de `match_excerpt` para linha real do match multiline
+- validacao:
+  - kluster antes do patch:
+    - `Review 69eb799f87f9165e6e4b9cc8`
+    - 1 HIGH + 1 MEDIUM + 2 LOW
+  - kluster apos o patch:
+    - `Review 69eb7a6bab084ce82073baa3`
+    - somente 1 LOW
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` completo: bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures)
+- risco residual:
+  - sem HIGH/MEDIUM no kluster para o escopo alterado
+  - permanece LOW de qualidade estrutural no gerador multiline
+
+## Atualizacao local Windows 2026-04-24, slice 51
+- objetivo:
+  - endurecer `smoke_windows11.ps1` para precheck real de ambiente e seguranca de credencial
+  - fechar findings HIGH/CRITICAL do kluster no script
+- mudanca aplicada:
+  - adicionado `Invoke-NetworkPrecheck` (socket + DNS)
+  - adicionado `Read-RequiredJson` com guarda de arquivo obrigatorio
+  - `py_compile` migrado para `compileall -q src tests`
+  - `LATEST_XLSX` agora vem de `stage_result.json` (`staged_path`)
+  - removido uso de `--password` e de `--allow-transitional-plaintext` no `ingest-latest`
+  - adicionado `secret get --username "$SmokeUsername"` antes de `ingest-latest`
+  - `ingest-latest` agora usa `--secure-required`
+- validacao:
+  - kluster no script terminou clean:
+    - `Review 69ebb43d50b51ca1da53be9e` -> sem issues
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo em shell com login: `216 passed`
+  - `& scripts/smoke_windows11.ps1`:
+    - precheck rodou
+    - fluxo chegou ate `secret get`
+    - falha clara por secret ausente para `smoke_user` (esperado com `--secure-required`)
+- licao operacional importante:
+  - no host atual, o contexto de shell impacta os erros de rede/socket.
+  - com shell sem login foram observados erros intermitentes de DNS/socket.
+  - com shell de login (profile carregado), os gates completos ficaram estaveis nesta rodada.
+
 ## Atualizacao local Windows 2026-04-23
 - HEAD local confirmado: `afdee46`
 - estado local nesta sessao:
@@ -371,3 +473,42 @@ O projeto agora tem duas frentes operacionais distintas:
    - ampliacao do `sweep-run` REST para outros `report_kind`
    - operacionalizar rotacao/manutencao da CA exportada
    - ou voltar para as pendencias do fluxo Playwright
+
+## Atualizacao local Windows 2026-04-24, slice 52
+- objetivo:
+  - habilitar fluxo de smoke com entrada de usuario valido e opcao de salvar secret
+  - manter comportamento default atual sem quebra
+  - atualizar docs com comandos operacionais e evidencia REST do dia
+- arquivos alterados:
+  - `scripts/smoke_windows11.ps1`
+  - `scripts/smoke_debian13.sh`
+  - `CROSS_PLATFORM_SMOKE.md`
+  - `README.md`
+  - `ROUND_STATUS.md`
+  - `HANDOFF.md`
+- mudancas:
+  - Windows smoke agora aceita:
+    - `-SmokeUsername`
+    - `-PromptUsername`
+    - `-SetupSecret`
+    - `-SecretService`
+  - Debian smoke agora aceita:
+    - `--smoke-username`
+    - `--prompt-username`
+    - `--setup-secret`
+    - `--secret-service`
+  - ambos preservam modo default
+  - ambos suportam modo seguro com secret store via setup explicito
+  - evidencia dos smokes agora inclui bloco `inputs`
+  - Debian trocou `py_compile` por `compileall -q src tests`
+- evidencias REST reais atualizadas:
+  - `tmp/sam_api_flow_iee3_live_20260424_152745.json` (`status=ok`, `count=50`)
+  - `tmp/sweep_rest_iee3_pendentes_live_20260424_152745.json` (`status=ok`, `record_count=119`)
+- kluster (apos edicao):
+  - revisoes executadas:
+    - `69ebc3064ea1da958e1ac9a2`
+    - `69ebc33e50b51ca1da54a24b`
+    - `69ebc3624ea1da958e1ace56`
+    - `69ebc3934ea1da958e1ad0c9`
+  - itens de alto/medio com patch minimo foram tratados no proprio slice
+  - restaram apenas itens de refatoracao ampla e aviso do fallback transicional Debian

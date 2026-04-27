@@ -15,6 +15,173 @@
 - camada REST sem Playwright: entregue em tres niveis
 - release mais recente conhecida antes desta rodada: `v0.1.7`
 
+## Slice 51 - hardening do smoke windows11 + destravamento de gates no shell correto
+Escopo:
+- endurecer `scripts/smoke_windows11.ps1` com falha cedo de ambiente e remocao de credencial em CLI
+- fechar findings HIGH/CRITICAL do kluster no script
+- validar gate completo em shell com profile/login
+
+Arquivos alterados:
+- `scripts/smoke_windows11.ps1`
+
+Mudanca aplicada:
+- adicionado `Invoke-NetworkPrecheck` (socket + DNS)
+- adicionado `Read-RequiredJson` para leitura segura de artefatos
+- `py_compile` trocado para `compileall -q src tests` em chamada unica
+- `pipeline report-only` passou a usar `staged_path` de `stage_result.json` (fonte canonica)
+- `ingest-latest`:
+  - removido `--password` em linha de comando
+  - removido `--allow-transitional-plaintext`
+  - adicionado `secret get` preflight + `--secure-required`
+- erros de parser e guardas adicionais corrigidos no script
+
+Validacao:
+- kluster no script (progressao):
+  - `69ebb2b74ea1da958e19cec8`: 1 HIGH + 1 MEDIUM + 1 LOW
+  - `69ebb2d08a818de8a3dab292`: 1 MEDIUM
+  - `69ebb2f08a818de8a3dab4dc`: 1 MEDIUM
+  - `69ebb30850b51ca1da53a919`: 1 MEDIUM
+  - `69ebb31d8a818de8a3dab841`: 1 CRITICAL + 1 HIGH + 1 MEDIUM
+  - `69ebb34b50b51ca1da53ae29`: 2 MEDIUM
+  - `69ebb36d8a818de8a3dabe28`: 1 MEDIUM
+  - `69ebb39950b51ca1da53b382`: 1 MEDIUM
+  - `69ebb3b68a818de8a3dac34b`: 1 HIGH + 2 MEDIUM + 1 LOW
+  - `69ebb3f950b51ca1da53ba11`: 1 MEDIUM
+  - `69ebb43d50b51ca1da53be9e`: clean
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo no shell com login: `216 passed`
+- smoke windows11 script:
+  - executado via `& scripts/smoke_windows11.ps1`
+  - chegou ate `secret get` e falhou com mensagem clara por secret ausente para `smoke_user`
+  - comportamento esperado apos endurecimento de seguranca
+
+Risco residual:
+- baixo para runtime principal (nenhum arquivo `src/` alterado neste slice)
+- baixo para script smoke no ponto de seguranca (sem credencial em CLI)
+- medio operacional: execucao de smoke completo depende de secret seguro preexistente para o usuario de teste
+
+## Slice 50 - correcao do HIGH do kluster no multiline scanner
+Escopo:
+- corrigir issue HIGH apontada pelo kluster em `_iter_line_findings`
+- manter patch minimo sem alterar contrato de saida
+
+Arquivos alterados:
+- `src/scrap_report/secret_scan.py`
+
+Mudanca aplicada:
+- removido dedupe local sem limite em `_iter_line_findings`
+- dedupe efetivo mantido em `_record_finding` no nivel de `_scan_file`
+- multiline agora calcula `match_line` e `match_excerpt` sem descartar match valido por `boundary`
+
+Validacao:
+- kluster:
+  - rodada 1 apos slice 49: `Review 69eb799f87f9165e6e4b9cc8` (1 HIGH, 1 MEDIUM, 2 LOW)
+  - rodada 2 apos patch: `Review 69eb7a6bab084ce82073baa3` (somente 1 LOW)
+- gates tecnicos:
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures intencionais)
+
+Risco residual:
+- baixo no escopo do scanner tocado
+- baixo/medio para melhoria estrutural (LOW do kluster)
+- medio no gate global ate normalizar ambiente Playwright/asyncio do host
+
+## Slice 49 - reduzir falso negativo multiline sem refatoracao ampla
+Escopo:
+- ampliar captura multiline do scanner de 2 para ate 4 linhas totais por janela
+- manter contrato de saida do `scan-secrets`
+- reforcar teste de regressao do comportamento multiline
+
+Arquivos alterados:
+- `src/scrap_report/secret_scan.py`
+- `tests/test_secret_scan.py`
+
+Mudanca aplicada:
+- `secret_scan.py`:
+  - adicionado `MAX_MULTILINE_FOLLOWUP_LINES = 3`
+  - `_iter_line_findings` agora mantem janelas pendentes para triggers multiline
+  - captura multiline evoluiu de 2 para ate 4 linhas sem alterar schema de finding
+- `tests/test_secret_scan.py`:
+  - adicionado `test_scan_paths_detects_multiline_assignment_across_three_lines`
+
+Validacao:
+- kluster (obrigatorio):
+  - `kluster review file src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - resultado: bloqueado por DNS
+  - erro: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `17 passed`
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures intencionais)
+
+Risco residual:
+- baixo no escopo do scanner tocado
+- medio operacional por bloqueio DNS do kluster
+- medio no gate global ate normalizar ambiente Playwright/asyncio do host
+
+## Slice 48 - estabilidade deterministica de scanner + cache real em redacao
+Escopo:
+- reduzir variacao cross-platform do `scan-secrets` com ordem deterministica de arquivos
+- remover cache inefetivo em `assert_no_sensitive_fields` sem refatoracao ampla
+- manter patch minimo e verificavel
+
+Arquivos alterados:
+- `src/scrap_report/redaction.py`
+- `src/scrap_report/secret_scan.py`
+- `tests/test_secret_scan.py`
+
+Mudanca aplicada:
+- `redaction.py`:
+  - `_is_effectively_safe_key` movido para escopo de modulo com `@lru_cache(maxsize=512)`
+  - removido cache interno por chamada em `assert_no_sensitive_fields`
+- `secret_scan.py`:
+  - varredura de diretorio agora usa `os.walk` com `dirs.sort()` e `files.sort()` para ordem deterministica
+- `tests/test_secret_scan.py`:
+  - novo teste `test_scan_paths_is_deterministic_by_path_order`
+
+Validacao:
+- kluster (obrigatorio):
+  - comando:
+    - `kluster review file src/scrap_report/redaction.py src/scrap_report/secret_scan.py --mode deep`
+    - `kluster review file src/scrap_report/redaction.py src/scrap_report/secret_scan.py tests/test_secret_scan.py --mode deep`
+  - resultado:
+    - bloqueado por ambiente em ambas tentativas
+    - erro: `lookup api.kluster.ai: getaddrinfow: A non-recoverable error occurred during a database lookup`
+- gates tecnicos:
+  - `uv run --python 3.13 python -m py_compile ...`: ok
+  - `uv run --python 3.13 ruff check .`: ok
+  - `uv run --python 3.13 ty check src`: ok
+  - `uv run --python 3.13 pytest -q` focado: `16 passed`
+  - `uv run --python 3.13 pytest -q` completo:
+    - bloqueado por ambiente (`asyncio/_overlapped`, WinError 10106 no host)
+  - tentativa fallback `uv run --python 3.12 pytest -q`:
+    - bloqueada por DNS para baixar wheel (`numpy`, os error 11003)
+- scanner operacional:
+  - `scan-secrets` default: `status=ok`, `findings_count=0`
+  - `scan-secrets --paths src tests README.md`: `status=error`, `findings_count=6` (fixtures de teste intencionais)
+
+Risco residual:
+- baixo para runtime tocado no slice
+- medio operacional enquanto DNS externo bloquear kluster e fallback de dependencias
+- suite completa continua dependente de resolver ambiente `asyncio` no Python 3.13 deste host
+
 ## Slice 47 - hardening final do scanner e redacao de secrets
 Escopo:
 - fechar o falso negativo estrutural de `scan-secrets` para diretorios e multiline simples
@@ -1395,3 +1562,67 @@ Resultado:
    - resolver confianca de certificado para a REST
    - reduzir custo linear do detalhe em lote
 2. ou voltar para as pendencias do fluxo Playwright
+
+## Slice 52 - smoke com username valido e opcao de salvar secret
+Timestamp inicio: 2026-04-24T15:38:00-03:00
+
+Objetivo:
+- habilitar caminho operacional para digitar usuario valido e salvar secret nos scripts de smoke
+- manter caminho default atual sem quebrar automacao existente
+- atualizar docs com comandos e evidencia REST real mais recente
+
+Arquivos alterados:
+- `scripts/smoke_windows11.ps1`
+- `scripts/smoke_debian13.sh`
+- `CROSS_PLATFORM_SMOKE.md`
+- `README.md`
+
+Mudancas aplicadas:
+- `smoke_windows11.ps1`:
+  - novos parametros: `-SmokeUsername`, `-PromptUsername`, `-SetupSecret`, `-SecretService`
+  - leitura opcional de `SMOKE_SETUP_SECRET` com variavel booleana interna (`ShouldSetupSecret`)
+  - validacao de tokens para `SmokeUsername` e `SecretService`
+  - `secret setup` opcional e `secret get` condicional quando setup for solicitado
+  - evidencia JSON agora inclui `inputs.smoke_username`, `inputs.secret_service`, `inputs.setup_secret`
+  - `Read-RequiredJson` endurecido para rejeitar raiz JSON em array
+- `smoke_debian13.sh`:
+  - novas flags: `--smoke-username`, `--prompt-username`, `--setup-secret`, `--secret-service`
+  - modo seguro opcional: `secret setup/get` + `ingest-latest --secure-required`
+  - modo default preservado: fallback transicional com `--allow-transitional-plaintext`
+  - `py_compile` trocado por `compileall -q src tests`
+  - evidencia JSON passou a ler `inputs` via env vars para evitar interpolacao shell no bloco Python
+- docs:
+  - `CROSS_PLATFORM_SMOKE.md` atualizado com comandos dos dois modos (transicional e seguro)
+  - `README.md` atualizado com comandos de smoke para usuario valido e demonstrativo REST de 2026-04-24
+
+Evidencia REST real do dia:
+- `sam-api-cert`: `status=ok`, cadeia exportada para `tmp/itaipu_root_ca_v2.pem`
+- `sam-api-flow` IEE3:
+  - comando: `uv run --python 3.13 python -m scrap_report.cli sam-api-flow --profile panorama --emitter-sector IEE3 --number-of-years 2 --limit 50 --ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sam_api_flow_iee3_live_20260424_152745.json --output-csv tmp/sam_api_flow_iee3_live_20260424_152745.csv --output-xlsx tmp/sam_api_flow_iee3_live_20260424_152745.xlsx`
+  - `status=ok`, `count=50`
+- `sweep-run` REST IEE3 pendentes:
+  - comando: `uv run --python 3.13 python -m scrap_report.cli sweep-run --runtime rest --report-kind pendentes --scope-mode emissor --setores-emissor IEE3 --rest-ca-file tmp/itaipu_root_ca_v2.pem --output-json tmp/sweep_rest_iee3_pendentes_live_20260424_152745.json`
+  - `status=ok`, `item_count=1`, `success_count=1`, `record_count=119`
+
+Kluster (obrigatorio apos edicao):
+- `Review: 69ebc3064ea1da958e1ac9a2`
+  - 5 achados
+  - corrigidos no slice: inconsistencia de gate de secret e robustez de compilacao no Debian
+- `Review: 69ebc33e50b51ca1da54a24b`
+  - 4 achados
+  - corrigidos no slice: bug de atribuicao em parametro switch no PowerShell e endurecimento de parse JSON
+- `Review: 69ebc3624ea1da958e1ace56`
+  - 6 achados
+  - corrigidos no slice: sanitizacao de tokens PowerShell, robustez de env var setup e remocao de interpolacao shell em bloco Python
+- `Review: 69ebc3934ea1da958e1ad0c9`
+  - 5 achados restantes
+  - nao bloqueantes neste slice:
+    - recomendacoes de refatoracao ampla/monolitica dos scripts
+    - observacao sobre fallback transicional no Debian (ja documentado como modo default legado)
+    - observacao de precheck de socket (sem impacto funcional imediato no fluxo atual)
+
+Risco residual:
+- baixo: fallback transicional Debian continua disponivel por compatibilidade operacional
+- medio: debt estrutural de duplicacao entre scripts (fora do escopo deste slice)
+
+Timestamp fim: pendente

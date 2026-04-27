@@ -4,6 +4,54 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+SMOKE_USERNAME="${SMOKE_USERNAME:-local_user}"
+SMOKE_SETUP_SECRET="${SMOKE_SETUP_SECRET:-0}"
+SMOKE_PROMPT_USERNAME="${SMOKE_PROMPT_USERNAME:-0}"
+SECRET_SERVICE="${SECRET_SERVICE:-scrap_report.sam}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --smoke-username)
+      if [[ $# -lt 2 ]]; then
+        echo "[smoke] --smoke-username exige valor" >&2
+        exit 2
+      fi
+      SMOKE_USERNAME="$2"
+      shift 2
+      ;;
+    --prompt-username)
+      SMOKE_PROMPT_USERNAME=1
+      shift
+      ;;
+    --setup-secret)
+      SMOKE_SETUP_SECRET=1
+      shift
+      ;;
+    --secret-service)
+      if [[ $# -lt 2 ]]; then
+        echo "[smoke] --secret-service exige valor" >&2
+        exit 2
+      fi
+      SECRET_SERVICE="$2"
+      shift 2
+      ;;
+    *)
+      echo "[smoke] argumento invalido: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "${SMOKE_PROMPT_USERNAME}" == "1" || -z "${SMOKE_USERNAME}" ]]; then
+  read -r -p "smoke username: " INPUT_USERNAME
+  if [[ -n "${INPUT_USERNAME}" ]]; then
+    SMOKE_USERNAME="${INPUT_USERNAME}"
+  fi
+fi
+if [[ -z "${SMOKE_USERNAME}" ]]; then
+  SMOKE_USERNAME="local_user"
+fi
+
 mkdir -p staging downloads
 
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python || true)}"
@@ -34,13 +82,17 @@ PY
 
 uv sync
 
-uv run --project . python -m py_compile src/scrap_report/*.py tests/*.py
+uv run --project . python -m compileall -q src tests
 uv run --project . ruff check .
 uv run --project . --with pytest python -m pytest -q tests/test_contract.py tests/test_cli.py tests/test_pipeline_offline.py tests/test_scraper_contract.py tests/test_file_ops.py tests/test_reporting.py
 
 uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md --output-json staging/scan_secrets.json
 uv run --project . python -m scrap_report.cli validate-contract --output-json staging/contract_info.json
 uv run --project . python -m scrap_report.cli secret test
+if [[ "${SMOKE_SETUP_SECRET}" == "1" ]]; then
+  uv run --project . python -m scrap_report.cli secret setup --username "${SMOKE_USERNAME}" --secret-service "${SECRET_SERVICE}"
+  uv run --project . python -m scrap_report.cli secret get --username "${SMOKE_USERNAME}" --secret-service "${SECRET_SERVICE}"
+fi
 
 uv run --project . --with pandas python -c "import pandas as pd; pd.DataFrame({'Numero da SSA':['1']}).to_excel('downloads/Report.xlsx', index=False)"
 uv run --project . python -m scrap_report.cli stage --source downloads/Report.xlsx --staging-dir staging --report-kind pendentes --output-json staging/stage_result.json
@@ -66,13 +118,18 @@ fi
 uv run --project . python -m scrap_report.cli pipeline --setor IEE3 --report-kind pendentes --staging-dir staging --report-only --source-excel "$LATEST_XLSX" --output-json staging/pipeline_report_only.json
 
 cp -f "$LATEST_XLSX" downloads/Report_latest.xlsx
-SMOKE_TRANSITIONAL_PASSWORD="$(date +%s%N)"
-SAM_PASSWORD="${SMOKE_TRANSITIONAL_PASSWORD}" uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username local_user --allow-transitional-plaintext --output-json staging/ingest_result.json
+if [[ "${SMOKE_SETUP_SECRET}" == "1" ]]; then
+  uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "${SMOKE_USERNAME}" --secret-service "${SECRET_SERVICE}" --secure-required --output-json staging/ingest_result.json
+else
+  SMOKE_TRANSITIONAL_PASSWORD="$(date +%s%N)"
+  SAM_PASSWORD="${SMOKE_TRANSITIONAL_PASSWORD}" uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "${SMOKE_USERNAME}" --allow-transitional-plaintext --output-json staging/ingest_result.json
+fi
 
-uv run --project . python - <<'PY'
+SMOKE_USERNAME_ENV="${SMOKE_USERNAME}" SECRET_SERVICE_ENV="${SECRET_SERVICE}" SMOKE_SETUP_SECRET_ENV="${SMOKE_SETUP_SECRET}" uv run --project . python - <<'PY'
 from __future__ import annotations
 
 import json
+import os
 import platform
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,6 +152,11 @@ evidence = {
     "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     "host": platform.node(),
     "python_version": platform.python_version(),
+    "inputs": {
+        "smoke_username": os.environ.get("SMOKE_USERNAME_ENV", ""),
+        "secret_service": os.environ.get("SECRET_SERVICE_ENV", ""),
+        "setup_secret": os.environ.get("SMOKE_SETUP_SECRET_ENV", "0") == "1",
+    },
     "checks": {
         "py_compile": "ok",
         "ruff": "ok",
