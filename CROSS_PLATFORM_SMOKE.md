@@ -197,21 +197,24 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
   - execucao realizada em host local macOS
 
 ### Debian 13
-- data/hora: `2026-04-23T17:52:22.288728+00:00`
+- data/hora: `2026-04-27T15:57:38.424833+00:00`
 - py_compile: ok
 - ruff: ok
-- pytest: ok (`108 passed`)
+- pytest: ok (`108 passed` no smoke; `216 passed` na suite completa)
 - validate-contract: ok (`status: ok`)
 - scan-secrets: ok (`status: ok`, `findings_count: 0`)
 - secret test: ok (`backend_ready: true`)
 - stage: ok (`status: ok`)
 - pipeline --report-only: ok (`status: ok`, `telemetry` presente)
 - ingest-latest: ok (`status: ok`, `telemetry` presente)
+- ty: ok
+- package build: ok (`scrap_report-0.1.17-py3-none-any.whl` e `scrap_report-0.1.17.tar.gz`)
 - evidencia:
   - `staging/smoke_evidence_debian13.json`
 - observacoes:
-  - validado em Debian GNU/Linux 13 (trixie) via WSL2
-  - preflight de PyPI pode falhar por DNS externo temporario; repetir a rodada quando isso ocorrer
+  - validado em Debian GNU/Linux 13 (trixie) via VMware Fusion
+  - executado como usuario `menon`, sem workspace de repo em `root`
+  - preflight de PyPI ok (`HTTP 200`)
 
 ### Windows 11
 - data/hora: `2026-04-23T16:14:20.9295303Z`
@@ -227,7 +230,8 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
 - evidencia:
   - `staging/smoke_evidence_windows11.json`
 - observacoes:
-  - gate W11 de smoke offline fechado nesta copia local
+  - rodada historica W11 documentada
+  - artefato `staging/smoke_evidence_windows11.json` ainda precisa ser regenerado ou recolocado nesta copia local
 
 ## Notas
 - o E2E com acesso SAM nao faz parte deste smoke de portabilidade

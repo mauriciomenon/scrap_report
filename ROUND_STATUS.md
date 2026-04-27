@@ -600,6 +600,50 @@ Risco residual:
 - baixo para Debian13
 - permanece aberta apenas a preservacao ou regeneracao da evidencia W11 nesta copia local
 
+## Slice 42 - readiness Debian final antes do W11
+Escopo:
+- validar a branch atual em Debian13 real apos o merge remoto e o patch de teste Linux
+- provar build de pacote sem artefato no repo
+- corrigir a verdade documental sobre W11 local ausente
+
+Arquivos alterados:
+- `tests/test_secret_provider.py`
+- `src/scrap_report.egg-info/PKG-INFO`
+- `src/scrap_report.egg-info/SOURCES.txt`
+- `CROSS_PLATFORM_SMOKE.md`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- teste `test_windows_provider_presence_only` agora mocka a descoberta de executavel PowerShell
+- metadata tracked de pacote atualizada por `uv build`
+- docs atualizados para Debian13 real validado como `menon` em `0a2d759`
+- docs atualizados para W11: rodada historica existe, mas artefato local ainda nao esta presente
+
+Validacao local:
+- `uv run --project . python -m compileall -q src tests`: ok
+- `uv run --project . ruff check .`: ok
+- `uv run --project . ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+- `uv run --project . python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+- `uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md`: `status=ok`, `findings_count=0`
+- `uv build --out-dir /tmp/scrap_report_build_local`: ok
+
+Validacao Debian13 real:
+- `git pull --ff-only`: ok em `/home/menon/scrap_report`
+- `bash scripts/smoke_debian13.sh`: ok
+- `uv run --project . --with ty ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+- `uv run --project . python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+- `uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md`: `status=ok`, `findings_count=0`
+- `uv build --out-dir /tmp/scrap_report_build_debian`: ok
+
+Risco residual:
+- baixo para Debian13
+- pendencia real antes do W11: regenerar ou recolocar `staging/smoke_evidence_windows11.json`
+
 ## Slice 38 - endurecer o smoke Debian13
 Escopo:
 - falhar cedo quando o host nao tiver conectividade minima com o PyPI

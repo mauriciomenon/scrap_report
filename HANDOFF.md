@@ -311,8 +311,13 @@ O projeto agora tem duas frentes operacionais distintas:
 - validacao em Debian13 real:
   - `bash scripts/smoke_debian13.sh`: ok
   - evidencia gerada: `staging/smoke_evidence_debian13.json`
-  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+  - `generated_at_utc=2026-04-27T15:57:38.424833+00:00`
   - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+- validacao adicional:
+  - `uv run --project . --with ty ty check`: ok
+  - `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+  - `uv build --out-dir /tmp/scrap_report_build_debian`: ok
+  - stash temporario remoto de `egg-info` gerado antes do pull foi removido
 
 ## Estado atual da evidencia W11
 - resultado atual:

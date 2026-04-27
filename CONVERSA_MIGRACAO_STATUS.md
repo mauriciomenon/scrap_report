@@ -403,7 +403,24 @@
   - `bash scripts/smoke_debian13.sh`: ok
   - `pytest`: `108 passed`
   - evidencia: `staging/smoke_evidence_debian13.json`
-  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+  - evidencia inicial: `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+  - supersedida pela validacao final registrada na Slice 42
 - risco residual:
   - baixo para o gate Debian13
   - pendencia real aberta agora fica concentrada na evidencia W11 nesta copia local
+
+## Slice 42 - readiness Debian final antes do W11
+- executado:
+  - fix publicado para estabilizar teste do provider Windows em Linux
+  - metadata tracked de pacote atualizada para build reproduzivel
+  - VM Debian atualizada para `0a2d759`
+  - smoke Debian13, `ty`, pytest completo, scan de secrets e build de pacote executados como `menon`
+- validacao:
+  - `bash scripts/smoke_debian13.sh`: ok
+  - `uv run --project . --with ty ty check`: ok
+  - `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+  - `uv build --out-dir /tmp/scrap_report_build_debian`: ok
+  - `scan-secrets`: `status=ok`, `findings_count=0`
+- risco residual:
+  - baixo para Debian
+  - segue pendente somente a evidencia W11 nesta copia local

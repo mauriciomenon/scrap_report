@@ -118,7 +118,12 @@
   - `bash scripts/smoke_debian13.sh`: ok em Debian13 real via VMware Fusion
   - usuario operacional validado: `menon`
   - evidencia local atual: `staging/smoke_evidence_debian13.json`
-  - `generated_at_utc=2026-04-27T15:36:39.616941+00:00`
+  - `generated_at_utc=2026-04-27T15:57:38.424833+00:00`
+- validacao Debian adicional:
+  - `ty`: ok
+  - `pytest` completo: `216 passed`
+  - `scan-secrets`: `status=ok`, `findings_count=0`
+  - `uv build`: ok, wheel e sdist gerados em `/tmp`
 - checks confirmados:
   - `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
 
