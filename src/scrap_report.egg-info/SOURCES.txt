@@ -14,6 +14,7 @@ src/scrap_report/scraper.py
 src/scrap_report/secret_provider.py
 src/scrap_report/secret_scan.py
 src/scrap_report/selector_engine.py
+src/scrap_report/sensitive_patterns.py
 src/scrap_report/sweep.py
 src/scrap_report.egg-info/PKG-INFO
 src/scrap_report.egg-info/SOURCES.txt

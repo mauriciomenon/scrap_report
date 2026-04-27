@@ -65,6 +65,7 @@ def test_windows_provider_presence_only(monkeypatch: pytest.MonkeyPatch):
             args=[], returncode=0, stdout="secret123\n", stderr=""
         )
 
+    monkeypatch.setattr(provider, "_resolve_powershell_executables", lambda: ["powershell"])
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert provider.get_secret("svc", "user1") == "secret123"
 
