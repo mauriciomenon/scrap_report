@@ -311,8 +311,10 @@ O projeto agora tem duas frentes operacionais distintas:
 - validacao em Debian13 real:
   - `bash scripts/smoke_debian13.sh`: ok
   - evidencia gerada: `staging/smoke_evidence_debian13.json`
-  - `generated_at_utc=2026-04-27T15:57:38.424833+00:00`
+  - `generated_at_utc=2026-04-27T16:09:19.826461+00:00`
+  - commit validado: `2b0b7bd`
   - checks: `py_compile, ruff, pytest, scan_secrets, validate_contract, stage, pipeline_report_only, ingest_latest = ok`
+  - `ruff` no smoke Debian13 roda via `uv --with ruff`, sem depender de ferramenta preinstalada
 - validacao adicional:
   - `uv run --project . --with ty ty check`: ok
   - `uv run --project . --with pytest python -m pytest -q`: `216 passed`

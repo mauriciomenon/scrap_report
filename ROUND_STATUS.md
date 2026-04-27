@@ -600,6 +600,47 @@ Risco residual:
 - baixo para Debian13
 - permanece aberta apenas a preservacao ou regeneracao da evidencia W11 nesta copia local
 
+## Slice 43 - smoke Debian self-contained e pronto para W11
+Escopo:
+- corrigir falha real do smoke Debian em ambiente limpo sem `ruff` preinstalado
+- revalidar Mac e Debian antes do ciclo W11
+- manter build em `/tmp`, sem artefato versionado
+
+Arquivos alterados:
+- `scripts/smoke_debian13.sh`
+- `CROSS_PLATFORM_SMOKE.md`
+- `PRE_RELEASE_STATUS.md`
+- `HANDOFF.md`
+- `CONVERSA_MIGRACAO_STATUS.md`
+- `ROUND_STATUS.md`
+
+Mudanca aplicada:
+- `scripts/smoke_debian13.sh` passou a rodar `uv run --project . --with ruff ruff check .`
+- docs atualizados para a evidencia Debian final em `2b0b7bd`
+
+Validacao local Mac:
+- `bash -n scripts/smoke_debian13.sh`: ok
+- `uv run --project . python -m compileall -q src tests`: ok
+- `uv run --project . --with ruff ruff check .`: ok
+- `uv run --project . --with ty ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+- `uv run --project . python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+- `uv build --out-dir /tmp/scrap_report_build_mac_after_smoke_fix`: ok
+
+Validacao Debian13 real:
+- `git pull --ff-only`: ok em `/home/menon/scrap_report`
+- `bash scripts/smoke_debian13.sh`: ok, `108 passed`
+- evidencia: `generated_at_utc=2026-04-27T16:09:19.826461+00:00`
+- `uv run --project . --with ty ty check`: ok
+- `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+- `uv run --project . python -m scrap_report.cli scan-secrets`: `status=ok`, `findings_count=0`
+- `uv run --project . python -m scrap_report.cli scan-secrets --paths src README.md`: `status=ok`, `findings_count=0`
+- `uv build --out-dir /tmp/scrap_report_build_debian_ready`: ok
+
+Risco residual:
+- baixo para Mac e Debian
+- pendencia real antes de fechar cross-platform: regenerar ou recolocar `staging/smoke_evidence_windows11.json`
+
 ## Slice 42 - readiness Debian final antes do W11
 Escopo:
 - validar a branch atual em Debian13 real apos o merge remoto e o patch de teste Linux

@@ -197,7 +197,7 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
   - execucao realizada em host local macOS
 
 ### Debian 13
-- data/hora: `2026-04-27T15:57:38.424833+00:00`
+- data/hora: `2026-04-27T16:09:19.826461+00:00`
 - py_compile: ok
 - ruff: ok
 - pytest: ok (`108 passed` no smoke; `216 passed` na suite completa)
@@ -215,6 +215,7 @@ Get-Content staging/smoke_evidence_windows11.json -Raw
   - validado em Debian GNU/Linux 13 (trixie) via VMware Fusion
   - executado como usuario `menon`, sem workspace de repo em `root`
   - preflight de PyPI ok (`HTTP 200`)
+  - smoke Debian13 corrigido em `2b0b7bd` para usar `uv --with ruff` e nao depender de `ruff` preinstalado
 
 ### Windows 11
 - data/hora: `2026-04-23T16:14:20.9295303Z`

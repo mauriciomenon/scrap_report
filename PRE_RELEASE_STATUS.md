@@ -118,7 +118,9 @@
   - `bash scripts/smoke_debian13.sh`: ok em Debian13 real via VMware Fusion
   - usuario operacional validado: `menon`
   - evidencia local atual: `staging/smoke_evidence_debian13.json`
-  - `generated_at_utc=2026-04-27T15:57:38.424833+00:00`
+  - `generated_at_utc=2026-04-27T16:09:19.826461+00:00`
+  - commit validado: `2b0b7bd`
+  - smoke Debian13 agora usa `uv --with ruff` para ambiente limpo
 - validacao Debian adicional:
   - `ty`: ok
   - `pytest` completo: `216 passed`

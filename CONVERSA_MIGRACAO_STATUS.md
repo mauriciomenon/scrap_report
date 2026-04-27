@@ -424,3 +424,20 @@
 - risco residual:
   - baixo para Debian
   - segue pendente somente a evidencia W11 nesta copia local
+
+## Slice 43 - smoke Debian self-contained e pronto para W11
+- executado:
+  - corrigido `scripts/smoke_debian13.sh` para executar `ruff` via `uv --with ruff`
+  - commit publicado: `2b0b7bd`
+  - VM Debian atualizada para `2b0b7bd`
+  - smoke Debian13 reexecutado como `menon`
+- validacao:
+  - `bash scripts/smoke_debian13.sh`: ok, `108 passed`
+  - evidencia: `generated_at_utc=2026-04-27T16:09:19.826461+00:00`
+  - `uv run --project . --with ty ty check`: ok
+  - `uv run --project . --with pytest python -m pytest -q`: `216 passed`
+  - `uv build --out-dir /tmp/scrap_report_build_debian_ready`: ok
+  - `scan-secrets`: `status=ok`, `findings_count=0`
+- risco residual:
+  - baixo para Mac e Debian
+  - proximo gate real e W11
