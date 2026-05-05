@@ -8,7 +8,7 @@ import pytest
 from scrap_report.cli import _emit_json, main
 from scrap_report.errors import PipelineStepError
 from scrap_report.sam_api import SAMApiError
-from scrap_report.secret_provider import MemorySecretProvider
+from scrap_report.secret_provider import MemorySecretProvider, SecretBackendUnavailableError
 
 
 def test_stage_writes_output_json(tmp_path: Path):
@@ -309,6 +309,25 @@ def test_secret_test_command(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
     code = main(["secret", "test"])
     assert code == 0
+
+
+def test_secret_test_command_reports_backend_error(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FailingProvider(MemorySecretProvider):
+        def test_backend(self) -> bool:
+            raise SecretBackendUnavailableError("timeout ao executar backend secret-service")
+
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", FailingProvider)
+
+    code = main(["secret", "test"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert code == 1
+    assert payload["status"] == "error"
+    assert payload["backend_ready"] is False
+    assert "timeout ao executar backend" in payload["message"]
 
 
 def test_secret_get_command_no_plaintext_leak(

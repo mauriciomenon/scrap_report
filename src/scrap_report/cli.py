@@ -1027,7 +1027,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "secret":
         provider = build_secret_provider()
         if args.secret_command == "test":
-            ok = provider.test_backend()
+            try:
+                ok = provider.test_backend()
+            except SecretProviderError as exc:
+                safe_message = redact_text(str(exc)) or exc.__class__.__name__
+                _emit_json(
+                    {
+                        "status": "error",
+                        "backend_ready": False,
+                        "message": safe_message,
+                    },
+                    None,
+                    "secret_result",
+                )
+                return 1
             _emit_json(
                 {"status": "ok" if ok else "error", "backend_ready": ok},
                 None,
