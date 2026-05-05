@@ -70,13 +70,46 @@ function Read-RequiredFlowJson {
     return $result
 }
 
+function Invoke-RequiredFlowJsonCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$StepName,
+        [Parameter(Mandatory = $true)][string]$Context,
+        [Parameter(Mandatory = $true)][string]$OutFile,
+        [Parameter(Mandatory = $true)][string[]]$CommandArgs
+    )
+
+    uv @CommandArgs
+    $exitCode = $LASTEXITCODE
+    $result = $null
+    if (Test-Path -LiteralPath $OutFile) {
+        $result = Read-RequiredFlowJson -Path $OutFile -StepName $StepName
+    }
+    if ($exitCode -ne 0) {
+        if ($null -ne $result) {
+            $detail = ""
+            if (
+                ($result.PSObject.Properties.Name -contains "message") -and
+                (-not [string]::IsNullOrWhiteSpace($result.message))
+            ) {
+                $detail = ": $($result.message)"
+            }
+            throw "[scrape_sam_windows] $StepName retornou status=$($result.status) para $Context (exit_code=$exitCode)$detail"
+        }
+        throw "[scrape_sam_windows] falha no $StepName para $Context (exit_code=$exitCode)"
+    }
+    if ($null -eq $result) {
+        $result = Read-RequiredFlowJson -Path $OutFile -StepName $StepName
+    }
+    return $result
+}
+
 function Invoke-WindowsFlow {
     param(
         [Parameter(Mandatory = $true)][string]$Kind,
         [Parameter(Mandatory = $true)][string]$OutFile
     )
 
-    $args = @(
+    $cmdArgs = @(
         "run", "--project", ".", "python", "-m", "scrap_report.cli", "windows-flow",
         "--username", $Username,
         "--setor", $Setor,
@@ -88,19 +121,14 @@ function Invoke-WindowsFlow {
     )
 
     if ($Headed) {
-        $args += "--headed"
+        $cmdArgs += "--headed"
     }
     if (-not $StrictCert) {
-        $args += "--ignore-https-errors"
+        $cmdArgs += "--ignore-https-errors"
     }
 
     Write-Host "[scrape_sam_windows] iniciando report_kind=$Kind"
-    uv @args
-    if ($LASTEXITCODE -ne 0) {
-        throw "[scrape_sam_windows] falha no windows-flow para report_kind=$Kind (exit_code=$LASTEXITCODE)"
-    }
-
-    $result = Read-RequiredFlowJson -Path $OutFile -StepName "windows-flow"
+    $result = Invoke-RequiredFlowJsonCommand -StepName "windows-flow" -Context "report_kind=$Kind" -OutFile $OutFile -CommandArgs $cmdArgs
     Write-Host "[scrape_sam_windows] status=$($result.status) report_kind=$Kind"
     if ($result.staged_path) {
         Write-Host "[scrape_sam_windows] staged_path=$($result.staged_path)"
@@ -113,7 +141,7 @@ function Invoke-SweepRun {
         [Parameter(Mandatory = $true)][string]$OutFile
     )
 
-    $args = @(
+    $cmdArgs = @(
         "run", "--project", ".", "python", "-m", "scrap_report.cli", "sweep-run",
         "--username", $Username,
         "--report-kind", $Kind,
@@ -124,19 +152,14 @@ function Invoke-SweepRun {
     )
 
     if ($Headed) {
-        $args += "--headed"
+        $cmdArgs += "--headed"
     }
     if (-not $StrictCert) {
-        $args += "--ignore-https-errors"
+        $cmdArgs += "--ignore-https-errors"
     }
 
     Write-Host "[scrape_sam_windows] iniciando preset=$Preset report_kind=$Kind"
-    uv @args
-    if ($LASTEXITCODE -ne 0) {
-        throw "[scrape_sam_windows] falha no sweep-run para preset=$Preset report_kind=$Kind (exit_code=$LASTEXITCODE)"
-    }
-
-    $result = Read-RequiredFlowJson -Path $OutFile -StepName "sweep-run"
+    $result = Invoke-RequiredFlowJsonCommand -StepName "sweep-run" -Context "preset=$Preset report_kind=$Kind" -OutFile $OutFile -CommandArgs $cmdArgs
     Write-Host "[scrape_sam_windows] status=$($result.status) preset=$Preset report_kind=$Kind"
 }
 

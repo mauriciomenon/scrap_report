@@ -1,9 +1,11 @@
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from scrap_report.cli import _emit_json, main
+from scrap_report.errors import PipelineStepError
 from scrap_report.secret_provider import MemorySecretProvider
 
 
@@ -68,6 +70,117 @@ def test_pipeline_report_only_writes_output_json(tmp_path: Path):
     assert '"status": "ok"' in content
     assert '"reports"' in content
     assert '"telemetry"' in content
+
+
+def test_pipeline_report_only_missing_source_writes_error_json(tmp_path: Path):
+    out_json = tmp_path / "out" / "pipeline_error.json"
+
+    code = main(
+        [
+            "pipeline",
+            "--setor",
+            "IEE3",
+            "--staging-dir",
+            str(tmp_path / "staging"),
+            "--report-kind",
+            "pendentes",
+            "--report-only",
+            "--source-excel",
+            str(tmp_path / "missing.xlsx"),
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "pipeline"
+    assert "excel nao encontrado" in payload["message"]
+
+
+def test_pipeline_runtime_error_writes_redacted_error_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    def _run_pipeline(_cfg, generate_reports):
+        assert generate_reports is True
+        raise PipelineStepError("scrape", "falha password=leaked-value")
+
+    monkeypatch.setattr("scrap_report.cli.run_pipeline", _run_pipeline)
+    out_json = tmp_path / "out" / "pipeline_error.json"
+
+    code = main(
+        [
+            "pipeline",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "pipeline"
+    assert payload["step"] == "scrape"
+    assert "password=***" in payload["message"]
+    assert "leaked-value" not in out_json.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("command", "runner_target"),
+    [
+        ("pipeline", "scrap_report.cli.run_pipeline"),
+        ("ingest-latest", "scrap_report.cli.run_pipeline_from_local_download"),
+    ],
+)
+def test_pipeline_commands_non_ok_status_return_error_code(
+    command: str,
+    runner_target: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "error"
+        report_kind = "pendentes"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {}
+        telemetry = {}
+
+    monkeypatch.setattr(runner_target, lambda cfg, generate_reports: _PipelineResult())
+    out_json = tmp_path / "out" / f"{command}.json"
+
+    code = main(
+        [
+            command,
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
 
 
 def test_emit_json_fails_fast_on_invalid_payload():
@@ -585,6 +698,7 @@ def test_auth_flow_prompt_password_uses_terminal_input(
 ):
     provider = MemorySecretProvider()
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli._can_prompt_for_secret", lambda: True)
     monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "typed-secret")
 
     seen = {}
@@ -637,7 +751,10 @@ def test_windows_flow_uses_existing_secret_without_prompt(
         reports = {"dados": "a.xlsx", "estatisticas": "b.xlsx", "relatorio_txt": "c.txt"}
         telemetry = {"pipeline_ms": 10}
 
-    monkeypatch.setattr("scrap_report.cli.run_pipeline", lambda cfg, generate_reports: _PipelineResult())
+    monkeypatch.setattr(
+        "scrap_report.cli.run_pipeline",
+        lambda cfg, generate_reports: _PipelineResult(),
+    )
     monkeypatch.setattr(
         "scrap_report.cli._read_password_masked",
         lambda _prompt: pytest.fail("nao deveria pedir senha"),
@@ -666,6 +783,7 @@ def test_windows_flow_provisions_missing_secret_interactive(
 ):
     provider = MemorySecretProvider()
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli._can_prompt_for_secret", lambda: True)
     monkeypatch.setattr("scrap_report.cli._read_password_masked", lambda _prompt: "typed-secret")
 
     class _PipelineResult:
@@ -699,6 +817,83 @@ def test_windows_flow_provisions_missing_secret_interactive(
     )
     assert code == 0
     assert seen["password"] == "typed-secret"
+
+
+def test_windows_flow_missing_secret_noninteractive_writes_error_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    monkeypatch.setattr("scrap_report.cli._can_prompt_for_secret", lambda: False)
+    monkeypatch.setattr(
+        "scrap_report.cli._read_password_masked",
+        lambda _prompt: pytest.fail("nao deveria pedir senha"),
+    )
+    monkeypatch.setattr(
+        "scrap_report.cli.run_pipeline",
+        lambda _cfg, _generate_reports: pytest.fail("pipeline nao deveria rodar"),
+    )
+    out_json = tmp_path / "out" / "wf_error.json"
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "windows-flow"
+    assert "terminal interativo indisponivel" in payload["message"]
+
+
+def test_windows_flow_non_ok_status_returns_error_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    class _PipelineResult:
+        status = "error"
+        report_kind = "pendentes"
+        source_path = tmp_path / "downloads" / "Report.xlsx"
+        staged_path = tmp_path / "staging" / "Report.xlsx"
+        reports = {}
+        telemetry = {}
+
+    monkeypatch.setattr(
+        "scrap_report.cli.run_pipeline",
+        lambda cfg, generate_reports: _PipelineResult(),
+    )
+    out_json = tmp_path / "out" / "wf_error_status.json"
+
+    code = main(
+        [
+            "windows-flow",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
 
 
 def test_windows_flow_passes_ignore_https_errors_to_config(

@@ -28,6 +28,7 @@ from .contract import (
     validate_contract_definition,
     validate_payload_schema,
 )
+from .errors import PipelineStepError
 from .file_ops import find_latest_xlsx, stage_download
 from .reporting import (
     artifacts_to_dict,
@@ -38,7 +39,7 @@ from .reporting import (
     generate_ssa_report_from_excel,
     sam_api_artifacts_to_dict,
 )
-from .redaction import assert_no_sensitive_fields
+from .redaction import assert_no_sensitive_fields, redact_text
 from .secret_scan import scan_paths
 from .secret_provider import SecretProviderError, build_secret_provider
 from .sam_api import (
@@ -655,6 +656,23 @@ def _emit_unvalidated_json(payload: dict[str, Any], output_json: str | None) -> 
         out.write_text(text + "\n", encoding="utf-8")
 
 
+def _emit_command_error(
+    output_json: str | None, command: str, exc: BaseException
+) -> int:
+    safe_message = redact_text(str(exc)) or exc.__class__.__name__
+    print(f"[error] {safe_message}", file=sys.stderr)
+    if output_json:
+        payload: dict[str, Any] = {
+            "status": "error",
+            "command": command,
+            "message": safe_message,
+        }
+        if isinstance(exc, PipelineStepError):
+            payload["step"] = exc.step
+        _emit_unvalidated_json(payload, output_json)
+    return 1
+
+
 def _read_ssa_numbers_from_file(path_value: str | None) -> list[str]:
     if not path_value:
         return []
@@ -897,20 +915,28 @@ def _command_requires_auth(args: Any) -> bool:
     return getattr(args, "runtime", "playwright") != "rest"
 
 
+def _can_prompt_for_secret() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def _ensure_secret_available(
     provider: Any, secret_service: str, username: str
-) -> bool:
+) -> str | None:
     try:
         provider.get_secret(secret_service, username)
-        return True
+        return None
     except SecretProviderError:
+        if not _can_prompt_for_secret():
+            return (
+                "secret seguro indisponivel e terminal interativo indisponivel. "
+                + SECRET_SETUP_HINT
+            )
         password = _read_password_masked("password (secret ausente): ")
         try:
             provider.set_secret(secret_service, username, password)
         except SecretProviderError as exc:
-            print(f"[error] falha ao gravar secret: {exc}", file=sys.stderr)
-            return False
-        return True
+            return f"falha ao gravar secret: {exc}"
+        return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1132,10 +1158,22 @@ def main(argv: list[str] | None = None) -> int:
         _print_secret_policy_notice(args, args.output_json)
         provider = build_secret_provider()
         if not provider.test_backend():
-            print("[error] backend de secret indisponivel", file=sys.stderr)
-            return 1
-        if not _ensure_secret_available(provider, args.secret_service, args.username):
-            return 1
+            return _emit_command_error(
+                args.output_json,
+                args.command,
+                RuntimeError("backend de secret indisponivel"),
+            )
+        secret_error = _ensure_secret_available(
+            provider,
+            args.secret_service,
+            args.username,
+        )
+        if secret_error:
+            return _emit_command_error(
+                args.output_json,
+                args.command,
+                RuntimeError(secret_error),
+            )
         try:
             cfg = CliConfigInput(
                 username=args.username,
@@ -1156,9 +1194,11 @@ def main(argv: list[str] | None = None) -> int:
                 numero_ssa=args.numero_ssa,
             ).to_scrape_config()
         except ValueError as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
-        pipeline_result = run_pipeline(cfg, generate_reports=True)
+            return _emit_command_error(args.output_json, args.command, exc)
+        try:
+            pipeline_result = run_pipeline(cfg, generate_reports=True)
+        except Exception as exc:
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_json(
             {
                 "status": pipeline_result.status,
@@ -1171,12 +1211,18 @@ def main(argv: list[str] | None = None) -> int:
             args.output_json,
             "pipeline_result",
         )
-        return 0
+        return 0 if pipeline_result.status == "ok" else 1
 
     if args.command == "sweep-run":
         _print_secret_policy_notice(args, args.output_json)
         input_password = args.password
         if args.runtime != "rest" and args.prompt_password and not input_password:
+            if not _can_prompt_for_secret():
+                return _emit_command_error(
+                    args.output_json,
+                    args.command,
+                    RuntimeError("prompt de senha exige terminal interativo"),
+                )
             input_password = _read_password_masked("password: ")
         try:
             if args.preset:
@@ -1230,10 +1276,13 @@ def main(argv: list[str] | None = None) -> int:
                     rest_verify_tls=not args.ignore_https_errors,
                     rest_ca_file=_normalize_optional_path(args.rest_ca_file),
                 )
-                manifest = SweepRunner().run(plan, runtime)
                 output_json = args.output_json or str(
                     _build_default_sweep_output_json(staging_dir, args.report_kind)
                 )
+                try:
+                    manifest = SweepRunner().run(plan, runtime)
+                except Exception as exc:
+                    return _emit_command_error(output_json, args.command, exc)
                 payload = manifest.to_payload()
                 payload.setdefault("runtime_mode", args.runtime)
                 payload["manifest_json"] = output_json
@@ -1257,8 +1306,7 @@ def main(argv: list[str] | None = None) -> int:
                 ignore_https_errors=args.ignore_https_errors,
             ).to_scrape_config()
         except ValueError as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
 
         runtime = SweepRuntimeConfig(
             username=base_cfg.username,
@@ -1276,10 +1324,13 @@ def main(argv: list[str] | None = None) -> int:
             rest_verify_tls=not args.ignore_https_errors,
             rest_ca_file=_normalize_optional_path(args.rest_ca_file),
         )
-        manifest = SweepRunner().run(plan, runtime)
         output_json = args.output_json or str(
             _build_default_sweep_output_json(base_cfg.staging_dir, args.report_kind)
         )
+        try:
+            manifest = SweepRunner().run(plan, runtime)
+        except Exception as exc:
+            return _emit_command_error(output_json, args.command, exc)
         payload = manifest.to_payload()
         payload.setdefault("runtime_mode", args.runtime)
         payload["manifest_json"] = output_json
@@ -1288,23 +1339,26 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "pipeline" and args.report_only:
         if not report_kind_uses_excel_output(args.report_kind):
-            print(
-                "[error] report_only indisponivel para report_kind sem excel",
-                file=sys.stderr,
+            return _emit_command_error(
+                args.output_json,
+                args.command,
+                RuntimeError("report_only indisponivel para report_kind sem excel"),
             )
-            return 1
-        source_excel = (
-            Path(args.source_excel)
-            if args.source_excel
-            else find_latest_xlsx(Path(args.staging_dir))
-        )
-        pipeline_result = run_report_only(
-            source_excel=source_excel,
-            report_kind=args.report_kind,
-            reports_output_dir=Path(args.staging_dir) / "reports",
-            setor_emissor=args.setor_emissor,
-            setor_executor=args.setor,
-        )
+        try:
+            source_excel = (
+                Path(args.source_excel)
+                if args.source_excel
+                else find_latest_xlsx(Path(args.staging_dir))
+            )
+            pipeline_result = run_report_only(
+                source_excel=source_excel,
+                report_kind=args.report_kind,
+                reports_output_dir=Path(args.staging_dir) / "reports",
+                setor_emissor=args.setor_emissor,
+                setor_executor=args.setor,
+            )
+        except Exception as exc:
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_json(
             {
                 "status": pipeline_result.status,
@@ -1317,12 +1371,18 @@ def main(argv: list[str] | None = None) -> int:
             args.output_json,
             "pipeline_result",
         )
-        return 0
+        return 0 if pipeline_result.status == "ok" else 1
 
     if args.command in {"scrape", "pipeline", "ingest-latest"}:
         _print_secret_policy_notice(args, args.output_json)
         input_password = args.password
         if args.prompt_password and not input_password:
+            if not _can_prompt_for_secret():
+                return _emit_command_error(
+                    args.output_json,
+                    args.command,
+                    RuntimeError("prompt de senha exige terminal interativo"),
+                )
             input_password = _read_password_masked("password: ")
         try:
             cfg = CliConfigInput(
@@ -1344,11 +1404,13 @@ def main(argv: list[str] | None = None) -> int:
                 numero_ssa=args.numero_ssa,
             ).to_scrape_config()
         except ValueError as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
 
         if args.command == "scrape":
-            result = SAMScraper(cfg).run()
+            try:
+                result = SAMScraper(cfg).run()
+            except Exception as exc:
+                return _emit_command_error(args.output_json, args.command, exc)
             _emit_json(
                 {
                     "status": "ok",
@@ -1362,12 +1424,15 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        if args.command == "pipeline":
-            pipeline_result = run_pipeline(cfg, generate_reports=True)
-        else:
-            pipeline_result = run_pipeline_from_local_download(
-                cfg, generate_reports=True
-            )
+        try:
+            if args.command == "pipeline":
+                pipeline_result = run_pipeline(cfg, generate_reports=True)
+            else:
+                pipeline_result = run_pipeline_from_local_download(
+                    cfg, generate_reports=True
+                )
+        except Exception as exc:
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_json(
             {
                 "status": pipeline_result.status,
@@ -1380,15 +1445,18 @@ def main(argv: list[str] | None = None) -> int:
             args.output_json,
             "pipeline_result",
         )
-        return 0
+        return 0 if pipeline_result.status == "ok" else 1
 
     if args.command == "stage":
-        staged = stage_download(
-            source_path=Path(args.source),
-            staging_dir=Path(args.staging_dir),
-            report_kind=args.report_kind,
-            overwrite=False,
-        )
+        try:
+            staged = stage_download(
+                source_path=Path(args.source),
+                staging_dir=Path(args.staging_dir),
+                report_kind=args.report_kind,
+                overwrite=False,
+            )
+        except Exception as exc:
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_json(
             {"status": "ok", "staged_path": str(staged)},
             args.output_json,
@@ -1397,13 +1465,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "report-from-excel":
-        artifacts = generate_ssa_report_from_excel(
-            Path(args.excel),
-            Path(args.output_dir),
-            report_kind=args.report_kind,
-            setor_emissor=args.setor_emissor,
-            setor_executor=args.setor,
-        )
+        try:
+            artifacts = generate_ssa_report_from_excel(
+                Path(args.excel),
+                Path(args.output_dir),
+                report_kind=args.report_kind,
+                setor_emissor=args.setor_emissor,
+                setor_executor=args.setor,
+            )
+        except Exception as exc:
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_json(
             {"status": "ok", "reports": artifacts_to_dict(artifacts)},
             args.output_json,

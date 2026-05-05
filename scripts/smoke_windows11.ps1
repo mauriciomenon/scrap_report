@@ -139,7 +139,7 @@ if ($ShouldSetupSecret) {
     }
 }
 else {
-    Write-Host "[smoke] secret setup nao solicitado; validacao final de credencial fica no ingest-latest secure-required"
+    Write-Host "[smoke] secret setup nao solicitado; ingest-latest usara senha transicional apenas no processo"
 }
 
 Invoke-CheckedCommand -Name "make sample xlsx" -Command {
@@ -159,8 +159,21 @@ Invoke-CheckedCommand -Name "pipeline report-only" -Command {
 }
 
 Copy-Item -Path "$LATEST_XLSX" -Destination downloads/Report_latest.xlsx -Force
-Invoke-CheckedCommand -Name "ingest-latest" -Command {
-    uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SmokeUsername" --secret-service "$SecretService" --secure-required --output-json staging/ingest_result.json
+if ($ShouldSetupSecret) {
+    Invoke-CheckedCommand -Name "ingest-latest" -Command {
+        uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SmokeUsername" --secret-service "$SecretService" --secure-required --output-json staging/ingest_result.json
+    }
+}
+else {
+    Invoke-CheckedCommand -Name "ingest-latest" -Command {
+        $env:SAM_PASSWORD = [guid]::NewGuid().ToString("N")
+        try {
+            uv run --project . python -m scrap_report.cli ingest-latest --setor IEE3 --report-kind pendentes --download-dir downloads --staging-dir staging --username "$SmokeUsername" --allow-transitional-plaintext --output-json staging/ingest_result.json
+        }
+        finally {
+            Remove-Item Env:SAM_PASSWORD -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 $scan = Read-RequiredJson -Path "staging/scan_secrets.json" -Name "scan-secrets output"
