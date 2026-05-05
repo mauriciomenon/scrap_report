@@ -570,6 +570,40 @@ def test_sam_api_detail_command_accepts_file_and_exports(
     assert '"warnings": ["ssa_numbers_deduped"]' in content
 
 
+@pytest.mark.parametrize(
+    ("path_builder", "message"),
+    [
+        (lambda tmp_path: tmp_path / "missing-ssas.txt", "ssa-number-file nao encontrado"),
+        (lambda tmp_path: tmp_path, "ssa-number-file nao e arquivo"),
+    ],
+)
+def test_sam_api_detail_command_reports_invalid_ssa_number_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    path_builder,
+    message: str,
+):
+    out_json = tmp_path / "out" / "sam_api_detail_file_error.json"
+
+    code = main(
+        [
+            "sam-api",
+            "--ssa-number-file",
+            str(path_builder(tmp_path)),
+            "--output-json",
+            str(out_json),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert message in captured.err
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api"
+    assert message in payload["message"]
+
+
 def test_sam_api_flow_panorama_writes_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

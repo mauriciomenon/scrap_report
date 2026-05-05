@@ -688,6 +688,10 @@ def _read_ssa_numbers_from_file(path_value: str | None) -> list[str]:
     if not path_value:
         return []
     path = Path(path_value)
+    if not path.exists():
+        raise ValueError(f"ssa-number-file nao encontrado: {path}")
+    if not path.is_file():
+        raise ValueError(f"ssa-number-file nao e arquivo: {path}")
     content = path.read_text(encoding="utf-8")
     return [line.strip() for line in content.splitlines() if line.strip()]
 
