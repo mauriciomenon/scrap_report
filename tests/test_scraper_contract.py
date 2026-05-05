@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from typing import Any, cast
@@ -149,6 +151,99 @@ def test_derivadas_relacionadas_export_timeout_has_explicit_runtime_error(tmp_pa
     monkeypatch.setattr(scraper, "_wait_for_export_ready", lambda page, selector: None)
 
     with pytest.raises(RuntimeError, match="tela segue especial por export instavel"):
+        scraper._export_download(cast(Any, FakePage()))
+
+
+def test_export_download_keeps_suggested_name_inside_download_dir(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+
+    class FakeDownload:
+        suggested_filename = r"..\old.xlsx"
+
+        def save_as(self, path):
+            Path(path).write_bytes(b"xlsx")
+
+    class FakeDownloadPromise:
+        @property
+        def value(self):
+            return FakeDownload()
+
+    class FakeExpectDownload:
+        def __enter__(self):
+            return FakeDownloadPromise()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        def expect_download(self, timeout):
+            return FakeExpectDownload()
+
+        def click(self, selector):
+            return None
+
+    monkeypatch.setattr(scraper, "_resolve_selector", lambda *args, **kwargs: "selector-ok")
+    monkeypatch.setattr(scraper, "_open_actions_menu", lambda page: None)
+    monkeypatch.setattr(scraper, "_wait_for_export_ready", lambda page, selector: None)
+
+    path = scraper._export_download(cast(Any, FakePage()))
+
+    assert path == cfg.download_dir / "old.xlsx"
+    assert path.is_file()
+    assert not (cfg.download_dir.parent / "old.xlsx").exists()
+
+
+def test_export_download_rejects_missing_saved_file(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+
+    class FakeDownload:
+        suggested_filename = "Report.xlsx"
+
+        def save_as(self, path):
+            return None
+
+    class FakeDownloadPromise:
+        @property
+        def value(self):
+            return FakeDownload()
+
+    class FakeExpectDownload:
+        def __enter__(self):
+            return FakeDownloadPromise()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakePage:
+        def expect_download(self, timeout):
+            return FakeExpectDownload()
+
+        def click(self, selector):
+            return None
+
+    monkeypatch.setattr(scraper, "_resolve_selector", lambda *args, **kwargs: "selector-ok")
+    monkeypatch.setattr(scraper, "_open_actions_menu", lambda page: None)
+    monkeypatch.setattr(scraper, "_wait_for_export_ready", lambda page, selector: None)
+
+    with pytest.raises(RuntimeError, match="download exportado nao encontrado"):
         scraper._export_download(cast(Any, FakePage()))
 
 

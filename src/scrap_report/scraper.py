@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable
 from urllib.parse import urlsplit
 
@@ -283,8 +283,13 @@ class SAMScraper:
                 page.click(selector)
 
                 download = download_promise.value
-                target = self.config.download_dir / download.suggested_filename
+                suggested_name = Path(PureWindowsPath(str(download.suggested_filename)).name).name
+                if not suggested_name:
+                    raise RuntimeError("download exportado sem nome de arquivo")
+                target = self.config.download_dir / suggested_name
                 download.save_as(str(target))
+                if not target.is_file():
+                    raise RuntimeError(f"download exportado nao encontrado: {target}")
                 logger.info("download concluido: %s", target)
                 return target
         except PlaywrightTimeoutError as exc:
