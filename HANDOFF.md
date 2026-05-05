@@ -556,3 +556,23 @@ O projeto agora tem duas frentes operacionais distintas:
   - revisao final do conjunto alterado: limpa
 - risco residual:
   - baixo: validacao local cobre contrato e smokes sintaticos; smoke real Windows/Debian ainda precisa ser executado nos ambientes alvo
+
+## Atualizacao local 2026-05-05, slice 54
+- objetivo:
+  - impedir que `exports.manifest_json` antigo apareca em `available_artifacts`
+  - manter `manifest_json` historico no payload normal
+- arquivos alterados:
+  - `src/scrap_report/file_ops.py`
+  - `tests/test_file_ops.py`
+  - `ROUND_STATUS.md`
+  - `HANDOFF.md`
+- mudancas:
+  - `manifest_json` entrou na lista de chaves excluidas de artefatos acionaveis
+  - constante renomeada para `DEFAULT_EXCLUDED_ARTIFACT_KEYS`
+  - teste cobre manifest preexistente em `exports.manifest_json`
+- kluster:
+  - achou 2 itens baixos de nomeacao no primeiro patch
+  - itens corrigidos
+  - revisao de codigo/teste: limpa
+- pendente:
+  - rodar validacoes locais e commit/push do slice

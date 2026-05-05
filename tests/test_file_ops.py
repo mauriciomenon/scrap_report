@@ -55,7 +55,7 @@ def test_find_latest_download_supports_pdf(tmp_path: Path):
     assert latest.name in {"a.pdf", "b.pdf"}
 
 
-def test_collect_available_file_artifacts_filters_missing_and_non_path_values(tmp_path: Path):
+def test_collect_available_file_artifacts_filters_invalid_and_excluded_keys(tmp_path: Path):
     staged = tmp_path / "staging" / "ok.xlsx"
     report = tmp_path / "staging" / "reports" / "dados.xlsx"
     missing = tmp_path / "downloads" / "old.xlsx"
@@ -68,6 +68,10 @@ def test_collect_available_file_artifacts_filters_missing_and_non_path_values(tm
         "source_path": str(missing),
         "staged_path": str(staged),
         "manifest_json": str(staged),
+        "exports": {
+            "data_xlsx": str(report),
+            "manifest_json": str(staged),
+        },
         "reports": {
             "dados": str(report),
             "old": str(missing),
@@ -80,5 +84,6 @@ def test_collect_available_file_artifacts_filters_missing_and_non_path_values(tm
     assert "source_path" not in available
     assert "manifest_json" not in available
     assert available["staged_path"] == str(staged)
+    assert available["exports"] == {"data_xlsx": str(report)}
     assert available["reports"] == {"dados": str(report)}
     assert with_available_file_artifacts(payload)["available_artifacts"] == available

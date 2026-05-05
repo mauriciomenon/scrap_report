@@ -1763,3 +1763,37 @@ Risco residual:
 
 Proximo passo natural:
 1. rodar smoke real Windows 11 e Debian no ambiente alvo para confirmar evidencias de plataforma
+
+## Slice 54 - excluir manifest stale de artefatos acionaveis
+Timestamp inicio: 2026-05-05T13:28:56-03:00
+Timestamp fim: 2026-05-05T13:33:13-03:00
+
+Objetivo:
+- impedir que `exports.manifest_json` antigo seja listado em `available_artifacts`
+- manter `manifest_json` historico no payload normal
+- limitar o patch ao helper compartilhado e ao teste focado
+
+Arquivos alterados:
+- `src/scrap_report/file_ops.py`
+- `tests/test_file_ops.py`
+
+Mudancas aplicadas:
+- `DEFAULT_NON_PATH_ARTIFACT_KEYS` renomeado para `DEFAULT_EXCLUDED_ARTIFACT_KEYS`
+- `manifest_json` passou a ser chave excluida de mapas de artefatos acionaveis
+- teste cobre `exports.manifest_json` apontando para arquivo existente antigo e confirma que ele nao entra em `available_artifacts`
+
+Validacoes previstas:
+- `compileall`
+- `ruff` focado
+- `ty`
+- `pytest` focado em `test_file_ops`, `test_cli`, `test_sweep`
+- `scan-secrets`
+
+Kluster:
+- achados durante o ciclo:
+  - 2 baixos: nomes imprecisos de constante e teste
+- corrigidos antes das validacoes locais
+- revisao do patch de codigo/teste: limpa
+
+Risco residual:
+- baixo: `manifest_json` continua disponivel como campo historico, mas nao como acao pronta em `available_artifacts`

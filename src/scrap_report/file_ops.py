@@ -16,7 +16,7 @@ DEFAULT_PATH_ARTIFACT_FIELDS = frozenset(
     }
 )
 DEFAULT_PATH_ARTIFACT_MAP_FIELDS = frozenset({"exports", "reports"})
-DEFAULT_NON_PATH_ARTIFACT_KEYS = frozenset({"mode"})
+DEFAULT_EXCLUDED_ARTIFACT_KEYS = frozenset({"manifest_json", "mode"})
 
 
 def build_staged_filename(source_name: str, report_kind: str, timestamp: datetime | None = None) -> str:
@@ -89,7 +89,7 @@ def collect_available_file_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
         available_values: dict[str, str] = {}
         for key, value in values.items():
             key_text = str(key)
-            if key_text in DEFAULT_NON_PATH_ARTIFACT_KEYS:
+            if key_text in DEFAULT_EXCLUDED_ARTIFACT_KEYS:
                 continue
             path = existing_file_artifact_path(value)
             if path:
