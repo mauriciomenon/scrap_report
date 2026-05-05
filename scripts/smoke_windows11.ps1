@@ -230,6 +230,11 @@ $contract = Read-RequiredJson -Path "staging/contract_info.json" -Name "validate
 $stageResult = $StageInfo
 $reportOnly = Read-RequiredJson -Path "staging/pipeline_report_only.json" -Name "pipeline report-only output"
 $ingest = Read-RequiredJson -Path "staging/ingest_result.json" -Name "ingest-latest output"
+$expectedIngestName = "Report_latest.xlsx"
+$ingestSourcePath = [string]$ingest.source_path
+if ([string]::IsNullOrWhiteSpace($ingestSourcePath) -or [System.IO.Path]::GetFileName($ingestSourcePath) -ne $expectedIngestName) {
+    throw "[smoke] step failed: ingest-latest source_path inesperado: $ingestSourcePath (esperado $expectedIngestName)"
+}
 foreach ($artifactPath in $SmokeJsonOutputs) {
     if ($artifactPath -eq "staging/smoke_evidence_windows11.json") {
         continue
@@ -258,6 +263,7 @@ $evidence = [ordered]@{
     stage = $stageResult.status
     pipeline_report_only = $reportOnly.status
     ingest_latest = $ingest.status
+    ingest_latest_source = "ok"
   }
   artifacts = [ordered]@{
     scan_secrets_json = "staging/scan_secrets.json"

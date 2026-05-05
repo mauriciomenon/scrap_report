@@ -188,6 +188,14 @@ stage = _load_json(staging / "stage_result.json")
 report_only = _load_json(staging / "pipeline_report_only.json")
 ingest = _load_json(staging / "ingest_result.json")
 
+expected_ingest_name = "Report_latest.xlsx"
+ingest_source_name = Path(str(ingest.get("source_path", ""))).name
+if ingest_source_name != expected_ingest_name:
+    raise SystemExit(
+        "[smoke] ingest-latest source_path inesperado: "
+        f"{ingest_source_name or '<empty>'} (esperado {expected_ingest_name})"
+    )
+
 _assert_available_artifacts(stage, "stage output")
 _assert_available_artifacts(report_only, "pipeline report-only output")
 _assert_available_artifacts(ingest, "ingest-latest output")
@@ -211,6 +219,7 @@ evidence = {
         "stage": stage.get("status"),
         "pipeline_report_only": report_only.get("status"),
         "ingest_latest": ingest.get("status"),
+        "ingest_latest_source": "ok",
     },
     "artifacts": {
         "scan_secrets_json": "staging/scan_secrets.json",

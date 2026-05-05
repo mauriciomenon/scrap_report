@@ -209,7 +209,7 @@ def test_sweep_runner_available_artifacts_skip_missing_paths(tmp_path: Path):
         staged_path.write_bytes(b"xlsx")
         report_path.write_bytes(b"report")
 
-        result = type("PipelineResult", (), {})()
+        result = cast(Any, type("PipelineResult", (), {})())
         result.status = "ok"
         result.source_path = missing_path
         result.staged_path = staged_path

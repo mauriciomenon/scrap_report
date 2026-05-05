@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -203,7 +204,7 @@ def test_pipeline_payload_available_artifacts_skip_missing_paths(
     staged_path.write_bytes(b"xlsx")
     report_path.write_bytes(b"report")
 
-    pipeline_result = type("PipelineResult", (), {})()
+    pipeline_result = cast(Any, type("PipelineResult", (), {})())
     pipeline_result.status = "ok"
     pipeline_result.report_kind = "pendentes"
     pipeline_result.source_path = missing_path
