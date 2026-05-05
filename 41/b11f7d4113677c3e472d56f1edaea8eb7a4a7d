@@ -1,0 +1,25 @@
+src/scrap_report/cli.py
+  246cd19bc6b0fd52 711-715,718-767,1130,1148,1168,1301-1302,1347-1360
+tests/test_cli.py
+  246cd19bc6b0fd52 1690-1691,1739,1751,1816-1817,1836,1844-1937
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "41b11f7d4113677c3e472d56f1edaea8eb7a4a7d",
+  "prompts": {
+    "246cd19bc6b0fd52": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019df61e-f33d-7642-87fe-eb32c6dd22bc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "mauriciomenon",
+      "messages": [],
+      "total_additions": 175,
+      "total_deletions": 47,
+      "accepted_lines": 175,
+      "overriden_lines": 0
+    }
+  }
+}
