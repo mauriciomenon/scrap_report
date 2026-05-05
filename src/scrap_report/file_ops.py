@@ -101,6 +101,9 @@ def collect_available_file_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
 
 def with_available_file_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
     available = collect_available_file_artifacts(payload)
+    clean_payload = {
+        key: value for key, value in payload.items() if key != "available_artifacts"
+    }
     if not available:
-        return payload
-    return {**payload, "available_artifacts": available}
+        return clean_payload
+    return {**clean_payload, "available_artifacts": available}
