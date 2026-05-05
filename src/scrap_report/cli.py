@@ -708,10 +708,63 @@ def _dedupe_preserve_order(values: list[str]) -> list[str]:
     return unique_values
 
 
-def _normalize_optional_path(path_value: str | None) -> str | None:
+def _normalize_optional_path(
+    path_value: str | None,
+    label: str = "path",
+    must_be_file: bool = False,
+) -> str | None:
     if not path_value:
         return None
-    return str(Path(path_value).expanduser().resolve())
+    path = Path(path_value).expanduser().resolve()
+    if must_be_file:
+        if not path.exists():
+            raise ValueError(f"{label} nao encontrado: {path}")
+        if not path.is_file():
+            raise ValueError(f"{label} nao e arquivo: {path}")
+    return str(path)
+
+
+def _normalize_ca_file_path(path_value: str | None, label: str = "ca_file") -> str | None:
+    return _normalize_optional_path(path_value, label, must_be_file=True)
+
+
+def _build_sam_api_client(args: Any) -> SAMApiClient:
+    return SAMApiClient(
+        base_url=args.base_url,
+        timeout_seconds=args.timeout_seconds,
+        verify_tls=not args.ignore_https_errors,
+        ca_file=_normalize_ca_file_path(args.ca_file),
+    )
+
+
+def _build_sweep_runtime_config(
+    args: Any,
+    *,
+    username: str,
+    password: str,
+    base_url: str,
+    headless: bool,
+    download_dir: Path,
+    staging_dir: Path,
+    selector_mode: str,
+    ignore_https_errors: bool,
+) -> Any:
+    return SweepRuntimeConfig(
+        username=username,
+        password=password,
+        base_url=base_url,
+        headless=headless,
+        download_dir=download_dir,
+        staging_dir=staging_dir,
+        selector_mode=selector_mode,
+        ignore_https_errors=ignore_https_errors,
+        generate_reports=True,
+        runtime_mode=args.runtime,
+        rest_base_url=args.rest_base_url,
+        rest_timeout_seconds=args.rest_timeout_seconds,
+        rest_verify_tls=not args.ignore_https_errors,
+        rest_ca_file=_normalize_ca_file_path(args.rest_ca_file, "rest_ca_file"),
+    )
 
 
 def _normalize_optional_emission_date_window(
@@ -1073,13 +1126,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if not findings else 1
 
     if args.command == "sam-api":
-        client = SAMApiClient(
-            base_url=args.base_url,
-            timeout_seconds=args.timeout_seconds,
-            verify_tls=not args.ignore_https_errors,
-            ca_file=_normalize_optional_path(args.ca_file),
-        )
         try:
+            client = _build_sam_api_client(args)
             mode, items = _run_sam_api_query(args, client)
             payload = _build_sam_api_payload(mode, items, args)
         except (ValueError, SAMApiError) as exc:
@@ -1096,13 +1144,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "sam-api-flow":
-        client = SAMApiClient(
-            base_url=args.base_url,
-            timeout_seconds=args.timeout_seconds,
-            verify_tls=not args.ignore_https_errors,
-            ca_file=_normalize_optional_path(args.ca_file),
-        )
         try:
+            client = _build_sam_api_client(args)
             mode, items = _run_sam_api_query(args, client)
             payload = _build_sam_api_payload(mode, items, args)
         except (ValueError, SAMApiError) as exc:
@@ -1121,13 +1164,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "sam-api-standalone":
-        client = SAMApiClient(
-            base_url=args.base_url,
-            timeout_seconds=args.timeout_seconds,
-            verify_tls=not args.ignore_https_errors,
-            ca_file=_normalize_optional_path(args.ca_file),
-        )
         try:
+            client = _build_sam_api_client(args)
             _validate_sam_api_limit(args.limit)
             mode, items = _run_sam_api_query(args, client)
             output_dir = Path(args.output_dir) if args.output_dir else _build_default_sam_api_output_dir(args.profile)
@@ -1260,7 +1298,8 @@ def main(argv: list[str] | None = None) -> int:
                 staging_dir = Path(args.staging_dir)
                 download_dir.mkdir(parents=True, exist_ok=True)
                 staging_dir.mkdir(parents=True, exist_ok=True)
-                runtime = SweepRuntimeConfig(
+                runtime = _build_sweep_runtime_config(
+                    args,
                     username=(args.username or "").strip(),
                     password=(input_password or "").strip(),
                     base_url=args.base_url,
@@ -1269,12 +1308,6 @@ def main(argv: list[str] | None = None) -> int:
                     staging_dir=staging_dir,
                     selector_mode=args.selector_mode,
                     ignore_https_errors=args.ignore_https_errors,
-                    generate_reports=True,
-                    runtime_mode=args.runtime,
-                    rest_base_url=args.rest_base_url,
-                    rest_timeout_seconds=args.rest_timeout_seconds,
-                    rest_verify_tls=not args.ignore_https_errors,
-                    rest_ca_file=_normalize_optional_path(args.rest_ca_file),
                 )
                 output_json = args.output_json or str(
                     _build_default_sweep_output_json(staging_dir, args.report_kind)
@@ -1308,25 +1341,23 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             return _emit_command_error(args.output_json, args.command, exc)
 
-        runtime = SweepRuntimeConfig(
-            username=base_cfg.username,
-            password=base_cfg.password,
-            base_url=base_cfg.base_url,
-            headless=base_cfg.headless,
-            download_dir=base_cfg.download_dir,
-            staging_dir=base_cfg.staging_dir,
-            selector_mode=base_cfg.selector_mode,
-            ignore_https_errors=base_cfg.ignore_https_errors,
-            generate_reports=True,
-            runtime_mode=args.runtime,
-            rest_base_url=args.rest_base_url,
-            rest_timeout_seconds=args.rest_timeout_seconds,
-            rest_verify_tls=not args.ignore_https_errors,
-            rest_ca_file=_normalize_optional_path(args.rest_ca_file),
-        )
         output_json = args.output_json or str(
             _build_default_sweep_output_json(base_cfg.staging_dir, args.report_kind)
         )
+        try:
+            runtime = _build_sweep_runtime_config(
+                args,
+                username=base_cfg.username,
+                password=base_cfg.password,
+                base_url=base_cfg.base_url,
+                headless=base_cfg.headless,
+                download_dir=base_cfg.download_dir,
+                staging_dir=base_cfg.staging_dir,
+                selector_mode=base_cfg.selector_mode,
+                ignore_https_errors=base_cfg.ignore_https_errors,
+            )
+        except ValueError as exc:
+            return _emit_command_error(output_json, args.command, exc)
         try:
             manifest = SweepRunner().run(plan, runtime)
         except Exception as exc:

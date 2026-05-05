@@ -1687,6 +1687,8 @@ def test_sweep_run_accepts_runtime_rest_and_rest_tls_options(
     provider = MemorySecretProvider()
     provider.set_secret("svc", "u1", "safe-secret")
     monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    ca_file = tmp_path / "ca.pem"
+    ca_file.write_text("dummy", encoding="utf-8")
 
     seen = {}
 
@@ -1734,7 +1736,7 @@ def test_sweep_run_accepts_runtime_rest_and_rest_tls_options(
             "--rest-timeout-seconds",
             "45",
             "--rest-ca-file",
-            str(tmp_path / "ca.pem"),
+            str(ca_file),
             "--secret-service",
             "svc",
             "--output-json",
@@ -1746,7 +1748,7 @@ def test_sweep_run_accepts_runtime_rest_and_rest_tls_options(
     assert seen["runtime_mode"] == "rest"
     assert seen["rest_timeout_seconds"] == 45.0
     assert seen["rest_verify_tls"] is True
-    assert seen["rest_ca_file"] == str(tmp_path / "ca.pem")
+    assert seen["rest_ca_file"] == str(ca_file)
 
 
 def test_sweep_run_rest_does_not_require_secret_backend(
@@ -1811,6 +1813,8 @@ def test_sam_api_flow_accepts_ca_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     seen = {}
+    ca_file = tmp_path / "corp-ca.pem"
+    ca_file.write_text("dummy", encoding="utf-8")
 
     class _FakeClient:
         def __init__(self, base_url, timeout_seconds, verify_tls, ca_file=None):
@@ -1829,7 +1833,7 @@ def test_sam_api_flow_accepts_ca_file(
             "--profile",
             "panorama",
             "--ca-file",
-            str(tmp_path / "corp-ca.pem"),
+            str(ca_file),
             "--output-json",
             str(tmp_path / "out" / "sam_api_flow_ca.json"),
         ]
@@ -1837,7 +1841,100 @@ def test_sam_api_flow_accepts_ca_file(
 
     assert code == 0
     assert seen["verify_tls"] is True
-    assert seen["ca_file"] == str(tmp_path / "corp-ca.pem")
+    assert seen["ca_file"] == str(ca_file)
+
+
+def test_sam_api_flow_reports_missing_ca_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    out_json = tmp_path / "out" / "sam_api_flow_ca_error.json"
+
+    code = main(
+        [
+            "sam-api-flow",
+            "--profile",
+            "panorama",
+            "--ca-file",
+            str(tmp_path / "missing-ca.pem"),
+            "--output-json",
+            str(out_json),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "ca_file nao encontrado" in captured.err
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api-flow"
+    assert "ca_file nao encontrado" in payload["message"]
+
+
+def test_sweep_run_rest_reports_directory_ca_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    out_json = tmp_path / "out" / "sweep_rest_ca_error.json"
+
+    code = main(
+        [
+            "sweep-run",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "nenhum",
+            "--runtime",
+            "rest",
+            "--rest-ca-file",
+            str(tmp_path),
+            "--output-json",
+            str(out_json),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "rest_ca_file nao e arquivo" in captured.err
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sweep-run"
+    assert "rest_ca_file nao e arquivo" in payload["message"]
+
+
+def test_sweep_run_playwright_reports_directory_rest_ca_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+    out_json = tmp_path / "out" / "sweep_playwright_ca_error.json"
+
+    code = main(
+        [
+            "sweep-run",
+            "--username",
+            "u1",
+            "--report-kind",
+            "pendentes",
+            "--scope-mode",
+            "nenhum",
+            "--rest-ca-file",
+            str(tmp_path),
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "rest_ca_file nao e arquivo" in captured.err
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sweep-run"
+    assert "rest_ca_file nao e arquivo" in payload["message"]
 
 
 def test_sam_api_command_reports_missing_ca_file(
