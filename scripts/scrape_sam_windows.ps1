@@ -78,6 +78,9 @@ function Invoke-RequiredFlowJsonCommand {
         [Parameter(Mandatory = $true)][string[]]$CommandArgs
     )
 
+    if (Test-Path -LiteralPath $OutFile) {
+        Remove-Item -LiteralPath $OutFile -Force
+    }
     uv @CommandArgs
     $exitCode = $LASTEXITCODE
     $result = $null

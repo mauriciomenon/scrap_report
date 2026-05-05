@@ -6,6 +6,7 @@ import pytest
 
 from scrap_report.cli import _emit_json, main
 from scrap_report.errors import PipelineStepError
+from scrap_report.sam_api import SAMApiError
 from scrap_report.secret_provider import MemorySecretProvider
 
 
@@ -625,7 +626,30 @@ def test_sam_api_standalone_rejects_invalid_limit(tmp_path: Path):
     )
 
     assert code == 1
-    assert not manifest.exists()
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api-standalone"
+    assert "limit deve ser maior que zero" in payload["message"]
+
+
+def test_sam_api_flow_rejects_detail_profile_without_numbers_json(tmp_path: Path):
+    out_json = tmp_path / "out" / "sam_api_flow_error.json"
+
+    code = main(
+        [
+            "sam-api-flow",
+            "--profile",
+            "detail-lote",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api-flow"
+    assert "detail-lote exige --ssa-number" in payload["message"]
 
 
 def test_auth_flow_emits_security_notice_and_preserves_json_streams(
@@ -1725,6 +1749,8 @@ def test_sam_api_flow_accepts_ca_file(
 def test_sam_api_command_reports_missing_ca_file(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ):
+    out_json = tmp_path / "out" / "sam_api_error.json"
+
     code = main(
         [
             "sam-api",
@@ -1732,12 +1758,18 @@ def test_sam_api_command_reports_missing_ca_file(
             "202602521",
             "--ca-file",
             str(tmp_path / "missing-ca.pem"),
+            "--output-json",
+            str(out_json),
         ]
     )
     captured = capsys.readouterr()
 
     assert code == 1
     assert "ca_file nao encontrado" in captured.err
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api"
+    assert "ca_file nao encontrado" in payload["message"]
 
 
 def test_sam_api_cert_exports_root_ca(
@@ -1768,6 +1800,32 @@ def test_sam_api_cert_exports_root_ca(
     )
 
     assert code == 0
+
+
+def test_sam_api_cert_error_writes_output_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    def _raise_error(**_kwargs):
+        raise SAMApiError("openssl falhou")
+
+    monkeypatch.setattr("scrap_report.cli.export_server_root_ca", _raise_error)
+    out_json = tmp_path / "out" / "sam_api_cert_error.json"
+
+    code = main(
+        [
+            "sam-api-cert",
+            "--output",
+            str(tmp_path / "corp-root.pem"),
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    assert payload["status"] == "error"
+    assert payload["command"] == "sam-api-cert"
+    assert "openssl falhou" in payload["message"]
 
 
 def test_sweep_run_rejects_preset_with_manual_scope(

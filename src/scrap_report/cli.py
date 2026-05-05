@@ -1068,8 +1068,7 @@ def main(argv: list[str] | None = None) -> int:
             mode, items = _run_sam_api_query(args, client)
             payload = _build_sam_api_payload(mode, items, args)
         except (ValueError, SAMApiError) as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
         payload["exports"] = _export_sam_api_records(
             records=payload["items"],
             output_csv=args.output_csv,
@@ -1092,8 +1091,7 @@ def main(argv: list[str] | None = None) -> int:
             mode, items = _run_sam_api_query(args, client)
             payload = _build_sam_api_payload(mode, items, args)
         except (ValueError, SAMApiError) as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
         payload["profile"] = args.profile
         payload["summary"] = build_sam_api_summary(items)
         payload["exports"] = _export_sam_api_records(
@@ -1128,8 +1126,7 @@ def main(argv: list[str] | None = None) -> int:
                 exports=sam_api_artifacts_to_dict(artifacts),
             )
         except (ValueError, SAMApiError) as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
         manifest_path = args.output_json or str(_build_default_sam_api_manifest_path(output_dir, args.profile))
         payload["manifest_json"] = manifest_path
         payload["exports"]["manifest_json"] = manifest_path
@@ -1149,8 +1146,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
             }
         except SAMApiError as exc:
-            print(f"[error] {exc}", file=sys.stderr)
-            return 1
+            return _emit_command_error(args.output_json, args.command, exc)
         _emit_unvalidated_json(payload, args.output_json)
         return 0
 
