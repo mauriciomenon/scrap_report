@@ -36,6 +36,9 @@ def test_stage_writes_output_json(tmp_path: Path):
     assert '"generated_at": ' in content
     assert '"producer": "scrap_report.cli"' in content
     assert '"status": "ok"' in content
+    payload = json.loads(content)
+    assert payload["available_artifacts"]["staged_path"] == payload["staged_path"]
+    assert Path(payload["available_artifacts"]["staged_path"]).is_file()
 
 
 def test_pipeline_report_only_writes_output_json(tmp_path: Path):
@@ -182,6 +185,62 @@ def test_pipeline_commands_non_ok_status_return_error_code(
     assert code == 1
     payload = json.loads(out_json.read_text(encoding="utf-8"))
     assert payload["status"] == "error"
+
+
+def test_pipeline_payload_available_artifacts_skip_missing_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    provider = MemorySecretProvider()
+    provider.set_secret("svc", "u1", "safe-secret")
+    monkeypatch.setattr("scrap_report.cli.build_secret_provider", lambda: provider)
+
+    staged_path = tmp_path / "staging" / "Report.xlsx"
+    report_path = tmp_path / "staging" / "reports" / "dados.xlsx"
+    missing_path = tmp_path / "downloads" / "old.xlsx"
+    staged_path.parent.mkdir(parents=True)
+    report_path.parent.mkdir(parents=True)
+    staged_path.write_bytes(b"xlsx")
+    report_path.write_bytes(b"report")
+
+    pipeline_result = type("PipelineResult", (), {})()
+    pipeline_result.status = "ok"
+    pipeline_result.report_kind = "pendentes"
+    pipeline_result.source_path = missing_path
+    pipeline_result.staged_path = staged_path
+    pipeline_result.reports = {
+        "dados": str(report_path),
+        "old": str(missing_path),
+        "mode": "search",
+    }
+    pipeline_result.telemetry = {}
+
+    monkeypatch.setattr(
+        "scrap_report.cli.run_pipeline",
+        lambda cfg, generate_reports: pipeline_result,
+    )
+    out_json = tmp_path / "out" / "pipeline.json"
+
+    code = main(
+        [
+            "pipeline",
+            "--username",
+            "u1",
+            "--setor",
+            "IEE3",
+            "--secret-service",
+            "svc",
+            "--output-json",
+            str(out_json),
+        ]
+    )
+
+    assert code == 0
+    payload = json.loads(out_json.read_text(encoding="utf-8"))
+    available = payload["available_artifacts"]
+    assert "source_path" not in available
+    assert available["staged_path"] == str(staged_path)
+    assert available["reports"] == {"dados": str(report_path)}
 
 
 def test_emit_json_fails_fast_on_invalid_payload():

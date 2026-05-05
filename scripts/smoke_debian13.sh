@@ -53,6 +53,15 @@ if [[ -z "${SMOKE_USERNAME}" ]]; then
 fi
 
 mkdir -p staging downloads
+SMOKE_JSON_OUTPUTS=(
+  staging/scan_secrets.json
+  staging/contract_info.json
+  staging/stage_result.json
+  staging/pipeline_report_only.json
+  staging/ingest_result.json
+  staging/smoke_evidence_debian13.json
+)
+rm -f "${SMOKE_JSON_OUTPUTS[@]}"
 
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python || true)}"
 if [[ -z "${PYTHON_BIN}" ]]; then
@@ -141,11 +150,47 @@ evidence_path = staging / "smoke_evidence_debian13.json"
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
+
+def _require_file(path_value: str, label: str) -> None:
+    path = Path(path_value)
+    if not path_value.strip() or not path.is_file():
+        raise SystemExit(f"[smoke] {label} missing artifact file: {path_value}")
+
+
+def _assert_available_artifacts(payload: dict, label: str) -> None:
+    available = payload.get("available_artifacts") or {}
+    if not isinstance(available, dict):
+        raise SystemExit(f"[smoke] {label} available_artifacts must be an object")
+    for key, value in available.items():
+        if isinstance(value, str):
+            _require_file(value, f"{label} available_artifacts.{key}")
+            continue
+        if isinstance(value, dict):
+            for nested_key, nested_value in value.items():
+                if isinstance(nested_value, str):
+                    _require_file(
+                        nested_value,
+                        f"{label} available_artifacts.{key}.{nested_key}",
+                    )
+
+for artifact_path in (
+    staging / "scan_secrets.json",
+    staging / "contract_info.json",
+    staging / "stage_result.json",
+    staging / "pipeline_report_only.json",
+    staging / "ingest_result.json",
+):
+    _require_file(str(artifact_path), "smoke evidence input")
+
 scan = _load_json(staging / "scan_secrets.json")
 contract = _load_json(staging / "contract_info.json")
 stage = _load_json(staging / "stage_result.json")
 report_only = _load_json(staging / "pipeline_report_only.json")
 ingest = _load_json(staging / "ingest_result.json")
+
+_assert_available_artifacts(stage, "stage output")
+_assert_available_artifacts(report_only, "pipeline report-only output")
+_assert_available_artifacts(ingest, "ingest-latest output")
 
 evidence = {
     "platform_label": "debian13",

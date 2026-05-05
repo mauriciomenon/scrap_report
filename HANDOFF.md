@@ -519,3 +519,40 @@ O projeto agora tem duas frentes operacionais distintas:
     - `69ebc3934ea1da958e1ad0c9`
   - itens de alto/medio com patch minimo foram tratados no proprio slice
   - restaram apenas itens de refatoracao ampla e aviso do fallback transicional Debian
+
+## Atualizacao local 2026-05-05, slice 53
+- objetivo:
+  - impedir que artefatos antigos ou inexistentes sejam tratados como acionaveis
+  - preservar campos historicos existentes para compatibilidade
+  - impedir que smokes montem evidencia com JSON stale
+- arquivos alterados:
+  - `src/scrap_report/file_ops.py`
+  - `src/scrap_report/cli.py`
+  - `src/scrap_report/sweep.py`
+  - `scripts/smoke_windows11.ps1`
+  - `scripts/smoke_debian13.sh`
+  - `tests/test_file_ops.py`
+  - `tests/test_cli.py`
+  - `tests/test_sweep.py`
+  - `ROUND_STATUS.md`
+  - `HANDOFF.md`
+- mudancas:
+  - `available_artifacts` centralizado em `file_ops.py`
+  - CLI e sweep agora publicam apenas arquivos existentes como artefatos disponiveis
+  - `source_path` continua historico, mas fica fora de `available_artifacts` se o staging ja moveu a origem
+  - smokes apagam JSONs fixos antigos no inicio
+  - smokes validam `available_artifacts` antes de gravar evidencia final
+- validacoes:
+  - `compileall -q src tests`: ok
+  - `ruff check .`: ok
+  - `ty check src`: ok
+  - `pytest tests/test_file_ops.py tests/test_cli.py tests/test_sweep.py`: 83 passed
+  - `pytest -q`: 233 passed
+  - `bash -n scripts/smoke_debian13.sh`: ok
+  - parser PowerShell para `scripts/smoke_windows11.ps1`: ok
+  - `scan-secrets --paths src README.md`: ok, 0 findings
+- kluster:
+  - achados intermediarios corrigidos: acoplamento do emissor, I/O em serializacao, `dict(None)`, duplicacao de helper e `manifest_json` antes da escrita
+  - revisao final do conjunto alterado: limpa
+- risco residual:
+  - baixo: validacao local cobre contrato e smokes sintaticos; smoke real Windows/Debian ainda precisa ser executado nos ambientes alvo

@@ -78,8 +78,57 @@ function Read-RequiredJson {
     return $parsedJson
 }
 
+function Assert-ExistingArtifact {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "[smoke] step failed: $Name (missing artifact file: $Path)"
+    }
+}
+
+function Assert-AvailableArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]$Payload,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if (-not ($Payload.PSObject.Properties.Name -contains "available_artifacts")) {
+        return
+    }
+    foreach ($property in $Payload.available_artifacts.PSObject.Properties) {
+        if ($property.Value -is [string]) {
+            Assert-ExistingArtifact -Path $property.Value -Name "$Name available_artifacts.$($property.Name)"
+            continue
+        }
+        if ($null -eq $property.Value) {
+            continue
+        }
+        foreach ($nestedProperty in $property.Value.PSObject.Properties) {
+            if ($nestedProperty.Value -is [string]) {
+                Assert-ExistingArtifact -Path $nestedProperty.Value -Name "$Name available_artifacts.$($property.Name).$($nestedProperty.Name)"
+            }
+        }
+    }
+}
+
 New-Item -ItemType Directory -Path staging -Force | Out-Null
 New-Item -ItemType Directory -Path downloads -Force | Out-Null
+$SmokeJsonOutputs = @(
+    "staging/scan_secrets.json",
+    "staging/contract_info.json",
+    "staging/stage_result.json",
+    "staging/pipeline_report_only.json",
+    "staging/ingest_result.json",
+    "staging/smoke_evidence_windows11.json"
+)
+foreach ($jsonPath in $SmokeJsonOutputs) {
+    if (Test-Path -LiteralPath $jsonPath) {
+        Remove-Item -LiteralPath $jsonPath -Force
+    }
+}
 
 Invoke-NetworkPrecheck
 Invoke-CheckedCommand -Name "uv sync" -Command { uv sync }
@@ -181,6 +230,15 @@ $contract = Read-RequiredJson -Path "staging/contract_info.json" -Name "validate
 $stageResult = $StageInfo
 $reportOnly = Read-RequiredJson -Path "staging/pipeline_report_only.json" -Name "pipeline report-only output"
 $ingest = Read-RequiredJson -Path "staging/ingest_result.json" -Name "ingest-latest output"
+foreach ($artifactPath in $SmokeJsonOutputs) {
+    if ($artifactPath -eq "staging/smoke_evidence_windows11.json") {
+        continue
+    }
+    Assert-ExistingArtifact -Path $artifactPath -Name "smoke evidence input"
+}
+Assert-AvailableArtifacts -Payload $stageResult -Name "stage output"
+Assert-AvailableArtifacts -Payload $reportOnly -Name "pipeline report-only output"
+Assert-AvailableArtifacts -Payload $ingest -Name "ingest-latest output"
 
 $evidence = [ordered]@{
   platform_label = "windows11_real"

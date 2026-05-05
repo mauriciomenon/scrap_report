@@ -5,9 +5,11 @@ import pytest
 
 from scrap_report.file_ops import (
     build_staged_filename,
+    collect_available_file_artifacts,
     find_latest_download,
     find_latest_xlsx,
     stage_download,
+    with_available_file_artifacts,
 )
 
 
@@ -51,3 +53,32 @@ def test_find_latest_download_supports_pdf(tmp_path: Path):
 
     latest = find_latest_download(tmp_path, (".pdf",))
     assert latest.name in {"a.pdf", "b.pdf"}
+
+
+def test_collect_available_file_artifacts_filters_missing_and_non_path_values(tmp_path: Path):
+    staged = tmp_path / "staging" / "ok.xlsx"
+    report = tmp_path / "staging" / "reports" / "dados.xlsx"
+    missing = tmp_path / "downloads" / "old.xlsx"
+    staged.parent.mkdir(parents=True)
+    report.parent.mkdir(parents=True)
+    staged.write_bytes(b"xlsx")
+    report.write_bytes(b"report")
+
+    payload = {
+        "source_path": str(missing),
+        "staged_path": str(staged),
+        "manifest_json": str(staged),
+        "reports": {
+            "dados": str(report),
+            "old": str(missing),
+            "mode": "search",
+        },
+    }
+
+    available = collect_available_file_artifacts(payload)
+
+    assert "source_path" not in available
+    assert "manifest_json" not in available
+    assert available["staged_path"] == str(staged)
+    assert available["reports"] == {"dados": str(report)}
+    assert with_available_file_artifacts(payload)["available_artifacts"] == available

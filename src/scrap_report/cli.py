@@ -29,7 +29,7 @@ from .contract import (
     validate_payload_schema,
 )
 from .errors import PipelineStepError
-from .file_ops import find_latest_xlsx, stage_download
+from .file_ops import find_latest_xlsx, stage_download, with_available_file_artifacts
 from .reporting import (
     artifacts_to_dict,
     build_sam_api_dataframe,
@@ -71,8 +71,6 @@ SWEEP_PRESET_CHOICES = (
     "demais_executor",
     "demais_ambos",
 )
-
-
 def run_pipeline(*args: Any, **kwargs: Any) -> Any:
     from .pipeline import run_pipeline as impl
 
@@ -624,6 +622,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _emit_json(
     payload: dict[str, Any], output_json: str | None, schema_name: str
 ) -> None:
+    payload = with_available_file_artifacts(payload)
     assert_no_sensitive_fields(payload)
     validate_payload_schema(schema_name, payload)
     normalized = {
@@ -641,6 +640,7 @@ def _emit_json(
 
 
 def _emit_unvalidated_json(payload: dict[str, Any], output_json: str | None) -> None:
+    payload = with_available_file_artifacts(payload)
     assert_no_sensitive_fields(payload)
     normalized = {
         "schema_version": SCHEMA_VERSION,
@@ -671,6 +671,17 @@ def _emit_command_error(
             payload["step"] = exc.step
         _emit_unvalidated_json(payload, output_json)
     return 1
+
+
+def _pipeline_result_payload(pipeline_result: Any) -> dict[str, Any]:
+    return {
+        "status": pipeline_result.status,
+        "report_kind": pipeline_result.report_kind,
+        "source_path": str(pipeline_result.source_path),
+        "staged_path": str(pipeline_result.staged_path),
+        "reports": pipeline_result.reports,
+        "telemetry": pipeline_result.telemetry,
+    }
 
 
 def _read_ssa_numbers_from_file(path_value: str | None) -> list[str]:
@@ -1195,18 +1206,7 @@ def main(argv: list[str] | None = None) -> int:
             pipeline_result = run_pipeline(cfg, generate_reports=True)
         except Exception as exc:
             return _emit_command_error(args.output_json, args.command, exc)
-        _emit_json(
-            {
-                "status": pipeline_result.status,
-                "report_kind": pipeline_result.report_kind,
-                "source_path": str(pipeline_result.source_path),
-                "staged_path": str(pipeline_result.staged_path),
-                "reports": pipeline_result.reports,
-                "telemetry": pipeline_result.telemetry,
-            },
-            args.output_json,
-            "pipeline_result",
-        )
+        _emit_json(_pipeline_result_payload(pipeline_result), args.output_json, "pipeline_result")
         return 0 if pipeline_result.status == "ok" else 1
 
     if args.command == "sweep-run":
@@ -1355,18 +1355,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         except Exception as exc:
             return _emit_command_error(args.output_json, args.command, exc)
-        _emit_json(
-            {
-                "status": pipeline_result.status,
-                "report_kind": pipeline_result.report_kind,
-                "source_path": str(pipeline_result.source_path),
-                "staged_path": str(pipeline_result.staged_path),
-                "reports": pipeline_result.reports,
-                "telemetry": pipeline_result.telemetry,
-            },
-            args.output_json,
-            "pipeline_result",
-        )
+        _emit_json(_pipeline_result_payload(pipeline_result), args.output_json, "pipeline_result")
         return 0 if pipeline_result.status == "ok" else 1
 
     if args.command in {"scrape", "pipeline", "ingest-latest"}:
@@ -1429,18 +1418,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
         except Exception as exc:
             return _emit_command_error(args.output_json, args.command, exc)
-        _emit_json(
-            {
-                "status": pipeline_result.status,
-                "report_kind": pipeline_result.report_kind,
-                "source_path": str(pipeline_result.source_path),
-                "staged_path": str(pipeline_result.staged_path),
-                "reports": pipeline_result.reports,
-                "telemetry": pipeline_result.telemetry,
-            },
-            args.output_json,
-            "pipeline_result",
-        )
+        _emit_json(_pipeline_result_payload(pipeline_result), args.output_json, "pipeline_result")
         return 0 if pipeline_result.status == "ok" else 1
 
     if args.command == "stage":

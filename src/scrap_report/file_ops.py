@@ -5,6 +5,18 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+
+DEFAULT_PATH_ARTIFACT_FIELDS = frozenset(
+    {
+        "downloaded_path",
+        "output_path",
+        "source_path",
+        "staged_path",
+    }
+)
+DEFAULT_PATH_ARTIFACT_MAP_FIELDS = frozenset({"exports", "reports"})
+DEFAULT_NON_PATH_ARTIFACT_KEYS = frozenset({"mode"})
 
 
 def build_staged_filename(source_name: str, report_kind: str, timestamp: datetime | None = None) -> str:
@@ -46,3 +58,49 @@ def find_latest_download(download_dir: Path, suffixes: tuple[str, ...]) -> Path:
 
 def find_latest_xlsx(download_dir: Path) -> Path:
     return find_latest_download(download_dir, (".xlsx",))
+
+
+def existing_file_artifact_path(value: Any) -> str | None:
+    if isinstance(value, Path):
+        path = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        path = Path(text)
+    else:
+        return None
+    if not path.is_file():
+        return None
+    return str(path)
+
+
+def collect_available_file_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
+    available: dict[str, Any] = {}
+    for field_name in sorted(DEFAULT_PATH_ARTIFACT_FIELDS):
+        path = existing_file_artifact_path(payload.get(field_name))
+        if path:
+            available[field_name] = path
+
+    for map_name in sorted(DEFAULT_PATH_ARTIFACT_MAP_FIELDS):
+        values = payload.get(map_name)
+        if not isinstance(values, dict):
+            continue
+        available_values: dict[str, str] = {}
+        for key, value in values.items():
+            key_text = str(key)
+            if key_text in DEFAULT_NON_PATH_ARTIFACT_KEYS:
+                continue
+            path = existing_file_artifact_path(value)
+            if path:
+                available_values[key_text] = path
+        if available_values:
+            available[map_name] = available_values
+    return available
+
+
+def with_available_file_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
+    available = collect_available_file_artifacts(payload)
+    if not available:
+        return payload
+    return {**payload, "available_artifacts": available}

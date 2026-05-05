@@ -1711,3 +1711,55 @@ Risco residual:
 - medio: debt estrutural de duplicacao entre scripts (fora do escopo deste slice)
 
 Timestamp fim: pendente
+
+## Slice 53 - validacao de artefatos acionaveis
+Timestamp inicio: 2026-05-05T12:51:39-03:00
+Timestamp fim: 2026-05-05T13:24:42-03:00
+
+Objetivo:
+- impedir que caminhos antigos ou inexistentes sejam oferecidos como artefatos acionaveis
+- manter campos historicos existentes sem quebrar consumidores atuais
+- evitar reaproveitamento de JSON stale nos smokes
+
+Arquivos alterados:
+- `src/scrap_report/file_ops.py`
+- `src/scrap_report/cli.py`
+- `src/scrap_report/sweep.py`
+- `scripts/smoke_windows11.ps1`
+- `scripts/smoke_debian13.sh`
+- `tests/test_file_ops.py`
+- `tests/test_cli.py`
+- `tests/test_sweep.py`
+
+Mudancas aplicadas:
+- `available_artifacts` passou a ser calculado por fonte unica em `file_ops.py`
+- `cli.py` enriquece payloads no emissor comum, sem remover `source_path`, `staged_path`, `reports` ou `exports`
+- `sweep.py` calcula `available_artifacts` uma vez ao fechar cada item, evitando I/O durante serializacao
+- smokes Windows e Debian removem JSONs fixos antigos no inicio da rodada
+- smokes validam que artefatos listados em `available_artifacts` existem como arquivos antes da evidencia final
+
+Validacoes executadas:
+- `uv run --python 3.13 python -m compileall -q src tests`: ok
+- `uv run --python 3.13 --with ruff ruff check .`: ok
+- `uv run --python 3.13 --with ty ty check src`: ok
+- `uv run --python 3.13 --with pytest python -m pytest -q tests/test_file_ops.py tests/test_cli.py tests/test_sweep.py`: 83 passed
+- `uv run --python 3.13 --with pytest python -m pytest -q`: 233 passed
+- `bash -n scripts/smoke_debian13.sh`: ok
+- `pwsh Parser.ParseFile scripts/smoke_windows11.ps1`: ok
+- `uv run --python 3.13 python -m scrap_report.cli scan-secrets --paths src README.md`: ok, 0 findings
+
+Kluster:
+- achados durante o ciclo:
+  - 1 medio: acoplamento inicial em `_emit_json`
+  - 1 medio: I/O em `SweepItemResult.to_payload`
+  - 1 alto: `dict(None)` possivel em `SweepRunner._run_item`
+  - 3 achados finais intermediarios: centralizacao, duplicacao e `manifest_json` antes da escrita
+- todos corrigidos
+- revisao final do conjunto alterado: limpa
+
+Risco residual:
+- baixo: `source_path` historico continua podendo apontar para origem ja movida por staging, mas nao entra em `available_artifacts` quando nao existe
+- baixo: `manifest_json` nao e auto-oferecido dentro do proprio payload porque a validacao ocorre antes da escrita do arquivo de manifest
+
+Proximo passo natural:
+1. rodar smoke real Windows 11 e Debian no ambiente alvo para confirmar evidencias de plataforma

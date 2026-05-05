@@ -185,6 +185,55 @@ def test_sweep_runner_keeps_order_and_collects_successes(tmp_path: Path):
     assert [item["setor_executor"] for item in payload["items"]] == ["MEL4", "MEL3"]
 
 
+def test_sweep_runner_available_artifacts_skip_missing_paths(tmp_path: Path):
+    plan = SweepPlan(
+        report_kind="pendentes",
+        scope_mode="executor",
+        setores_executor=("MEL4",),
+        emission_year_week_start="202608",
+        emission_year_week_end="202612",
+    )
+    runtime = SweepRuntimeConfig(
+        username="u1",
+        password="p1",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+
+    def _pipeline_runner(config, generate_reports):
+        staged_path = runtime.staging_dir / "ok.xlsx"
+        report_path = runtime.staging_dir / "reports" / "dados.xlsx"
+        missing_path = runtime.download_dir / "old.xlsx"
+        staged_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        staged_path.write_bytes(b"xlsx")
+        report_path.write_bytes(b"report")
+
+        result = type("PipelineResult", (), {})()
+        result.status = "ok"
+        result.source_path = missing_path
+        result.staged_path = staged_path
+        result.reports = {
+            "dados": str(report_path),
+            "old": str(missing_path),
+            "mode": "search",
+        }
+        result.telemetry = None
+        return result
+
+    manifest = SweepRunner(pipeline_runner=_pipeline_runner).run(plan, runtime)
+
+    payload = _manifest_payload(manifest)
+    item = payload["items"][0]
+    available = cast(dict[str, Any], item["available_artifacts"])
+    assert item["telemetry"] == {}
+    assert "source_path" not in available
+    assert available["staged_path"] == str(runtime.staging_dir / "ok.xlsx")
+    assert available["reports"] == {
+        "dados": str(runtime.staging_dir / "reports" / "dados.xlsx")
+    }
+
+
 def test_sweep_runner_passes_numero_ssa_to_pipeline(tmp_path: Path):
     plan = SweepPlan(
         report_kind="consulta_ssa",

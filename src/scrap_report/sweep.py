@@ -15,6 +15,7 @@ from .config import (
     normalize_emission_date,
     normalize_setor_filter,
 )
+from .file_ops import collect_available_file_artifacts
 from .pipeline import run_pipeline
 from .reporting import export_sam_api_artifacts, sam_api_artifacts_to_dict
 from .sam_api import DEFAULT_SAM_API_BASE_URL, SAMApiClient, build_sam_api_summary, query_sam_api_records
@@ -34,6 +35,20 @@ SWEEP_PRESET_NAMES = tuple(
     for group_name in ("principal", "segundo_plano", "terceiro_plano", "prioritarios", "demais")
     for scope_name in SWEEP_PRESET_SCOPES
 )
+
+
+def _available_result_artifacts(
+    source_path: Path | None,
+    staged_path: Path | None,
+    reports: dict[str, str] | None,
+) -> dict[str, object]:
+    return collect_available_file_artifacts(
+        {
+            "source_path": source_path,
+            "staged_path": staged_path,
+            "reports": reports or {},
+        }
+    )
 
 
 def _dedupe_keep_order(values: Iterable[str]) -> tuple[str, ...]:
@@ -344,10 +359,11 @@ class SweepItemResult:
     staged_path: Path | None = None
     reports: dict[str, str] | None = None
     telemetry: dict[str, int] | None = None
+    available_artifacts: dict[str, object] | None = None
     error: str | None = None
 
     def to_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "index": self.index,
             "runtime_mode": self.runtime_mode,
             "scope_mode": self.scope_mode,
@@ -365,6 +381,9 @@ class SweepItemResult:
             "telemetry": self.telemetry or {},
             "error": self.error,
         }
+        if self.available_artifacts:
+            payload["available_artifacts"] = self.available_artifacts
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -498,6 +517,8 @@ class SweepRunner:
                 error=str(exc),
             )
 
+        reports = dict(pipeline_result.reports or {})
+        telemetry = dict(pipeline_result.telemetry or {})
         return SweepItemResult(
             index=item.index,
             runtime_mode=runtime.runtime_mode,
@@ -512,8 +533,13 @@ class SweepRunner:
             status=pipeline_result.status,
             source_path=pipeline_result.source_path,
             staged_path=pipeline_result.staged_path,
-            reports=dict(pipeline_result.reports),
-            telemetry=dict(pipeline_result.telemetry),
+            reports=reports,
+            telemetry=telemetry,
+            available_artifacts=_available_result_artifacts(
+                pipeline_result.source_path,
+                pipeline_result.staged_path,
+                reports,
+            ),
         )
 
     def _run_rest_item(
@@ -610,4 +636,9 @@ class SweepRunner:
                 "detail_count": int(summary["detail_count"]),
                 "without_detail_count": int(summary["without_detail_count"]),
             },
+            available_artifacts=_available_result_artifacts(
+                artifacts.data_csv,
+                artifacts.data_xlsx,
+                reports,
+            ),
         )
