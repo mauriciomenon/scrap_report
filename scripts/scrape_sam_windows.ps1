@@ -50,6 +50,26 @@ if (-not $outputDir) {
 }
 New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
+function Read-RequiredFlowJson {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$StepName
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "[scrape_sam_windows] $StepName terminou sem JSON de saida: $Path"
+    }
+    try {
+        $result = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    } catch {
+        throw "[scrape_sam_windows] $StepName gravou JSON invalido: $Path"
+    }
+    if (-not $result.status) {
+        throw "[scrape_sam_windows] $StepName gravou JSON sem status: $Path"
+    }
+    return $result
+}
+
 function Invoke-WindowsFlow {
     param(
         [Parameter(Mandatory = $true)][string]$Kind,
@@ -80,18 +100,10 @@ function Invoke-WindowsFlow {
         throw "[scrape_sam_windows] falha no windows-flow para report_kind=$Kind (exit_code=$LASTEXITCODE)"
     }
 
-    if (Test-Path $OutFile) {
-        try {
-            $result = Get-Content $OutFile -Raw | ConvertFrom-Json
-            if ($result.status) {
-                Write-Host "[scrape_sam_windows] status=$($result.status) report_kind=$Kind"
-            }
-            if ($result.staged_path) {
-                Write-Host "[scrape_sam_windows] staged_path=$($result.staged_path)"
-            }
-        } catch {
-            Write-Host "[scrape_sam_windows] aviso: json invalido em $OutFile"
-        }
+    $result = Read-RequiredFlowJson -Path $OutFile -StepName "windows-flow"
+    Write-Host "[scrape_sam_windows] status=$($result.status) report_kind=$Kind"
+    if ($result.staged_path) {
+        Write-Host "[scrape_sam_windows] staged_path=$($result.staged_path)"
     }
 }
 
@@ -124,16 +136,8 @@ function Invoke-SweepRun {
         throw "[scrape_sam_windows] falha no sweep-run para preset=$Preset report_kind=$Kind (exit_code=$LASTEXITCODE)"
     }
 
-    if (Test-Path $OutFile) {
-        try {
-            $result = Get-Content $OutFile -Raw | ConvertFrom-Json
-            if ($result.status) {
-                Write-Host "[scrape_sam_windows] status=$($result.status) preset=$Preset report_kind=$Kind"
-            }
-        } catch {
-            Write-Host "[scrape_sam_windows] aviso: json invalido em $OutFile"
-        }
-    }
+    $result = Read-RequiredFlowJson -Path $OutFile -StepName "sweep-run"
+    Write-Host "[scrape_sam_windows] status=$($result.status) preset=$Preset report_kind=$Kind"
 }
 
 function Resolve-BatchOutputPath {

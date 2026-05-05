@@ -189,7 +189,9 @@ class SAMScraper:
 
         def action() -> None:
             page.goto(self._build_report_url(report_target))
-            self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
+            if not self._wait_for_loading_complete(page, self.config.loading_timeout_ms):
+                snapshot = self._dom_snapshot(page)
+                raise RuntimeError(f"navegacao nao estabilizou; snapshot={snapshot}")
 
         self._safe_action(action, "erro na navegacao")
 
@@ -265,7 +267,9 @@ class SAMScraper:
         if details_locator.count() == 0:
             return
         details_locator.first.click()
-        self._wait_for_loading_complete(page, self.config.loading_timeout_ms)
+        if not self._wait_for_loading_complete(page, self.config.loading_timeout_ms):
+            snapshot = self._dom_snapshot(page)
+            raise RuntimeError(f"opcoes do relatorio nao estabilizaram; snapshot={snapshot}")
 
     def _export_download(self, page: Page) -> Path:
         selector = self._resolve_selector(

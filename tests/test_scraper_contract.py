@@ -152,6 +152,63 @@ def test_derivadas_relacionadas_export_timeout_has_explicit_runtime_error(tmp_pa
         scraper._export_download(cast(Any, FakePage()))
 
 
+def test_navigate_to_report_fails_when_loading_does_not_stabilize(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+
+    class FakePage:
+        def goto(self, url):
+            self.url = url
+
+    monkeypatch.setattr(scraper, "_wait_for_loading_complete", lambda page, timeout_ms: False)
+    monkeypatch.setattr(scraper, "_dom_snapshot", lambda page: "ready=loading,links=0,inputs=0")
+
+    with pytest.raises(RuntimeError, match="navegacao nao estabilizou"):
+        scraper._navigate_to_report(cast(Any, FakePage()))
+
+
+def test_report_options_fail_when_loading_does_not_stabilize(tmp_path, monkeypatch):
+    cfg = ScrapeConfig(
+        username="u",
+        password="p",
+        setor_emissor="IEE3",
+        setor_executor="MEL4",
+        report_kind="pendentes",
+        download_dir=tmp_path / "downloads",
+        staging_dir=tmp_path / "staging",
+    )
+    scraper = SAMScraper(cfg)
+
+    class FakeLocator:
+        def count(self):
+            return 1
+
+        @property
+        def first(self):
+            return self
+
+        def click(self):
+            return None
+
+    class FakePage:
+        def locator(self, selector):
+            return FakeLocator()
+
+    monkeypatch.setattr(scraper, "_wait_for_loading_complete", lambda page, timeout_ms: False)
+    monkeypatch.setattr(scraper, "_dom_snapshot", lambda page: "ready=complete,links=1,inputs=1")
+
+    with pytest.raises(RuntimeError, match="opcoes do relatorio nao estabilizaram"):
+        scraper._select_report_options(cast(Any, FakePage()))
+
+
 def test_empty_result_title_uses_all_when_filters_are_disabled(tmp_path):
     cfg = ScrapeConfig(
         username="u",

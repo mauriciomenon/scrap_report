@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any, cast
 
 
+SECRET_COMMAND_TIMEOUT_SECONDS = 30.0
+
+
 class SecretProviderError(RuntimeError):
     """Generic provider failure."""
 
@@ -68,9 +71,12 @@ class MacOSKeychainSecretProvider(SecretProvider):
                 text=True,
                 check=False,
                 input=input_secret,
+                timeout=SECRET_COMMAND_TIMEOUT_SECONDS,
             )
         except FileNotFoundError as exc:
             raise SecretBackendUnavailableError("backend keychain indisponivel") from exc
+        except subprocess.TimeoutExpired:
+            raise SecretBackendUnavailableError("timeout ao executar backend keychain") from None
 
     def set_secret(self, service: str, username: str, secret: str) -> None:
         if not secret.strip():
@@ -180,9 +186,17 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=SECRET_COMMAND_TIMEOUT_SECONDS,
             )
         except FileNotFoundError as exc:
             raise SecretBackendUnavailableError("backend windows credential indisponivel") from exc
+        except subprocess.TimeoutExpired as exc:
+            return subprocess.CompletedProcess(
+                args=exc.cmd,
+                returncode=124,
+                stdout=str(exc.stdout or ""),
+                stderr="timeout ao executar powershell",
+            )
 
     def _run_ps_with_fallback(self, script: str) -> list[tuple[str, subprocess.CompletedProcess[str]]]:
         results: list[tuple[str, subprocess.CompletedProcess[str]]] = []
@@ -218,6 +232,8 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
             return
         if self._all_failed_with_code(results, 11):
             raise SecretBackendUnavailableError("modulo CredentialManager ausente")
+        if self._all_failed_with_code(results, 124):
+            raise SecretBackendUnavailableError("timeout ao acessar windows credential backend")
         raise SecretProviderError("falha ao gravar credencial no windows vault")
 
     def _get_secret_via_credential_manager(self, service: str, username: str) -> str:
@@ -247,6 +263,8 @@ class WindowsCredentialManagerSecretProvider(SecretProvider):
                 return secret
         if self._all_failed_with_code(results, 11):
             raise SecretBackendUnavailableError("modulo CredentialManager ausente")
+        if self._all_failed_with_code(results, 124):
+            raise SecretBackendUnavailableError("timeout ao acessar windows credential backend")
         if any(proc.returncode in {12, 13} for _, proc in results):
             raise SecretNotFoundError("secret nao encontrado no windows vault")
         raise SecretProviderError("falha ao ler credencial no windows vault")
@@ -468,9 +486,12 @@ class LinuxSecretServiceProvider(SecretProvider):
                 text=True,
                 check=False,
                 input=input_secret,
+                timeout=SECRET_COMMAND_TIMEOUT_SECONDS,
             )
         except FileNotFoundError as exc:
             raise SecretBackendUnavailableError("backend secret-service indisponivel") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise SecretBackendUnavailableError("timeout ao executar backend secret-service") from exc
 
     def set_secret(self, service: str, username: str, secret: str) -> None:
         if not secret.strip():

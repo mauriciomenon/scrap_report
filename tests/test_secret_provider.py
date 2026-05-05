@@ -6,6 +6,7 @@ from scrap_report.secret_provider import (
     LinuxSecretServiceProvider,
     MacOSKeychainSecretProvider,
     MemorySecretProvider,
+    SECRET_COMMAND_TIMEOUT_SECONDS,
     SecretBackendUnavailableError,
     SecretNotFoundError,
     SecretProviderError,
@@ -45,6 +46,19 @@ def test_macos_provider_backend_unavailable(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     with pytest.raises(SecretBackendUnavailableError):
         provider.test_backend()
+
+
+def test_macos_provider_command_timeout(monkeypatch: pytest.MonkeyPatch):
+    provider = MacOSKeychainSecretProvider()
+
+    def fake_run(*_args, **kwargs):
+        assert kwargs["timeout"] == SECRET_COMMAND_TIMEOUT_SECONDS
+        raise subprocess.TimeoutExpired(cmd=["security"], timeout=kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(SecretBackendUnavailableError, match="timeout ao executar backend keychain") as exc:
+        provider.test_backend()
+    assert exc.value.__cause__ is None
 
 
 def test_build_secret_provider_non_darwin(monkeypatch: pytest.MonkeyPatch):
@@ -122,6 +136,53 @@ def test_windows_provider_fallback_pwsh_fail_then_powershell_ok(monkeypatch: pyt
     assert provider.get_secret("svc", "user1") == "secret123"
     assert call_order[0].lower().endswith("pwsh.exe")
     assert call_order[1].lower().endswith("powershell.exe")
+
+
+def test_windows_provider_fallback_pwsh_timeout_then_powershell_ok(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+    call_order: list[str] = []
+
+    def fake_which(name: str) -> str | None:
+        if name == "pwsh":
+            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+        if name == "powershell":
+            return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        return None
+
+    def fake_run(args, **kwargs):
+        call_order.append(args[0])
+        assert kwargs["timeout"] == SECRET_COMMAND_TIMEOUT_SECONDS
+        if args[0].lower().endswith("pwsh.exe"):
+            raise subprocess.TimeoutExpired(cmd=args, timeout=kwargs["timeout"])
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="secret123\n", stderr="")
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert provider.get_secret("svc", "user1") == "secret123"
+    assert call_order[0].lower().endswith("pwsh.exe")
+    assert call_order[1].lower().endswith("powershell.exe")
+
+
+def test_windows_provider_all_shells_timeout(monkeypatch: pytest.MonkeyPatch):
+    provider = WindowsCredentialManagerSecretProvider()
+
+    def fake_which(name: str) -> str | None:
+        if name == "pwsh":
+            return "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+        if name == "powershell":
+            return "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        return None
+
+    def fake_run(args, **kwargs):
+        assert kwargs["timeout"] == SECRET_COMMAND_TIMEOUT_SECONDS
+        raise subprocess.TimeoutExpired(cmd=args, timeout=kwargs["timeout"])
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(SecretBackendUnavailableError, match="timeout ao acessar"):
+        provider._get_secret_via_credential_manager("svc", "user1")
 
 
 def test_windows_provider_set_secret_module_missing(monkeypatch: pytest.MonkeyPatch):
@@ -208,3 +269,15 @@ def test_linux_provider_set_secret_rejects_blank(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(subprocess, "run", fail_run)
     with pytest.raises(SecretProviderError, match="secret vazio nao permitido"):
         provider.set_secret("svc", "user1", "   ")
+
+
+def test_linux_provider_command_timeout(monkeypatch: pytest.MonkeyPatch):
+    provider = LinuxSecretServiceProvider()
+
+    def fake_run(*_args, **kwargs):
+        assert kwargs["timeout"] == SECRET_COMMAND_TIMEOUT_SECONDS
+        raise subprocess.TimeoutExpired(cmd=["secret-tool"], timeout=kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(SecretBackendUnavailableError, match="timeout ao executar backend secret-service"):
+        provider.test_backend()
